@@ -51,6 +51,7 @@ const checks = [
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
   ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
   ["sidebar follows Unslop's 240px rail and 36px navigation rhythm", flatRound.includes("width:240px; min-width:240px;") && flatRound.includes("min-height:36px;") && flatRound.includes("gap:8px;") && flatRound.includes("stroke-width:1.5;")],
+  ["tablet board layouts stack before content becomes cramped", flatRound.includes("@media (max-width:1000px) and (min-width:761px)") && flatRound.includes(".atlas-round .atlas-discover-layout,") && flatRound.includes(".atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr);")],
   ["active sidebar contains only quiet board navigation, not status badges", !roundLayout.includes("WorkspaceStatus") && !roundLayout.includes("ApiKeyHealth") && !roundLayout.includes("atlas-round-sidebar-status")],
   ["footer copy is sentence case and readable", roundLayout.includes("Evidence first, always attributable") && roundLayout.includes("Public records workspace") && flatRound.includes("font-size:11px; letter-spacing:0; text-transform:none;")],
   ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
