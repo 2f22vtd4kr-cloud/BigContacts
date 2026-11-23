@@ -13,7 +13,7 @@ const primaryNav = [
   { name: "Reactor", href: "/reactor", icon: ReactorMark },
 ];
 
-export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
+export function Layout({ children }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
@@ -54,7 +54,7 @@ export function Layout({ children, onSwitchToLegacy }: { children: React.ReactNo
   );
 
   return (
-    <div className="atlas-round-shell">
+    <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
       <header className="atlas-round-mobile-header">
         <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><strong>Apex Atlas</strong></Link>
