@@ -294,7 +294,7 @@ async function main() {
           url: page.url(),
           heading: boardPage.heading,
           emptyEntitiesFixture: currentPath !== "/network",
-          titleVisible: await page.getByRole("heading", { name: boardPage.heading }).isVisible(),
+          titleVisible: await page.getByRole("heading", { name: boardPage.heading }).first().isVisible(),
           boardDiagnostics,
           browserErrors: browserErrors.slice(0, 20),
         })}`);
