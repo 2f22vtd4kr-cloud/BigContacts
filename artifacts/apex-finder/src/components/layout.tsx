@@ -5,7 +5,7 @@ import { Layout as LegacyLayout } from "./layout-legacy";
 type UiMode = "round" | "legacy";
 
 /** The classic shell remains a live, user-selectable rollback path. */
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, roundChildren, legacyChildren }: { children?: React.ReactNode; roundChildren?: React.ReactNode; legacyChildren?: React.ReactNode }) {
   const [mode, setMode] = useState<UiMode>(() => {
     if (typeof window === "undefined") return "round";
     const requested = new URLSearchParams(window.location.search).get("ui");
@@ -17,6 +17,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setMode(next);
   };
   return mode === "legacy"
-    ? <LegacyLayout onSwitchToRound={() => switchMode("round")}>{children}</LegacyLayout>
-    : <RoundLayout onSwitchToLegacy={() => switchMode("legacy")}>{children}</RoundLayout>;
+    ? <LegacyLayout onSwitchToRound={() => switchMode("round")}>{legacyChildren ?? children}</LegacyLayout>
+    : <RoundLayout onSwitchToLegacy={() => switchMode("legacy")}>{roundChildren ?? children}</RoundLayout>;
 }
