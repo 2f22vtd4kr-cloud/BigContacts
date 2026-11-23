@@ -53,9 +53,9 @@ export default function BoardConnectionsPage() {
           <p>Connect a user-owned contact source. Atlas will show a route only when a public record supports each link; no contacts or paths are inferred from names alone.</p>
         </div>
         <div className="atlas-connections-legend" aria-label="Evidence status legend">
-          <span><i className="is-verified" />Verified</span>
-          <span><i className="is-corroborated" />Corroborated</span>
-          <span><i className="is-review" />In review</span>
+          <span><i className="atlas-evidence-pattern is-verified" aria-hidden="true" />Verified</span>
+          <span><i className="atlas-evidence-pattern is-corroborated" aria-hidden="true" />Corroborated</span>
+          <span><i className="atlas-evidence-pattern is-review" aria-hidden="true" />In review</span>
         </div>
       </section>
     </BoardPageFrame>
