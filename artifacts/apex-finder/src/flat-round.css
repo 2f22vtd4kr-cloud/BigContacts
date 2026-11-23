@@ -1031,7 +1031,7 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-reactor-run-metrics > div:first-child { padding-left:0; }
 .atlas-round .atlas-reactor-run-metrics > div + div { border-left:1px solid var(--round-line); }
 .atlas-round .atlas-reactor-run-metrics strong { color:var(--round-ink); font:500 21px "Geist",sans-serif; font-variant-numeric:tabular-nums; }
-.atlas-round .atlas-reactor-run-metrics span { color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-run-metrics span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-topology-link { display:inline-flex; align-items:center; gap:6px; margin-top:16px; color:var(--round-ink-2); font:500 11px "Geist",sans-serif; text-decoration:none; }
 .atlas-round .atlas-reactor-topology-link:hover { color:var(--round-ink); }
 @media (max-width:760px) {
