@@ -39,6 +39,7 @@ async function main() {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
       const browserErrors = [];
       const failedRequests = [];
+      let currentPath = "/";
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -77,8 +78,10 @@ async function main() {
           payload = { active: false, status: "idle" };
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
+        } else if (url.endsWith("/api/registry-matrix")) {
+          payload = { sources: [] };
         } else if (url.includes("/api/entities")) {
-          payload = visualEntities;
+          payload = currentPath === "/network" ? visualEntities : [];
         } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
@@ -187,6 +190,7 @@ async function main() {
           throw new Error("Mobile sidebar toggle is missing.");
         }
       }
+      currentPath = "/network";
       await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
       await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
       const routeSelects = page.locator(".atlas-connections-path-finder select");
@@ -208,6 +212,28 @@ async function main() {
         failedRequests: failedRequests.slice(0, 20),
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
+
+      for (const boardPage of [
+        { path: "/profiles", label: "ledger", heading: "Everyone on the register" },
+        { path: "/search", label: "discover", heading: "Where Atlas looks" },
+        { path: "/reactor", label: "reactor", heading: "Every step, on the record" },
+      ]) {
+        currentPath = boardPage.path;
+        await page.goto(new URL(boardPage.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.getByRole("heading", { name: boardPage.heading }).waitFor({ state: "visible", timeout: 12000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(100);
+        const boardScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
+        fs.writeFileSync(`/tmp/apex-${boardPage.label}-${name}.jpg`, boardScreenshot);
+        console.log(`APEX_VISUAL_META_${name}_${boardPage.label}=${JSON.stringify({
+          url: page.url(),
+          heading: boardPage.heading,
+          emptyEntitiesFixture: currentPath !== "/network",
+          titleVisible: await page.getByRole("heading", { name: boardPage.heading }).isVisible(),
+          browserErrors: browserErrors.slice(0, 20),
+        })}`);
+        console.log(`APEX_VISUAL_IMAGE_${name}_${boardPage.label}=${boardScreenshot.toString("base64")}`);
+      }
       await page.close();
     }
   } finally {
