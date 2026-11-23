@@ -50,7 +50,9 @@ async function main() {
       await page.route("**/api/**", async (route) => {
         const url = route.request().url();
         let payload = {};
-        if (url.endsWith("/api/healthz")) {
+        if (url.endsWith("/api/ingest/atlas-config")) {
+          payload = { discoveryObjectiveMaxChars: 1600, discoveryContextMaxChars: 1200 };
+        } else if (url.endsWith("/api/healthz")) {
           payload = { researchKeysConfigured: false };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
@@ -207,6 +209,25 @@ async function main() {
         failedRequests: failedRequests.slice(0, 20),
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
+      for (const [routePath, selector, routeName] of [
+        ["/profiles", ".atlas-ledger-layout", "ledger"],
+        ["/search", ".atlas-discover-layout", "discover"],
+        ["/reactor", ".atlas-board-reactor", "reactor"],
+      ]) {
+        await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForSelector(selector, { timeout: 15000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(100);
+        const routeShot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+        fs.writeFileSync(`/tmp/apex-${routeName}-${name}.jpg`, routeShot);
+        console.log(`APEX_VISUAL_IMAGE_${routeName}_${name}=${routeShot.toString("base64")}`);
+        console.log(`APEX_VISUAL_META_${routeName}_${name}=${JSON.stringify({
+          route: routePath,
+          title: await page.locator("h1").first().textContent().catch(() => ""),
+          browserErrors: browserErrors.slice(0, 20),
+          failedRequests: failedRequests.slice(0, 20),
+        })}`);
+      }
       await page.close();
     }
   } finally {
