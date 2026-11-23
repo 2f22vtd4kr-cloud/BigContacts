@@ -53,7 +53,21 @@
 .atlas-round .atlas-dashboard-hero-copy h1 { color:var(--round-ink)!important; font-weight:500; }
 .atlas-round .atlas-dashboard-hero-copy p { color:var(--round-ink-2)!important; }
 .atlas-round .atlas-dashboard-hero-copy > div { color:var(--round-green)!important; }
-.atlas-round .atlas-home-actions { padding:16px; background:linear-gradient(#fff,#fff) padding-box,repeating-conic-gradient(#C8321E 0 25%,#EDB92B 0 50%) 0/16px 16px border-box!important; border:8px solid transparent; border-radius:10px; box-shadow:none!important; }
+.atlas-round .atlas-home-actions {
+  position:relative;
+  padding:16px;
+  background-image:
+    linear-gradient(#fff,#fff),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'/%3E%3C/svg%3E"),
+    repeating-conic-gradient(#C8321E 0 25%,#EDB92B 0 50%);
+  background-size:auto,50% 100%,16px 16px;
+  background-position:0 0,right center,0 0;
+  background-repeat:no-repeat,repeat,repeat;
+  background-clip:padding-box,border-box,border-box;
+  border:8px solid transparent;
+  border-radius:10px;
+  box-shadow:none!important;
+}
 .atlas-round .atlas-home-primary-row { width:100%; }
 .atlas-round .atlas-home-launch { width:100%; }
 .atlas-round .atlas-dashboard-wide { min-width:0; }
