@@ -44,6 +44,7 @@ function scoreLabel(value: unknown) {
 export default function BoardLedgerPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | EvidenceStatus>("all");
+  const [showAll, setShowAll] = useState(false);
   const { data: rawEntities, isLoading, isError, refetch } = useListEntities({ limit: 500 });
 
   const entities = useMemo(() => {
@@ -75,6 +76,7 @@ export default function BoardLedgerPage() {
       return [entity.name, role, entity.type, entity.nationality, sources].some((value) => String(value ?? "").toLocaleLowerCase().includes(query));
     });
   }, [entities, filter, search]);
+  const displayed = showAll ? visible : visible.slice(0, 8);
 
   return (
     <div className="atlas-board-page atlas-board-ledger">
@@ -115,7 +117,7 @@ export default function BoardLedgerPage() {
               <h2 id="atlas-ledger-register-title">Register</h2>
               <p>Every person on the register, strongest first. The pattern on each row and the written status always say the same thing.</p>
             </div>
-            <span>{visible.length} of {entities.length}</span>
+            <span>{displayed.length} of {visible.length}</span>
           </div>
 
           {isLoading ? (
@@ -136,7 +138,7 @@ export default function BoardLedgerPage() {
               <table className="atlas-ledger-table">
                 <thead><tr><th>Person</th><th>Evidence</th><th>Score</th><th>Sources</th></tr></thead>
                 <tbody>
-                  {visible.map((entity: any) => {
+                  {displayed.map((entity: any) => {
                     const sources = sourceList(entity.sourceRegistries).filter((source) => !/^(manual|user|seed|imported)$/i.test(source));
                     const status = entity.boardEvidenceStatus as EvidenceStatus;
                     const role = entityWorkSummary(entity);
@@ -157,6 +159,11 @@ export default function BoardLedgerPage() {
                   })}
                 </tbody>
               </table>
+              {visible.length > 8 && (
+                <button type="button" className="atlas-ledger-view-all" onClick={() => setShowAll((value) => !value)}>
+                  {showAll ? "Show fewer" : "View all " + visible.length}
+                </button>
+              )}
             </div>
           )}
         </section>
