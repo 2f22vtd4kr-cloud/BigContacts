@@ -421,7 +421,7 @@
 .atlas-round .atlas-reactor-log-time { display:flex; flex-direction:column; gap:4px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-log-time span { color:var(--round-ink-2); }
 .atlas-round .atlas-reactor-log-item-main { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:4px; }
-.atlas-round .atlas-reactor-log-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:4px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-log-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-log-category.is-search { border-color:rgba(39,87,198,.28); color:var(--round-blue); }
 .atlas-round .atlas-reactor-log-category.is-registry { border-color:rgba(31,138,77,.28); color:var(--round-green); }
 .atlas-round .atlas-reactor-log-category.is-browser { border-color:rgba(200,50,30,.24); color:var(--round-red); }
@@ -496,7 +496,7 @@
 .atlas-round .atlas-reactor-board-event-content { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:8px; }
 .atlas-round .atlas-reactor-board-event-content strong { color:var(--round-ink); font:500 13px/1.4 "Geist",sans-serif; }
 .atlas-round .atlas-reactor-board-event-content p { max-width:680px; margin:0; color:var(--round-ink-2); font:400 11px/1.55 "Geist",sans-serif; }
-.atlas-round .atlas-reactor-board-event-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:4px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-board-event-category { padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-reactor-board-event-category.is-search { border-color:rgba(39,87,198,.28); color:var(--round-blue); }
 .atlas-round .atlas-reactor-board-event-category.is-registry { border-color:rgba(31,138,77,.28); color:var(--round-green); }
 .atlas-round .atlas-reactor-board-event-category.is-browser { border-color:rgba(200,50,30,.24); color:var(--round-red); }
