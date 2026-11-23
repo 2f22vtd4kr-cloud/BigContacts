@@ -166,7 +166,7 @@ export function LaunchAtlasButton({
           <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / {objectiveLimit.toLocaleString()}</span>
         </label>
       )}
-      <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
+      <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
         {variant !== "header" && !opts?.researchDepth && !inFlight && (
           <div className="atlas-launch-settings">
             <div className="atlas-launch-depth" role="group" aria-label="Research depth">
