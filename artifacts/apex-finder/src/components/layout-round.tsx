@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Database, House, Menu, Network, Search, X } from "lucide-react";
-import { ApiKeyHealth } from "@/components/api-key-health";
 import { ReactorMark } from "@/components/reactor-mark";
-import { WorkspaceStatus } from "@/components/workspace-status";
 
 const primaryNav = [
   { name: "Overview", href: "/", icon: House },
@@ -76,15 +74,11 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
           <div className="atlas-round-sidebar-label">Workspace</div>
           <NavItems />
         </nav>
-        <div className="atlas-round-sidebar-status">
-          <div className="atlas-round-sidebar-status-item"><WorkspaceStatus /></div>
-          <div className="atlas-round-sidebar-status-item"><ApiKeyHealth /></div>
-        </div>
       </aside>
       <div className="atlas-round-main-column">
         <main id="main-content" tabIndex={-1} className="atlas-round-main">
           <div className="atlas-round-content">{children}</div>
-          <footer className="atlas-round-footer"><span>APEX ATLAS</span><span>Evidence first. Always attributable.</span><span>PUBLIC RECORDS WORKSPACE</span></footer>
+          <footer className="atlas-round-footer"><span>Apex Atlas</span><span>Evidence first, always attributable</span><span>Public records workspace</span></footer>
         </main>
       </div>
     </div>
