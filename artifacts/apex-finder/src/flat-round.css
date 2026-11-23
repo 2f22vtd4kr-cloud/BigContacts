@@ -585,7 +585,7 @@
 }
 .atlas-round .atlas-home-board-console::after {
   background-color: #FAFAF8;
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M0%206%20C8%202%208%202%2016%206%20S24%2010%2032%206%20M0%2018%20C8%2014%208%2014%2016%2018%20S24%2022%2032%2018'%20fill='none'%20stroke='%232757C6'%20stroke-width='1.35'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-8%206%20C0%202%200%202%208%206%20S16%2010%2024%206%20S32%202%2040%206%20M-8%2018%20C0%2014%200%2014%208%2018%20S16%2022%2024%2018%20S32%2014%2040%2018'%20fill='none'%20stroke='%232757C6'%20stroke-width='1.35'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 32px 24px;
 }
@@ -603,7 +603,7 @@
   background-size: 4px 4px;
 }
 .atlas-round .atlas-evidence-pattern.is-corroborated {
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M0%206%20C8%202%208%202%2016%206%20S24%2010%2032%206%20M0%2018%20C8%2014%208%2014%2016%2018%20S24%2022%2032%2018'%20fill='none'%20stroke='%232757C6'%20stroke-width='1.35'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-8%206%20C0%202%200%202%208%206%20S16%2010%2024%206%20S32%202%2040%206%20M-8%2018%20C0%2014%200%2014%208%2018%20S16%2022%2024%2018%20S32%2014%2040%2018'%20fill='none'%20stroke='%232757C6'%20stroke-width='1.35'/%3E%3C/svg%3E");
   background-size: 32px 24px;
 }
 
