@@ -607,7 +607,7 @@
   background-size: 32px 24px;
 }
 
-/* Review bends follow the board's diagonal, continuously curved field. */
+/* Review bends use a continuous diagonal field with no raster tile seam. */
 .atlas-round .atlas-evidence-pattern.is-review {
   background-image: repeating-linear-gradient(135deg, #EDB92B 0 5px, #F8E8B7 5px 11px);
   background-repeat: no-repeat;
