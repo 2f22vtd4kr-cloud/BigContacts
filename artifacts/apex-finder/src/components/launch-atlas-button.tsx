@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
+import { launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
@@ -52,7 +52,7 @@ export function LaunchAtlasButton({
   const [flash, setFlash] = useState(false);
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
   const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? 25)));
-  const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? DEFAULT_ATLAS_DISCOVERY_OBJECTIVE);
+  const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? "");
   const { run, refresh } = useAtlasRun(8_000);
 
   const running = (run.active || busy) && run.status !== "paused";
@@ -142,13 +142,14 @@ export function LaunchAtlasButton({
       )}
       {variant !== "header" && !inFlight && (
         <label className="flex w-full flex-col gap-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Investigation objective</span>
+          
           <textarea
-            aria-label="Investigation objective"
+            aria-label="Describe who you want to reach"
             data-testid="textarea-atlas-discovery-objective"
             value={launchObjective}
             onChange={(event) => setLaunchObjective(event.target.value)}
             maxLength={1_600}
+            placeholder="Describe who you want to reach"
             rows={3}
             disabled={busy || stopping || apiUnavailable}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
