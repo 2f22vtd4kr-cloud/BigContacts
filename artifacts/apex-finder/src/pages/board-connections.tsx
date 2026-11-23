@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useListRelationships, type Relationship } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { RefreshCw, Search } from "lucide-react";
+import { ConnectionPathFinder } from "@/components/connection-path-finder";
 import { BoardPageFrame } from "@/components/board-page-frame";
 
 type RelationshipFilter = "all" | "entity" | "asset";
@@ -90,6 +91,7 @@ export default function BoardConnectionsPage() {
             <div><strong>{isLoading ? "—" : isError ? "—" : counts.entity.toLocaleString()}</strong><span>Loaded entity links</span></div>
             <div><strong>{isLoading ? "—" : isError ? "—" : counts.asset.toLocaleString()}</strong><span>Loaded asset links</span></div>
           </div>
+          <ConnectionPathFinder />
           {isError && (
             <div className="atlas-connections-empty" role="alert">
               <strong>The relationship register could not be loaded.</strong>
