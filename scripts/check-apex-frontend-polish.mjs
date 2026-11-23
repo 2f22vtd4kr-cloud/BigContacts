@@ -99,7 +99,7 @@ const checks = [
   ["supported evidence dots remain discrete high-resolution circles", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-supported"); const dots = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(dots && dots[1].includes("background-color: #1F8A4D") && dots[1].includes("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)") && dots[1].includes("background-size: 12px 12px")); })()],
 
   ["Home route result uses the weakest recorded evidence state for its patterned edge", dashboard.includes("routePatternStatus(routeQuery.data.edges)") && dashboard.includes("atlas-route-pattern-card is-")],
-  ["Card contact routes receive evidence-specific patterned edges from API validation", contactSurface.includes("routeTier(primary, true).label") && contactSurface.includes("is-corroborated") && contactSurface.includes("atlas-route-pattern-card")],
+  ["Card contact routes receive evidence-specific patterned edges from API validation", contactSurface.includes("routeTier(primary, true).label") && contactSurface.includes('tier === "Corroborated" ? "corroborated"') && contactSurface.includes("atlas-route-pattern-card")],
   ["route-card pattern edge follows the board's 12px frame and 4px spacing grid", flatRound.includes(".atlas-route-pattern-card {") && flatRound.includes("padding:12px;") && flatRound.includes("border-radius:16px;") && flatRound.includes("background-size:12px 12px;") && flatRound.includes("background-size:32px 24px;")],
 ];
 
