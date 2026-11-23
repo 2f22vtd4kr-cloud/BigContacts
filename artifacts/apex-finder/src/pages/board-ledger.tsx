@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import { entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
+import { normalizeEntityType } from "@/lib/entity-taxonomy";
 
 type EvidenceStatus = "verified" | "corroborated" | "review";
 
@@ -56,6 +57,7 @@ export default function BoardLedgerPage() {
         : [];
     return raw
       .filter((entity: any) => !entity.isHidden)
+      .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(entity.type)))
       .map((entity: any) => ({ ...entity, boardEvidenceStatus: evidenceStatus(entity) }))
       .sort((a: any, b: any) => Number(b.bayesianScore ?? 0) - Number(a.bayesianScore ?? 0));
   }, [rawEntities]);
