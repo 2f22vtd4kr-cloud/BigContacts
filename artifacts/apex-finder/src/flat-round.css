@@ -219,8 +219,6 @@
   .atlas-home-board-routes { grid-row:6; }
   }
 
-.atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,@media (max-width:760px) {
-  .atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-routes,}
 
 .atlas-home-board-intro { text-align:left; margin-inline-start:0; }
 
