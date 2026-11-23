@@ -78,14 +78,14 @@ require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchComp
 require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searches must respect the frontend base path");
 require(deepSearch.includes("{query.length.toLocaleString()} / 1,200"), "Discover must display the board's live 1,200-character query counter");
 require(boardConnections.includes("The people between you") && boardConnections.includes("No personal contacts are connected") && boardConnections.includes("totalRelationships"), "Connections must not invent user contacts and must retain real relationship counts");
-require(router.includes('path="/network/graph"'), "The full relationship graph must remain accessible as a secondary utility");
+require(router.includes('path="/network" component={GraphViewer}'), "The full relationship graph must remain available in the classic rollback");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook"), "Reactor board must use the shared normalized live-telemetry store");
 require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board"), "Reactor board must render a paper-style list from the shared normalized event stream");
 require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor={false}'), "Reactor run console must preserve the board 25-person objective controls");
 require(reactor.includes('"/api/healthz"') && reactor.includes("onRetryApi") && reactor.includes("API down"), "Reactor must expose a verified API-down state with retry");
 require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
-require(router.includes('path="/reactor/topology"'), "The original Reactor topology must remain reachable as a secondary utility");
+require(router.includes('path="/reactor" component={IntelligenceReactorPage}'), "The original Reactor topology must remain available in the classic rollback");
 require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile") && boardProfile.includes("RECENT_CARD_KEY"), "Card must retain the live evidence dossier and real recently opened subject tabs");
 require(css.includes(".atlas-discover-layout") && css.includes("grid-template-columns:minmax(0,1.15fr)"), "Discover must follow the board's desktop two-column composition");
 require(css.includes(".atlas-discover-layout { grid-template-columns:minmax(0,1fr);"), "Discover must stack its search, saved searches and sources on mobile");
