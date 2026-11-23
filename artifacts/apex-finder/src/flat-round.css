@@ -358,6 +358,28 @@
 
 .atlas-round .atlas-ledger-contact-outcome { display:inline-flex; max-width:190px; padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; white-space:normal; }
 
+.atlas-round .atlas-home-route-finder { display:grid; gap:12px; padding:16px 0; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-home-route-finder > label { display:grid; gap:6px; color:var(--round-ink-2); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-finder select { width:100%; min-width:0; padding:10px 11px; border:1px solid var(--round-line); border-radius:6px; background:var(--round-card); color:var(--round-ink); font:400 12px "Geist",sans-serif; }
+.atlas-round .atlas-home-route-finder > button { justify-self:start; padding:10px 14px; border:1px solid var(--round-ink); border-radius:6px; background:var(--round-ink); color:var(--round-card); font:500 11px "Geist Mono",ui-monospace,monospace; cursor:pointer; }
+.atlas-round .atlas-home-route-finder > button:disabled { opacity:.45; cursor:not-allowed; }
+.atlas-round .atlas-home-route-finder > p,.atlas-round .atlas-home-route-recommendation { margin:0; color:var(--round-ink-3); font:400 11px/1.55 "Geist",sans-serif; }
+.atlas-round .atlas-home-route-result { display:grid; gap:12px; padding:12px; border:1px solid var(--round-line); border-radius:8px; background:var(--round-raised); }
+.atlas-round .atlas-home-route-result-meta { display:flex; justify-content:space-between; gap:12px; color:var(--round-ink-3); font:400 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-result-meta strong { color:var(--round-ink); font-weight:500; }
+.atlas-round .atlas-home-route-nodes,.atlas-round .atlas-home-route-evidence { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.atlas-round .atlas-home-route-nodes li { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 8px; color:var(--round-ink); font:500 12px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-home-route-nodes li small { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-node-arrow { grid-column:1 / -1; color:var(--round-ink-3); font:400 12px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-evidence { padding-top:10px; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-home-route-evidence li { display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center; gap:8px; color:var(--round-ink-2); font:400 10px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-home-route-evidence li strong { color:var(--round-ink-3); font:400 9px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-legend { display:grid; gap:10px; padding-top:12px; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-home-route-legend > div { display:grid; grid-template-columns:12px auto minmax(0,1fr); align-items:center; gap:8px; }
+.atlas-round .atlas-home-route-legend strong { color:var(--round-ink); font:500 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-home-route-legend > div > span:last-child { color:var(--round-ink-3); font:400 10px/1.4 "Geist",sans-serif; }
+@media (max-width:760px) { .atlas-round .atlas-home-route-result-meta { flex-direction:column; gap:4px; } .atlas-round .atlas-home-route-legend > div { grid-template-columns:12px minmax(0,1fr); } .atlas-round .atlas-home-route-legend > div > span:last-child { grid-column:2; } }
+
 /* Connections board: user-owned contacts and only complete, source-backed routes. */
 .atlas-round .atlas-connections-layout { display:grid; grid-template-columns:minmax(270px,.82fr) minmax(0,1.18fr); gap:48px; align-items:start; }
 .atlas-round .atlas-connections-console,.atlas-round .atlas-connections-routes { min-width:0; border-top:1px solid var(--round-line); }
