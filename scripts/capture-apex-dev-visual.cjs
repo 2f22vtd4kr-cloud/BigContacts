@@ -186,6 +186,8 @@ async function main() {
       await page.getByRole("button", { name: "Find shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
       routeFixtureLoaded = true;
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
       const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
       fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
