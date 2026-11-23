@@ -22,7 +22,7 @@ require(dashboard.includes("atlas-home-board-grid"), "Home must use the approved
 require(dashboard.includes("atlas-home-board-console"), "Home must use the framed launch console");
 require(dashboard.includes("Strongest routes"), "Home must reserve the right-hand strongest-routes panel");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
-require(dashboard.includes("Research leads in review"), "Home must preserve provisional research leads");
+require(!dashboard.includes("atlas-home-board-people") && !dashboard.includes("atlas-home-research-leads"), "Home must not retain legacy feed sections absent from the board");
 require(!dashboard.includes("atlas-home-secondary-row"), "Home must not add shortcut buttons absent from the design board");
 require(!dashboard.includes("ScoreboardStrip"), "operator scoreboard must not displace the designed Home composition");
 require(css.includes(".atlas-home-board-grid"), "CSS must define the board's two-column Home layout");
