@@ -210,7 +210,7 @@ export function ContactSurface({
       <div className="flex flex-wrap items-center gap-1">
         <span
           className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-mono"
-          style={{ color: markColor(primary.mark), background: markColor(primary.mark) + "22" }}
+          style={{ color: markColor(primary.mark, boardMode), background: markColor(primary.mark, boardMode) + "22" }}
         >
           {primary.label || primary.mark || primary.vectorType}
         </span>
