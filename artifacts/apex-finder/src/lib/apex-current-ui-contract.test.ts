@@ -95,8 +95,12 @@ describe("current Apex UI contract", () => {
     expect(launchHelper).toContain("discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(launchHelper).toContain("A source-backed operating company is a valid finding");
     expect(launchButton).toContain("textarea-atlas-discovery-objective");
-    expect(launchButton).toContain("maxLength={1_200}");
+    expect(launchButton).toContain("maxLength={objectiveLimit ?? undefined}");
+    expect(launchButton).toContain("Loading API limit…");
+    expect(launchButton).toContain("/api/ingest/atlas-config");
+    expect(launchButton).not.toMatch(/1_200|1_600/);
     expect(launchButton).toContain("discoveryObjective: objective");
+    expect(launchButton).toContain("objective.length > objectiveLimit");
     expect(launchButton).toContain("Apex chooses its own targets, sources, providers, queries and next actions from the evidence");
   });
 
