@@ -396,6 +396,7 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
               maxLength={boardMode ? 1_200 : undefined}
               className="w-full bg-background border border-[#9CFF1A]/12 rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             />
+            {boardMode && <div className="atlas-discover-query-count">{query.length.toLocaleString()} / 1,200</div>}
           </div>
           <button type="submit" disabled={loading || !query.trim()} className={cn("flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",loading || !query.trim()?"bg-muted text-muted-foreground cursor-not-allowed":"bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(156,255,26,0.3)]")}>{loading?<Loader2 className="w-4 h-4 animate-spin"/>:<Zap className="w-4 h-4"/>}{loading?"Running…":boardMode ? "Run search" : "Search"}</button>
           {boardMode && onSaveSearch && (
