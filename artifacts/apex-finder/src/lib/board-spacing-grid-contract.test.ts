@@ -55,7 +55,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   it("keeps checky cells and verified dots on exact repeating grids", () => {
     expect(boardCss).toContain("width='24'%20height='24'%20viewBox='0%200%2024%2024'");
     expect(boardCss).toContain("background-size: 24px 24px;");
-    expect(boardCss).toContain("radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px)");
+    expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
     expect(boardCss).toContain("background-size: 12px 12px;");
     expect(boardCss).toContain("background-color: #1F8A4D;");
     expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
@@ -73,7 +73,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("draws review bends with a seamless repeating diagonal field", () => {
-    expect(boardCss).toContain("background-image: repeating-linear-gradient(135deg, #EDB92B 0 5px, #F8E8B7 5px 11px)");
+    expect(boardCss).toContain("background-image: repeating-linear-gradient(135deg, #EDB92B 0 8px, #F8E8B7 8px 16px)");
     expect(boardCss).toMatch(/is-review\s*\{\s*background-image:\s*repeating-linear-gradient/ );
     expect(boardCss).toContain("background-repeat: no-repeat;\n  background-size: auto;");
     expect(boardCss).toContain("background-color: #F8E8B7;");
