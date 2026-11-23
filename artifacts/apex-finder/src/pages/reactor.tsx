@@ -20,6 +20,7 @@ import { readApiJson } from "@/lib/api-json";
 import { parseReactorAtlasPoll } from "@/lib/reactor-page-atlas-poll";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
 import { useReactorLiveTelemetry, type LiveActivity } from "../lib/reactor-live-store";
+import { classifyReactorMethod } from "../lib/reactor-live-model";
 import { ReactorMark } from "../components/reactor-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1590,12 +1591,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   if (boardMode) {
     const logItems = telemetry.activities;
     const categoryForActivity = (activity: LiveActivity) => {
-      const blob = [activity.tool, activity.operation, activity.spanType, activity.agent].filter(Boolean).join(" ").toLowerCase();
-      if (/search|serper|tavily|exa|google|bing/.test(blob)) return "Search";
-      if (/registry|edgar|sec|companies|brreg|filing/.test(blob)) return "Registry";
-      if (/browser|visit|fetch|scrape|crawl|page/.test(blob)) return "Browser";
-      if (/evidence|promote|case|verify|source/.test(blob)) return "Evidence";
-      return "Notes";
+      const method = classifyReactorMethod({
+        method: "unknown",
+        provider: [activity.tool, activity.operation, activity.agent].filter(Boolean).join(" "),
+        title: activity.spanType,
+        query: activity.inputSummary,
+        url: activity.target,
+      });
+      return method === "search" ? "Search" : method === "registry" ? "Registry" : method === "browser" ? "Browser" : method === "case" ? "Evidence" : "Notes";
     };
     const query = deskQuery.trim().toLowerCase();
     const filteredBoardItems = logItems.filter((activity) => {
@@ -1645,6 +1648,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 activities={filteredBoardItems}
                 targetName={atlasState?.currentEntities?.[0] || atlasState?.atlasTelemetry?.targetName}
                 showTopology={false}
+                boardMode
               />
             </div>
           )}
