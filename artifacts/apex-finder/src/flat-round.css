@@ -177,3 +177,21 @@
   .atlas-home-figures > a { padding:14px 8px!important; }
   .atlas-round .atlas-home-figures > a > div:nth-child(2) { font-size:23px!important; }
 }
+
+
+/* Translate legacy Tailwind accents into the board's four evidence tinctures. */
+.atlas-round [class*="text-[#9CFF1A]"],.atlas-round [class*="text-[#d4ff8a]"] { color:#17713E!important; }
+.atlas-round [class*="border-[#9CFF1A]"] { border-color:var(--round-line)!important; }
+.atlas-round [class*="bg-[#9CFF1A]"] { background-color:#1F8A4D12!important; }
+.atlas-round [class*="text-sky-"],.atlas-round [class*="text-blue-"] { color:#2757C6!important; }
+.atlas-round [class*="border-sky-"],.atlas-round [class*="border-blue-"] { border-color:#2757C633!important; }
+.atlas-round [class*="bg-sky-"],.atlas-round [class*="bg-blue-"] { background-color:#2757C610!important; }
+.atlas-round [class*="text-amber-"] { color:#7A5600!important; }
+.atlas-round [class*="border-amber-"] { border-color:#EDB92B55!important; }
+.atlas-round [class*="bg-amber-"] { background-color:#EDB92B14!important; }
+.atlas-round [class*="text-rose-"] { color:#A92718!important; }
+.atlas-round [class*="border-rose-"] { border-color:#C8321E44!important; }
+.atlas-round [class*="bg-rose-"] { background-color:#C8321E10!important; }
+.atlas-round .atlas-pressable:active { transform:scale(.98); }
+.atlas-round .atlas-pressable:focus-visible { outline:2px solid var(--round-blue); outline-offset:2px; }
+.atlas-round .atlas-card { border-radius:12px!important; }
