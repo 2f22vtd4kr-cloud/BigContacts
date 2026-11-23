@@ -22,6 +22,7 @@ const css = read(files.css);
 const flatRound = read("artifacts/apex-finder/src/flat-round.css");
 const dashboard = read(files.dashboard);
 const contactSurface = read("artifacts/apex-finder/src/components/contact-surface.tsx");
+const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const ledger = read(files.ledger);
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
@@ -104,7 +105,8 @@ const checks = [
   ["evidence wave swatch preserves the same overdrawn, seamless tile", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-corroborated"); const wave = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(wave && wave[1].includes("width='32'%20height='24'%20viewBox='0%200%2032%2024'") && /background-size:\s*32px 24px/.test(wave[1]) && wave[1].includes("background-color: #2757C6") && wave[1].includes("stroke='%23FAFAF8'") && wave[1].includes("M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012")); })()],
   ["supported evidence dots remain discrete high-resolution circles", (() => { const offset = flatRound.lastIndexOf(".atlas-round .atlas-evidence-pattern.is-supported"); const dots = offset >= 0 ? flatRound.slice(offset).match(/\{([^}]+)\}/) : null; return Boolean(dots && dots[1].includes("background-color: #1F8A4D") && dots[1].includes("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)") && dots[1].includes("background-size: 12px 12px")); })()],
 
-  ["Home route result uses the weakest recorded evidence state for its patterned edge", dashboard.includes("routePatternStatus(routeQuery.data.edges)") && dashboard.includes("atlas-route-pattern-card is-")],
+  ["Connections path results use the weakest recorded evidence state for their patterned edge", pathFinder.includes("routePatternStatus(routeQuery.data.edges)") && pathFinder.includes("atlas-route-pattern-card is-")],
+  ["Home uses the board's honest strongest-routes empty state", dashboard.includes("Strongest routes") && dashboard.includes("No routes yet") && !dashboard.includes("useGetConnectionPath")],
   ["Card contact routes receive evidence-specific patterned edges from API validation", contactSurface.includes("routeTier(primary, true).label") && contactSurface.includes('tier === "Corroborated" ? "corroborated"') && contactSurface.includes("atlas-route-pattern-card")],
   ["route-card pattern edge follows the board's 12px frame and 4px spacing grid", flatRound.includes(".atlas-route-pattern-card {") && flatRound.includes("padding:12px;") && flatRound.includes("border-radius:16px;") && flatRound.includes("background-size:12px 12px;") && flatRound.includes("background-size:32px 24px;")],
 ];
