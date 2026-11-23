@@ -35,21 +35,21 @@ Scope: active board routes and their rendered components; the classic interface 
 - transition-all and broad glow transitions in Discover and Card (deep-search.tsx, profile.tsx) → color, background, border, opacity and transform only.
 - Animated Home skeleton (dashboard.tsx) → static loading placeholder; live Reactor activity remains live-only.
 - Oversized Discover pipeline cards and filter sidebar (deep-search.tsx) → board-scoped neutral treatment; filters remain available through the Filters control.
-- Legacy feed polling that was not rendered on Home (dashboard.tsx) → removed; Home now requests only its visible stats and API health.
+- Legacy Home feed rendering (dashboard.tsx) → removed; the canonical research-lead projection remains warm in the query cache without restoring the old feed, alongside visible stats and API health.
 
 ### Copy and data integrity
 - Home's long prefilled objective (launch-atlas-button.tsx) → empty board prompt; launch stays disabled until an objective is entered.
 - Discover's missing saved-search and source-status surfaces (board-discover.tsx) → added device-persisted saved queries and live API/registry checks; unknown states are not called live.
 - Ledger evidence labels without explicit verification metadata (board-ledger.tsx) → only explicit verified or corroborated metadata receives those labels; all other records remain In review.
-- Specimen contact counts/routes without a user-owned contacts model (board-connections.tsx) → honest empty state; recorded relationship count is read from dashboard stats.
-- Reactor activity synthesized from a second event model (reactor.tsx) → removed; board Logbook consumes the shared normalized useReactorLiveTelemetry store through ReactorLiveSurface.
+- Specimen contact counts/routes without a user-owned contacts model (board-connections.tsx) → contact and verified-route counts now read as unavailable, inert search/filter chrome is removed, and only a known recorded-relationship total is displayed.
+- Reactor activity synthesized from a second event model (reactor.tsx) → removed; board Logbook consumes the shared normalized useReactorLiveTelemetry store through ReactorLiveSurface and renders the store's full 50-event window.
 - Unavailable API state presented as idle (reactor.tsx) → added a health check, API down label and retry action while retaining last recorded evidence.
 - Discover search endpoint that ignored the app base path (deep-search.tsx) → fetch now respects import.meta.env.BASE_URL.
-- Classic Graph and topology screens with the previous visual language (router.tsx) → kept in the classic rollback tree, not exposed as board utilities.
+- Accidental duplicate router source that broke JSX parsing (router.tsx) → removed while preserving distinct BoardRoutes and LegacyRoutes; classic Graph and topology remain in the classic rollback tree, not exposed as board utilities.
 
 ## Visual verification limits
 
-The repository CI can compile and run the responsive/UI contracts. No authenticated browser screenshot or live Replit preview was available in this pass, so visual pixel comparison against the supplied board remains unverified and must be done against the deployed preview before merge.
+The latest Netlify deploy previews are ready, and the frontend responsive contract, frontend build, Reactor no-fabrication contract, and discovery static check pass on the current branch head. The API regression suite and full codebase audit are still running. No authenticated browser screenshot or connected Replit app is available in this pass, so visual pixel comparison against the supplied board remains unverified and must be done against the deployed preview before merge.
 
 ## Unresolved data-model dependency
 
