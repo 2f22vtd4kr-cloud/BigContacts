@@ -101,6 +101,8 @@ describe("current Apex UI contract", () => {
     expect(healthRoute).toContain("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
     expect(launchButton).toContain("maxLength={objectiveLimit ?? undefined}");
     expect(launchButton).toContain("setObjectiveLimit(limit)");
+    expect(launchButton).toContain("value.slice(0, objectiveLimit)");
+    expect(launchButton).toContain("objective.length > objectiveLimit");
     expect(launchButton).not.toContain("1_200");
     expect(launchButton).not.toContain("1_600");
     expect(launchButton).toContain("discoveryObjective: objective");
