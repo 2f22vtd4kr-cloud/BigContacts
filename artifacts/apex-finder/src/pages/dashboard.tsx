@@ -413,7 +413,7 @@ export default function Dashboard() {
   const apiHealthQuery = useQuery({
     queryKey: ["dashboard", "api-health"],
     queryFn: async () => {
-      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       const response = await fetch(`${base}/api/healthz`, { credentials: "include", cache: "no-store" });
       if (!response.ok) throw new Error("Research API unavailable (" + response.status + ").");
       return response.json() as Promise<Record<string, unknown>>;
@@ -424,23 +424,6 @@ export default function Dashboard() {
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
-  // Keep the canonical review-lead projection warm for the Ledger and acceptance path.
-  // Its legacy feed presentation is intentionally not rendered on the board Home screen.
-  const reviewLeadsQuery = useQuery({
-    queryKey: ["dashboard", "research-leads"],
-    queryFn: async () => {
-      const response = await fetch("/api/dashboard/research-leads?limit=8", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) throw new Error(`Research leads request failed (${response.status}).`);
-      return response.json() as Promise<{ leads?: unknown[]; sourceLeads?: unknown[]; activeDiscovery?: boolean }>;
-    },
-    staleTime: 5_000,
-    refetchInterval: 5_000,
-  });
-  void reviewLeadsQuery.data;
-
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const apiUnavailable = !mock && apiHealthQuery.isError;
 
