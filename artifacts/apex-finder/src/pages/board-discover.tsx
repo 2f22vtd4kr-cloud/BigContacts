@@ -82,7 +82,7 @@ export default function BoardDiscoverPage() {
   const loadSources = useCallback(async () => {
     setSourcesLoading(true);
     setSourcesError(false);
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     try {
       const [statusResponse, registryResponse] = await Promise.all([
         fetch(`${base}/api/system/status`, { credentials: "include", cache: "no-store" }),
