@@ -70,12 +70,15 @@ require(shell.includes("roundChildren") && shell.includes("legacyChildren"), "bo
 require(router.includes("function BoardRoutes") && router.includes("function LegacyRoutes"), "router must keep board and classic page trees separate");
 require(router.includes("DashboardLegacy"), "classic rollback must retain the original Overview implementation");
 require(boardFrame.includes("atlas-board-page-intro"), "primary screens must share the board's semantic page frame");
-require(boardLedger.includes("Everyone on the register") && boardLedger.includes("EntityLedger"), "Ledger must use the board heading while retaining canonical entity controls");
+require(boardLedger.includes("Everyone on the register") && boardLedger.includes("useListEntities") && boardLedger.includes("atlas-ledger-table"), "Ledger must render a live strongest-first evidence register");
 require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Source register"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
-require(boardConnections.includes("The people between you") && boardConnections.includes("GraphViewer"), "Connections must retain the live relationship graph");
-require(boardReactor.includes("Every step, on the record") && boardReactor.includes("IntelligenceReactorPage"), "Reactor must retain the canonical live event feed");
+require(boardConnections.includes("The people between you") && boardConnections.includes("No personal contacts are connected") && boardConnections.includes("totalRelationships"), "Connections must not invent user contacts and must retain real relationship counts");
+require(router.includes('path="/network/graph"'), "The full relationship graph must remain accessible as a secondary utility");
+require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
+require(reactor.includes("atlasState?.recentSpans") && reactor.includes("atlas-reactor-logbook"), "Reactor board must render canonical recorded spans, not simulated activity");
+require(router.includes('path="/reactor/topology"'), "The original Reactor topology must remain reachable as a secondary utility");
 require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile"), "Card must retain the live evidence dossier");
 require(css.includes(".atlas-discover-layout") && css.includes("grid-template-columns:minmax(0,1.15fr)"), "Discover must follow the board's desktop two-column composition");
 require(css.includes(".atlas-discover-layout { grid-template-columns:minmax(0,1fr);"), "Discover must stack its search, saved searches and sources on mobile");
