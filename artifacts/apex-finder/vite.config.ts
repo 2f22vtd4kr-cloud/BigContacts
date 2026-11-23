@@ -11,17 +11,24 @@ const port = (Number.isNaN(parsedPort) || parsedPort <= 0) ? 23695 : parsedPort;
 
 const basePath = process.env.BASE_PATH ?? "/";
 
+const isProductionBuild =
+  process.env.NODE_ENV === "production" ||
+  process.env.VERCEL_ENV === "production" ||
+  process.env.CONTEXT === "production";
+const isDevelopmentOrPreviewBuild =
+  process.env.NODE_ENV === "development" ||
+  process.env.VERCEL_ENV === "preview" ||
+  process.env.CONTEXT === "deploy-preview";
+const operatorAuthBypass =
+  isDevelopmentOrPreviewBuild ||
+  (!isProductionBuild && process.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true");
+
 export default defineConfig({
   // Development and Vercel Preview are non-production workspaces. Keep the
   // operator gate mounted for production builds; API-side auth remains intact.
   define: {
     "import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS": JSON.stringify(
-      process.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true" ||
-      process.env.VERCEL_ENV === "preview" ||
-      process.env.CONTEXT === "deploy-preview" ||
-      process.env.NODE_ENV === "development"
-        ? "true"
-        : "false",
+      operatorAuthBypass ? "true" : "false",
     ),
   },
   base: basePath,
