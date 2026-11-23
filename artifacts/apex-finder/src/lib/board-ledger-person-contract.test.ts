@@ -11,9 +11,28 @@ describe("board Ledger people register", () => {
     expect(ledgerSource).toContain('<th>Person</th>');
   });
 
-  it("keeps the register strongest-first and evidence-backed", () => {
-    expect(ledgerSource).toContain('.sort((a: any, b: any) => Number(b.bayesianScore ?? 0) - Number(a.bayesianScore ?? 0))');
-    expect(ledgerSource).toContain('entity.boardEvidenceStatus');
-    expect(ledgerSource).toContain('sourceList(entity.sourceRegistries)');
+  it("preserves the backend reachability-first ordering and does not re-rank by wealth locally", () => {
+    expect(ledgerSource).toContain("Preserve the API's reachability-first order");
+    expect(ledgerSource).toContain("Atlas API order · contact reachability first");
+    expect(ledgerSource).not.toContain('.sort((a: any, b: any) => Number(b.bayesianScore');
+  });
+
+  it("uses real backend contact outcomes instead of inventing evidence verification states", () => {
+    expect(ledgerSource).toContain("entity.contactOutcome");
+    expect(ledgerSource).toContain("direct_contact_verified");
+    expect(ledgerSource).toContain("direct_contact_candidate");
+    expect(ledgerSource).toContain("organization_contact");
+    expect(ledgerSource).toContain("social_only");
+    expect(ledgerSource).toContain("evidence_only");
+    expect(ledgerSource).toContain('<th>Contact outcome</th>');
+    expect(ledgerSource).not.toContain("boardEvidenceStatus");
+    expect(ledgerSource).not.toContain("is-verified");
+    expect(ledgerSource).not.toContain("is-corroborated");
+    expect(ledgerSource).not.toContain("is-review");
+  });
+
+  it("retains the source attribution shown on each register row", () => {
+    expect(ledgerSource).toContain("sourceList(entity.sourceRegistries)");
+    expect(ledgerSource).toContain("entityEvidenceLabel(entity)");
   });
 });
