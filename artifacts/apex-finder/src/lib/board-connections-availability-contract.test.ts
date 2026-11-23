@@ -8,7 +8,7 @@ describe("board Connections availability state", () => {
     expect(connectionsSource).toContain("Contact source unavailable");
     expect(connectionsSource).toContain("Routes are unavailable.");
     expect(connectionsSource).toContain("Connect a user-owned contact source.");
-    expect(connectionsSource).toContain("No contacts or paths are inferred from names alone.");
+    expect(connectionsSource).toContain("no contacts or paths are inferred from names alone.");
     expect(connectionsSource).toContain('>Unavailable</span>');
   });
 });
