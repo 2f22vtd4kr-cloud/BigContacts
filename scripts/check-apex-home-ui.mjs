@@ -74,6 +74,7 @@ require(boardLedger.includes("Everyone on the register") && boardLedger.includes
 require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Source register"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
+require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searches must respect the frontend base path");
 require(boardConnections.includes("The people between you") && boardConnections.includes("No personal contacts are connected") && boardConnections.includes("totalRelationships"), "Connections must not invent user contacts and must retain real relationship counts");
 require(router.includes('path="/network/graph"'), "The full relationship graph must remain accessible as a secondary utility");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
