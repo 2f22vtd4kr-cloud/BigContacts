@@ -5,6 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
+const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const legacyDashboard = read("artifacts/apex-finder/src/pages/dashboard-legacy.tsx");
 const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 const reactor = read("artifacts/apex-finder/src/pages/reactor.tsx");
@@ -32,7 +33,8 @@ require(dashboard.includes("People worth knowing"), "Home must use the approved 
 require(dashboard.includes("atlas-home-board-grid"), "Home must use the approved split desktop composition");
 require(dashboard.includes("atlas-home-board-console"), "Home must use the framed launch console");
 require(dashboard.includes("All connections") && dashboard.includes('aria-label="Open all connections"'), "Home must link to the relationship register without mislabelling raw edges as routes");
-require(dashboard.includes("Shortest connection path") && dashboard.includes("useGetConnectionPath") && dashboard.includes("useListEntities") && dashboard.includes("Find shortest path") && dashboard.includes("routeQuery.data.path") && dashboard.includes("atlas-evidence-pattern is-supported") && dashboard.includes("atlas-evidence-pattern is-corroborated") && dashboard.includes("atlas-evidence-pattern is-review") && dashboard.includes("<strong>Supported</strong>") && dashboard.includes("<strong>Corroborated</strong>") && dashboard.includes("<strong>Disputed</strong>") && dashboard.includes("CircleAlert") && !dashboard.includes("Strongest routes") && !dashboard.includes("useListRelationships"), "Home must use the backend shortest-path API and distinguish corroborated evidence from disputed relationships");
+require(dashboard.includes("Strongest routes") && dashboard.includes("No routes yet") && dashboard.includes("no personal contact routes to rank yet") && dashboard.includes("atlas-home-route-legend") && dashboard.includes("<strong>Supported</strong>") && dashboard.includes("<strong>Corroborated</strong>") && dashboard.includes("<strong>Disputed</strong>") && dashboard.includes("CircleAlert") && !dashboard.includes("useGetConnectionPath") && !dashboard.includes("useListEntities"), "Home must match the board's real-data empty state without inventing strongest-route records");
+require(pathFinder.includes("useGetConnectionPath") && pathFinder.includes("useListEntities") && pathFinder.includes("Find shortest path") && pathFinder.includes("routePatternStatus") && pathFinder.includes("atlas-route-pattern-card"), "The real shortest-path API remains available in Connections with evidence-patterned results");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
 require(dashboard.includes('label="People"') && dashboard.includes('label="Relationships"') && dashboard.includes('label="Assets"'), "Home figures must use the backend's actual entity, relationship and asset counts");
 require(!dashboard.includes("atlas-stat-icon") && !dashboard.includes("icon: Users") && !dashboard.includes("icon: Network"), "Home figures must remain typographic, not decorative icon tiles");
