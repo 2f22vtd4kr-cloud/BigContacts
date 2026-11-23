@@ -47,6 +47,9 @@ require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"),
 const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
 require(objective.length > 0 && objective.length <= 1600, "default mission must fit the canonical 1,600-character launch contract");
 require(launch.includes("maxLength={1_600}"), "launch objective input must preserve the canonical 1,600-character limit");
+require(launch.includes('useState(opts?.discoveryObjective ?? "")'), "Home objective must start in the board empty state");
+require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
+require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
 require(layout.includes("icon: ReactorMark"), "sidebar Reactor navigation must use ReactorMark");
 require(!layout.includes("icon: Cpu"), "sidebar Reactor navigation must not use generic CPU icon");
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
