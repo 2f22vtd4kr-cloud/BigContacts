@@ -435,169 +435,117 @@ export default function Dashboard() {
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
   return (
-    <div className="atlas-page w-full min-w-0 max-w-full pb-12">
-      <div className="px-0 pt-2 md:pt-4">
-        <ScoreboardStrip className="mb-2" />
-      </div>
-      <section className="atlas-enter atlas-dashboard-hero atlas-ambient-gold relative flex flex-col gap-8 py-8 lg:flex-row lg:items-end lg:justify-between lg:py-12">
-        {/* Wash only — must not mask headline or Launch */}
-        <div className="atlas-ambient-wash" aria-hidden />
-        <div className="atlas-dashboard-hero-copy relative z-10 max-w-2xl">
-          <div className="mb-4 flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-[#9CFF1A]">
-            <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
-            Research desk
-          </div>
-          <h1 className="font-display text-[clamp(2rem,4.8vw,4.25rem)] font-semibold leading-[0.96] tracking-[-0.05em] text-[#fafaf9]">
-            People worth<br className="hidden sm:block" /> knowing.
-          </h1>
-          <p className="mt-5 max-w-lg text-sm leading-6 text-stone-400 md:text-[15px]">
-            Run free dig — the model chooses tools, visits sources, and builds contact routes. Only real research lands on this desk.
-          </p>
-        </div>
-        <div className="atlas-home-actions relative z-10 flex w-full flex-col gap-2 sm:w-auto lg:w-[28rem] lg:max-w-[28rem]">
-          <div className="atlas-home-primary-row">
-            <LaunchAtlasButton variant="primary" className="atlas-home-launch" />
-          </div>
-          <div className="atlas-home-secondary-row" role="group" aria-label="Research desk shortcuts">
-            <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-outline-btn atlas-pressable inline-flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold">
-              <ReactorMark size={17} className="shrink-0" /> Reactor
-            </Link>
-            <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold">
-              <Search className="h-4 w-4" aria-hidden="true" /> Discover
-            </Link>
-          </div>
-        </div>
-        <div className="atlas-soft-edge" aria-hidden />
-      </section>
+    <div className="atlas-page atlas-home-board w-full min-w-0 max-w-full pb-12">
+      <div className="atlas-home-board-grid">
+        <div className="atlas-home-board-left">
+          <section className="atlas-home-board-intro" aria-labelledby="atlas-home-title">
+            <h1 id="atlas-home-title">People worth knowing</h1>
+            <p>Describe who you want to reach. Atlas searches public records, links the evidence and maps the shortest route to them.</p>
+          </section>
 
-      {/* Registry-shallow risk — when no live web-search provider slots are active */}
-      {!mock && (stats as { registryShallowRisk?: boolean } | undefined)?.registryShallowRisk ? (
-        <div
-          role="status"
-          data-testid="banner-registry-shallow-risk"
-          className="mt-4 flex flex-col gap-2 rounded-xl border border-[#9CFF1A]/30 bg-[#9CFF1A]/10 px-4 py-3 text-sm text-[#fef3c7] sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-start gap-2">
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#d4ff8a]" />
-            <p className="text-[13px] leading-5">
-              <span className="font-semibold">Registry-shallow risk.</span>{" "}
-              No active web-search provider slots — discovery may stay filings-only until keys are live and the API is restarted.
-            </p>
-          </div>
-          <Link
-            href="/status"
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 px-3 text-xs font-semibold text-[#fef3c7] hover:bg-[#9CFF1A]/20"
-          >
-            Open system status
-          </Link>
-        </div>
-      ) : mock ? (
-        <div data-testid="banner-registry-shallow-risk" className="sr-only" aria-hidden="true">
-          registry shallow risk marker
-        </div>
-      ) : null}
-
-      {/* Desk shortcuts — product map without burying the hero */}
-      <section
-        className="atlas-enter atlas-dashboard-wide grid grid-cols-2 gap-2 pb-2 pt-5 md:grid-cols-4"
-        style={{ animationDelay: "40ms" }}
-        data-testid="dashboard-ops-strip"
-        aria-label="Desk shortcuts"
-      >
-        {[
-          { href: "/reactor", label: "Reactor", detail: "Live research", testId: "ops-reactor", icon: ReactorMark },
-          { href: "/profiles", label: "Ledger", detail: "People & companies", testId: "ops-ledger", icon: Users },
-          { href: "/network", label: "Graph", detail: "Connections", testId: "ops-network", icon: Network },
-          { href: "/status", label: "Status", detail: "Keys & systems", testId: "ops-status", icon: Activity },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            data-testid={item.testId}
-            className="atlas-pressable group rounded-xl border border-[#9CFF1A]/14 bg-[#0d1219]/80 px-3 py-3.5 transition-colors hover:border-[#9CFF1A]/40 hover:bg-[#0d1219] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
-          >
-            <div className="flex items-center gap-2">
-              <item.icon className="h-3.5 w-3.5 text-stone-500 transition-colors group-hover:text-[#9CFF1A]" aria-hidden="true" />
-              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#9CFF1A]">{item.label}</div>
+          <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console">
+            <div className="atlas-home-console-inner">
+              <LaunchAtlasButton variant="primary" className="atlas-home-launch" />
             </div>
-            <div className="mt-1 text-[12px] font-medium text-stone-200">{item.detail}</div>
-          </Link>
-        ))}
-      </section>
+          </section>
 
-      <section className="atlas-enter atlas-dashboard-wide grid grid-cols-2 gap-2.5 py-6 md:grid-cols-4 md:gap-3" style={{ animationDelay: "70ms" }}>
-        <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people · companies · trusts" icon={Users} testId="stat-total-entities" />
-        <StatTile href="/profiles" label="Priority" value={stats?.hotLeadsCount ?? "—"} detail="strongest contact paths" icon={Sparkles} testId="stat-hot-leads" />
-        <StatTile href="/profiles" label="Assets" value={stats?.totalAssets ?? "—"} detail="linked public evidence" icon={Database} testId="stat-total-assets" />
-        <StatTile href="/network" label="Links" value={stats?.totalRelationships ?? "—"} detail="known relationships" icon={Network} testId="stat-total-relationships" />
-      </section>
+          {!mock && (stats as { registryShallowRisk?: boolean } | undefined)?.registryShallowRisk ? (
+            <div role="status" data-testid="banner-registry-shallow-risk" className="atlas-home-risk">
+              <CircleAlert aria-hidden="true" />
+              <p><strong>Registry-shallow risk.</strong> No active web-search provider slots — discovery may stay filings-only until keys are live and the API is restarted.</p>
+              <Link href="/status">System status</Link>
+            </div>
+          ) : null}
 
-      <section className="atlas-enter atlas-dashboard-wide pt-3" style={{ animationDelay: "140ms" }}>
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="atlas-section-label flex items-center gap-2"><Sparkles className="h-3 w-3" /> Priority profiles</div>
-            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-stone-100 md:text-2xl">Strongest contact paths first</h2>
-          </div>
-          <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View all profiles <ChevronRight className="h-3.5 w-3.5" /></Link>
+          <section className="atlas-home-figures" aria-label="Bureau figures">
+            <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people, companies and trusts" icon={Users} testId="stat-total-entities" />
+            <StatTile href="/network" label="Relationships" value={stats?.totalRelationships ?? "—"} detail="recorded connections" icon={Network} testId="stat-total-relationships" />
+            <StatTile href="/profiles" label="Evidence records" value={stats?.totalAssets ?? "—"} detail="linked public records and assets" icon={Database} testId="stat-total-assets" />
+          </section>
+
+          <section className="atlas-home-board-people" aria-labelledby="atlas-home-people-title">
+            <div className="atlas-home-section-heading">
+              <div>
+                <h2 id="atlas-home-people-title">People and organisations</h2>
+                <p>Source-backed findings, strongest contact paths first</p>
+              </div>
+              <Link href="/profiles">Open Ledger <ChevronRight aria-hidden="true" /></Link>
+            </div>
+            {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
+              isLoading ? <div className="atlas-home-route-loading" aria-label="Loading findings">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div> :
+              leads.length === 0 ? <EmptyLeads /> :
+              <div className="atlas-home-people-list">{leads.slice(0, 3).map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+          </section>
         </div>
-        {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
-          isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
-          leads.length === 0 ? <EmptyLeads /> :
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
-      </section>
 
-      <section className="atlas-enter atlas-dashboard-wide mt-10 border-t border-[#9CFF1A]/10 pt-7" style={{ animationDelay: "180ms" }} data-testid="section-research-leads">
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="atlas-section-label flex items-center gap-2"><FileSearch className="h-3 w-3" /> Keep the evidence so far</div>
-            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-stone-100 md:text-2xl">Research leads in review</h2>
-            <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">Useful source-backed leads remain visible while the Investigator continues. These are not verified HNWIs or contact-ready targets.</p>
+        <aside className="atlas-home-board-routes" aria-labelledby="atlas-home-routes-title">
+          <div className="atlas-home-section-heading">
+            <div>
+              <h2 id="atlas-home-routes-title">Strongest routes</h2>
+              <p>{leads.length ? `${Math.min(leads.length, 3)} of ${leads.length} surfaced` : "Evidence-backed connections"}</p>
+            </div>
+            <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
           </div>
-          <Link href="/entities" data-testid="link-view-all-review-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View entity ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
+          {hasError ? (
+            <div className="atlas-home-route-empty"><CircleAlert aria-hidden="true" /><p>Routes could not be loaded. Your saved records remain available in the Ledger.</p></div>
+          ) : isLoading ? (
+            <div className="atlas-home-route-loading">{[0,1,2].map((item) => <div className="atlas-home-route-skeleton" key={item} />)}</div>
+          ) : leads.length ? (
+            <div className="atlas-home-route-list">
+              {leads.slice(0, 3).map((lead: any, index: number) => {
+                const access = Number(lead.accessScore ?? 0);
+                const verification = String(leadMetadata(lead).verificationLevel ?? "");
+                const status = verification === "verified" || verification === "primary_record" ? "Verified" : verification === "corroborated" ? "Corroborated" : "In review";
+                const tone = status === "Verified" ? "verified" : status === "Corroborated" ? "corroborated" : "review";
+                return (
+                  <Link href={`/profile/${lead.entityId}`} key={lead.entityId} className={`atlas-home-route-card atlas-home-route-${tone}`} data-testid={`home-route-${lead.entityId}`}>
+                    <div className="atlas-home-route-top">
+                      <span className="atlas-home-route-initials">{initials(lead.entityName)}</span>
+                      <span className="atlas-home-route-score">{scorePercent(access)}</span>
+                    </div>
+                    <div className="atlas-home-route-name">{lead.entityName || "Unnamed entity"}</div>
+                    <div className="atlas-home-route-role">{lead.role || lead.title || "Role not recorded"}</div>
+                    <div className="atlas-home-route-path">
+                      <span>You</span><span className="atlas-home-route-line" aria-hidden="true" /><span>{lead.entityName || "Target"}</span>
+                    </div>
+                    <div className="atlas-home-route-evidence">{entityEvidenceLabel(lead)} · {dateLabel(lead.signalDate)}</div>
+                    <div className="atlas-home-route-status">{status}</div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="atlas-home-route-empty">
+              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-verified" /> <strong>Verified</strong><span>Confirmed in a primary record</span></div>
+              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-corroborated" /> <strong>Corroborated</strong><span>Two independent sources agree</span></div>
+              <div className="atlas-home-route-empty-line"><span className="atlas-evidence-dot is-review" /> <strong>In review</strong><span>One source so far, a second is pending</span></div>
+              <p>No routes yet. Launch a run and the strongest evidenced paths will appear here.</p>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      <section className="atlas-home-research-leads" data-testid="section-research-leads">
+        <div className="atlas-home-section-heading">
+          <div>
+            <h2>Research leads in review</h2>
+            <p>Unverified and provisional findings stay visible without being promoted to confirmed facts.</p>
+          </div>
+          <Link href="/entities">Open entity ledger <ChevronRight aria-hidden="true" /></Link>
         </div>
         {reviewLeadsError ? (
-          <div className="atlas-card p-4 text-xs text-muted-foreground">
-            Partial review leads could not be loaded. The entity ledger remains the canonical record.
-            <button onClick={() => { void reviewLeadsQuery.refetch(); }} className="ml-2 font-semibold text-primary underline underline-offset-2">Retry</button>
-          </div>
+          <div className="atlas-card p-4 text-xs text-muted-foreground">Partial review leads could not be loaded. The entity ledger remains the canonical record.<button onClick={() => { void reviewLeadsQuery.refetch(); }} className="ml-2 font-semibold text-primary underline underline-offset-2">Retry</button></div>
         ) : reviewLeadsLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div>
         ) : (
           <>
-            {reviewLeads.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>
-            ) : sourceLeads.length === 0 ? (
-              <div className="atlas-card p-5" data-testid="empty-research-leads">
-                <div className="text-sm font-semibold text-foreground">No named entity lead is source-backed yet</div>
-                <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">As soon as search returns URLs, Atlas keeps them visible as unverified source leads below. A person or company entity card still requires a supported name from observed source content; search snippets and guessed contacts are never promoted to facts.</p>
-              </div>
-            ) : (
-              <div className="atlas-card px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="no-named-research-leads">No named company/person has met the source-backed lead bar yet. The discovered URLs remain visible below and can be pursued within this run.</div>
-            )}
-            {sourceLeads.length > 0 && (
-              <div className="mt-6" data-testid="section-source-leads">
-                <div className="mb-4">
-                  <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">Search-result leads to pursue</h3>
-                  <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">These cards are backed only by search-result URLs. A failed fetch is a retrieval limitation, not evidence against the source or the entity it may describe.</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{sourceLeads.map((lead: any, index: number) => <SourceLeadCard key={lead.id} lead={lead} index={index} />)}</div>
-              </div>
-            )}
+            {reviewLeads.length > 0 && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+            {reviewLeads.length === 0 && sourceLeads.length === 0 && <div className="atlas-card p-5" data-testid="empty-research-leads"><strong>No named entity lead is source-backed yet</strong><p className="mt-1.5 text-xs leading-5 text-muted-foreground">Search-result URLs remain unverified until Atlas observes source content. Snippets and guessed contacts are never promoted to facts.</p></div>}
+            {sourceLeads.length > 0 && <div className="mt-6" data-testid="section-source-leads"><h3 className="mb-3 text-sm font-medium">Search-result leads to pursue</h3><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{sourceLeads.map((lead: any, index: number) => <SourceLeadCard key={lead.id} lead={lead} index={index} />)}</div></div>}
           </>
         )}
       </section>
-
-      <section className="atlas-enter atlas-dashboard-wide mt-10 grid gap-4 border-t border-[#9CFF1A]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
-        <div>
-          <div className="atlas-section-label flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Evidence, not guesses</div>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">Open a profile for registries, ownership, assets, and public contact channels — then decide what deserves attention.</p>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground md:justify-end">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#9CFF1A]/12 bg-card"><Mail className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#9CFF1A]/12 bg-card"><Phone className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#9CFF1A]/12 bg-card"><FileSearch className="h-3.5 w-3.5" /></span>
-        </div>
-      </section>
     </div>
   );
+}
 }
