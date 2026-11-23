@@ -1679,7 +1679,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         })()
       : "No step recorded yet";
     return (
-      <>
+      <div className="atlas-reactor-board-layout">
         <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
           <div className="atlas-reactor-board-heading">
             <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
@@ -1755,7 +1755,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             </div>
           )}
         </section>
-      </>
+      </div>
     );
   }
 
