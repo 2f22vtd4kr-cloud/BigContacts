@@ -11,6 +11,15 @@
 - After writing changes to `main`, re-read the affected files (or otherwise verify their exact repository contents) to ensure no file was truncated or partially written.
 - Do not silently leave important fixes only on a feature, audit, security, or test branch.
 
+## Apex Atlas frontend design requirements
+
+- The user's supplied Apex Atlas design board is the visual source of truth. Do not substitute the older Research Desk layout, generic dashboard patterns, or an agent-invented visual direction.
+- For every frontend creation, redesign, or polish pass, read and apply `.agents/skills/unslop/SKILL.md` and its references. Keep its CC BY 4.0 attribution to Damir Sokolovsky and link to https://github.com/heydamir/unslop when sharing the skill or adaptations.
+- Match the board's page composition, typography, spacing, neutral palette, semantic tinctures, field patterns, responsive order, and filled/empty/API-down states. Where live data does not support a designed element (for example, a complete relationship route), show an honest empty/unavailable state rather than fabricating it.
+- Preserve the canonical AI-led research workflow and existing backend contracts. UI controls must pass their real values into the existing launch/control APIs; never add decorative controls that do not work.
+- Preserve the classic interface as a working rollback path while the new design is implemented and verified.
+- Verify the actual rendered desktop and 390px mobile screens, exercise filled/empty/API-down states, and run the frontend build plus relevant UI contract tests before calling the design complete.
+
 ## Apex Atlas audit work
 
 - The Apex Atlas / Apex Finder repository work is governed by the user's current instructions and the architecture documentation in this repository.
