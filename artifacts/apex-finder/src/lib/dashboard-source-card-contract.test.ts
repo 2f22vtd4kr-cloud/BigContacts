@@ -62,18 +62,17 @@ describe("Western registry seed source-catalogue honesty", () => {
 const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
 
 describe("board Home relationship projection", () => {
-  it("shows live relationship records instead of mock evidence-status examples", () => {
-    expect(currentDashboardSource).toContain("useListRelationships");
-    expect(currentDashboardSource).toContain("Recent connections");
-    expect(currentDashboardSource).toContain("relationship.sourceEntityName");
-    expect(currentDashboardSource).toContain("relationship.targetName");
-    expect(currentDashboardSource).toContain("relationship.relationshipType");
+  it("keeps the strongest-routes panel route-specific and uses truthful backend metric labels", () => {
+    expect(currentDashboardSource).toContain("Strongest routes");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-verified");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-corroborated");
+    expect(currentDashboardSource).toContain("atlas-evidence-pattern is-review");
+    expect(currentDashboardSource).toContain("complete path is available");
+    expect(currentDashboardSource).not.toContain("useListRelationships");
+    expect(currentDashboardSource).not.toContain("Recent connections");
     expect(currentDashboardSource).toContain('label="Relationships" value={stats?.totalRelationships');
     expect(currentDashboardSource).toContain('label="Assets" value={stats?.totalAssets');
     expect(currentDashboardSource).not.toContain('label="Routes" value={stats?.totalRelationships');
     expect(currentDashboardSource).not.toContain('label="Evidence records" value={stats?.totalAssets');
-    expect(currentDashboardSource).not.toContain("Confirmed in a primary record");
-    expect(currentDashboardSource).not.toContain("Two independent sources agree");
-    expect(currentDashboardSource).not.toContain("One source so far, a second is pending");
   });
 });
