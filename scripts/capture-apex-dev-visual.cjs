@@ -54,6 +54,8 @@ async function main() {
           payload = { discoveryObjectiveMaxChars: 1600, discoveryContextMaxChars: 1200 };
         } else if (url.endsWith("/api/healthz")) {
           payload = { researchKeysConfigured: false };
+        } else if (url.endsWith("/api/registry-matrix")) {
+          payload = { sources: [] };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
             ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
@@ -211,7 +213,7 @@ async function main() {
       console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
       for (const [routePath, selector, routeName] of [
         ["/profiles", ".atlas-ledger-layout", "ledger"],
-        ["/search", ".atlas-discover-layout", "discover"],
+        ["/search", ".atlas-board-discover", "discover"],
         ["/reactor", ".atlas-board-reactor", "reactor"],
       ]) {
         await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
