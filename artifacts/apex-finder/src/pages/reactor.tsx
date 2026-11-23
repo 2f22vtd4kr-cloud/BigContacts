@@ -1422,7 +1422,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot, boardMode = false }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
@@ -1432,6 +1432,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   sessionCount?: number;
   latestStatus?: string;
   launchSlot?: ReactNode;
+  boardMode?: boolean;
 }) {
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
@@ -1556,6 +1557,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   /** Phase O — keyboard focus on scheme nodes */
   const [schemeFocusId, setSchemeFocusId] = useState<string | null>(null);
   const [deskQuery, setDeskQuery] = useState("");
+  const [boardLogFilter, setBoardLogFilter] = useState("All");
   const [eventCountPulse, setEventCountPulse] = useState(false);
   const prevEventCountRef = useRef(0);
   useEffect(() => {
@@ -1580,6 +1582,106 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       return blob.includes(q);
     });
   }, [deskEvents, deskQuery]);
+
+  if (boardMode) {
+    const rawSpans = Array.isArray(atlasState?.recentSpans) ? atlasState.recentSpans : [];
+    const logItems = rawSpans.length > 0
+      ? rawSpans.map((span: DigSpanView) => {
+          const blob = [span.name, span.toolName, span.spanType, span.operationName].filter(Boolean).join(" ").toLowerCase();
+          const category = /search|serper|tavily|exa|google|bing/.test(blob) ? "Search"
+            : /registry|edgar|sec|companies|brreg|filing/.test(blob) ? "Registry"
+            : /browser|visit|fetch|scrape|crawl|page/.test(blob) ? "Browser"
+            : /evidence|promote|case|verify|source/.test(blob) ? "Evidence" : "Notes";
+          const status = span.status === "active" ? "Running" : span.status === "error" ? "Failed" : "Recorded";
+          return { id: span.id, category, title: span.name || span.toolName || "Recorded research step", detail: span.resultSummary || span.inputSummary || "", timestamp: span.startedAt, status };
+        })
+      : deskEvents.map((event: any, index: number) => {
+          const blob = [event.stage, event.activeToolId, event.kind, event.methodKind].filter(Boolean).join(" ").toLowerCase();
+          const category = /search|serper|tavily|exa|google|bing/.test(blob) ? "Search"
+            : /registry|edgar|sec|companies|brreg|filing/.test(blob) ? "Registry"
+            : /browser|visit|fetch|scrape|crawl|page/.test(blob) ? "Browser"
+            : /evidence|promote|case|verify|source/.test(blob) ? "Evidence" : "Notes";
+          const status = event.status === "active" ? "Running" : event.status === "failed" ? "Failed" : "Recorded";
+          return { id: String(event.timestamp || "") + "-" + index, category, title: event.stage || event.story || event.narration || "Recorded Bureau note", detail: event.resultSummary || event.why || event.story || "", timestamp: event.timestamp, status };
+        });
+    const query = deskQuery.trim().toLowerCase();
+    const filteredBoardItems = logItems.filter((item: any) => {
+      if (boardLogFilter !== "All" && item.category !== boardLogFilter) return false;
+      if (!query) return true;
+      return [item.title, item.detail, item.category, item.status].join(" ").toLowerCase().includes(query);
+    });
+    const categories = ["All", "Evidence", "Search", "Registry", "Browser", "Notes"];
+    const runStatus = atlasState?.runStatus ?? "idle";
+    const statusLabel = runStatus === "running" || runStatus === "queued" || runStatus === "paused"
+      ? "Running" : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Cancelled" : "Idle";
+    const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ");
+    const timeLabel = (value?: string) => {
+      if (!value) return "Time not recorded";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "Time not recorded" : date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    };
+    return (
+      <div className="atlas-reactor-board-layout">
+        <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
+          <div className="atlas-reactor-board-heading">
+            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps, newest last</p></div>
+            <span className={isLive ? "is-live" : ""}>{isLive ? "Following live" : "Recorded"}</span>
+          </div>
+          <label className="atlas-reactor-log-search">
+            <Search aria-hidden="true" />
+            <input value={deskQuery} onChange={(event) => setDeskQuery(event.target.value)} placeholder="Search this logbook" aria-label="Search this logbook" />
+          </label>
+          <div className="atlas-reactor-log-filters" role="group" aria-label="Filter logbook by event type">
+            {categories.map((category) => (
+              <button key={category} type="button" aria-pressed={boardLogFilter === category} onClick={() => setBoardLogFilter(category)}>
+                {category} <strong>{category === "All" ? logItems.length : logItems.filter((item: any) => item.category === category).length}</strong>
+              </button>
+            ))}
+          </div>
+          {filteredBoardItems.length === 0 ? (
+            <div className="atlas-reactor-log-empty">
+              <strong>{logItems.length === 0 ? "No recorded steps yet." : "No steps match this view."}</strong>
+              <p>{logItems.length === 0 ? "Launch a run. Every actual search, page visit and registry check will be recorded here." : "Clear the search or choose another event type."}</p>
+            </div>
+          ) : (
+            <div className="atlas-reactor-log-list" role="log" aria-live={isLive ? "polite" : "off"}>
+              {filteredBoardItems.map((item: any) => (
+                <article key={item.id} className="atlas-reactor-log-item">
+                  <div className="atlas-reactor-log-time"><time>{timeLabel(item.timestamp)}</time><span>{item.status}</span></div>
+                  <div className="atlas-reactor-log-item-main">
+                    <span className={"atlas-reactor-log-category is-" + item.category.toLowerCase()}>{item.category}</span>
+                    <strong>{item.title}</strong>
+                    {item.detail && <p>{item.detail}</p>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
+          <div className="atlas-reactor-board-heading">
+            <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
+            <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase()}>{statusLabel}</span>
+          </div>
+          <div className="atlas-reactor-current-run">
+            <span>Current run</span>
+            <strong>{runTarget || (isLive ? "Research in progress" : "No active target")}</strong>
+            <p>{atlasState?.detail || (isLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
+          </div>
+          <dl className="atlas-reactor-run-facts">
+            <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
+            <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
+            <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
+          </dl>
+          {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
+          <div className="atlas-reactor-launch-slot">{launchSlot}</div>
+          <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
+        </aside>
+      </div>
+    );
+  }
+
   const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
   const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
     const idx = schemeNodeIds.indexOf(id);
