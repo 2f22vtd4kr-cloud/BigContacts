@@ -93,9 +93,9 @@ const checks = [
   ["global error notice actions meet 44px touch targets", (errorNotice.match(/min-h-\[44px\]/g) || []).length >= 2 && /min-w-\[44px\]/.test(errorNotice)],
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
-  ["console wave field repeats at the native seamless 16px SVG tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-home-board-console::after\s*\{([^}]+)\}/); return Boolean(wave && /width='16'.*height='16'.*viewBox='0 0 16 16'/.test(wave[1]) && /background-repeat:\s*repeat/.test(wave[1]) && /background-size:\s*16px 16px/.test(wave[1]) && /M0 4 C4 0 4 0 8 4 S12 8 16 4/.test(wave[1])); })()],
-  ["evidence wave swatch preserves the same seamless native tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-evidence-pattern\.is-corroborated\s*\{([^}]+)\}/); return Boolean(wave && /width='16'.*height='16'.*viewBox='0 0 16 16'/.test(wave[1]) && /background-size:\s*16px 16px/.test(wave[1])); })()],
-  ["verified evidence dots remain discrete high-resolution circles", /\.atlas-round \.atlas-evidence-pattern\.is-verified\s*\{[^}]*radial-gradient\(circle, #1F8A4D 1\\.15px, transparent 1\\.3px\)[^}]*background-size:\s*4px 4px/.test(flatRound)],
+  ["console wave field repeats at the native seamless 16px SVG tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-home-board-console::after\s*\{([^}]+)\}/); return Boolean(wave && wave[1].includes("width='16'%20height='16'%20viewBox='0%200%2016%2016'") && /background-repeat:\s*repeat/.test(wave[1]) && /background-size:\s*16px 16px/.test(wave[1]) && wave[1].includes("M0%204%20C4%200%204%200%208%204%20S12%208%2016%204")); })()],
+  ["evidence wave swatch preserves the same seamless native tile", (() => { const wave = flatRound.match(/\.atlas-round \.atlas-evidence-pattern\.is-corroborated\s*\{([^}]+)\}/); return Boolean(wave && wave[1].includes("width='16'%20height='16'%20viewBox='0%200%2016%2016'") && /background-size:\s*16px 16px/.test(wave[1])); })()],
+  ["verified evidence dots remain discrete high-resolution circles", (() => { const dots = flatRound.match(/\.atlas-round \.atlas-evidence-pattern\.is-verified\s*\{([^}]+)\}/); return Boolean(dots && dots[1].includes("radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px)") && dots[1].includes("background-size: 4px 4px")); })()],
 ];
 
 let failed = false;
