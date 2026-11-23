@@ -49,7 +49,7 @@ describe("board card person/company distinction", () => {
   it("uses persisted claim-level statuses and keeps contact-surface status semantics", () => {
     expect(profileSource).toContain("useListResearchEvidence");
     expect(boardCardSource).toContain("researchEvidence.filter((entry: any) => Number(entry.entityId) === entityId)");
-    expect(boardCardSource).toContain('["verified", "corroborated", "review"].includes(rawStatus)');
+    expect(boardCardSource).toContain('["supported", "disputed", "review"].includes(rawStatus)');
     expect(boardCardSource).toContain("Contact confidence");
     expect(boardCardSource).not.toContain("sources.length > 1 ? \"corroborated\"");
     expect(boardCardSource).not.toContain("const evidenceStatus = /verified/i.test(evidenceLabel)");
