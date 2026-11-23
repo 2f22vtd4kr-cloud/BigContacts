@@ -61,17 +61,20 @@ describe("Western registry seed source-catalogue honesty", () => {
 
 const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
 
-describe("board Home relationship projection", () => {
-  it("keeps the strongest-routes panel route-specific and uses truthful backend metric labels", () => {
-    expect(currentDashboardSource).toContain("Strongest routes");
+describe("board Home route projection", () => {
+  it("uses the backend shortest-path endpoint and truthful graph status labels", () => {
+    expect(currentDashboardSource).toContain("Shortest connection path");
+    expect(currentDashboardSource).toContain("useGetConnectionPath");
+    expect(currentDashboardSource).toContain("useListEntities");
+    expect(currentDashboardSource).toContain("Find shortest path");
+    expect(currentDashboardSource).toContain("routeQuery.data.path");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-supported");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-disputed");
     expect(currentDashboardSource).toContain("atlas-evidence-pattern is-review");
     expect(currentDashboardSource).toContain("<strong>Supported</strong>");
     expect(currentDashboardSource).toContain("<strong>Disputed</strong>");
-    expect(currentDashboardSource).toContain("complete path is available");
+    expect(currentDashboardSource).not.toContain("Strongest routes");
     expect(currentDashboardSource).not.toContain("useListRelationships");
-    expect(currentDashboardSource).not.toContain("Recent connections");
     expect(currentDashboardSource).toContain('label="Relationships" value={stats?.totalRelationships');
     expect(currentDashboardSource).toContain('label="Assets" value={stats?.totalAssets');
     expect(currentDashboardSource).not.toContain('label="Routes" value={stats?.totalRelationships');
