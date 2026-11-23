@@ -486,7 +486,7 @@ export default function Dashboard() {
           <div className="atlas-home-section-heading">
             <div>
               <h2 id="atlas-home-routes-title">Strongest routes</h2>
-              <p>"Evidence-backed connections"</p>
+              <p>Evidence-backed connections</p>
             </div>
             <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
           </div>
