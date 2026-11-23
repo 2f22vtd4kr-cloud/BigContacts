@@ -115,14 +115,14 @@ export default function BoardDiscoverPage() {
   const pythonTools = sourceSnapshot?.pythonTools ?? {};
   const footprintCount = Object.values(pythonTools).filter(Boolean).length;
   const footprintTotal = Object.keys(pythonTools).length;
-  const webLive = webProviderRows.some((provider) => provider.status === "Configured");
+  const webConfigured = webProviderRows.some((provider) => provider.status === "Configured");
   const reviewedRegistries = registrySources.filter((source) => source.productionReviewStatus === "reviewed_for_production");
   const reviewRequiredRegistries = registrySources.filter((source) => source.productionReviewStatus === "review_required");
   const availableRegistries = reviewedRegistries.filter((source) => source.runtimeAdapterImplemented === true);
-  const registryLive = availableRegistries.length > 0;
-  const footprintLive = footprintCount > 0;
-  const sourceKindsLive = Number(webLive) + Number(registryLive) + Number(footprintLive);
-  const sourceKindsLabel = sourcesLoading || sourcesError ? "— of 3" : `${sourceKindsLive} of 3`;
+  const registryAdapterReady = availableRegistries.length > 0;
+  const footprintAvailable = footprintCount > 0;
+  const sourceKindsReady = Number(webConfigured) + Number(registryAdapterReady) + Number(footprintAvailable);
+  const sourceKindsLabel = sourcesLoading || sourcesError ? "— of 3" : `${sourceKindsReady} of 3`;
   const webDetail = webProviderRows.filter((provider) => provider.status === "Configured").map((provider) => provider.label).join(", ") ||
     "No configured web search provider reported";
   const webDetailWithNote = webProviderRows.some((provider) => provider.key === "serper" && provider.status === "Not reported")
@@ -163,9 +163,9 @@ export default function BoardDiscoverPage() {
   const removeSearch = (id: string) => setSavedSearches((current) => current.filter((item) => item.id !== id));
 
   const sourceGroups = [
-    { id: "web", label: "Web search", detail: webDetailWithNote, live: webLive },
-    { id: "registries", label: "Registries", detail: registryDetail, live: registryLive },
-    { id: "footprint", label: "Footprint tools", detail: footprintDetail, live: footprintLive },
+    { id: "web", label: "Web search", detail: webDetailWithNote, ready: webConfigured, status: webConfigured ? "Configured" : "Unavailable" },
+    { id: "registries", label: "Registries", detail: registryDetail, ready: registryAdapterReady, status: registryAdapterReady ? "Adapter ready" : "Unavailable" },
+    { id: "footprint", label: "Footprint tools", detail: footprintDetail, ready: footprintAvailable, status: footprintAvailable ? "Available" : "Unavailable" },
   ];
 
   return (
@@ -183,14 +183,14 @@ export default function BoardDiscoverPage() {
           onSaveSearch={saveSearch}
           onSearchCompleted={recordSearch}
           sourceStatus={{
-            webSearch: sourcesLoading || sourcesError ? null : webLive,
-            registries: sourcesLoading || sourcesError ? null : registryLive,
-            footprint: sourcesLoading || sourcesError ? null : footprintLive,
+            webSearch: sourcesLoading || sourcesError ? null : webConfigured,
+            registries: sourcesLoading || sourcesError ? null : registryAdapterReady,
+            footprint: sourcesLoading || sourcesError ? null : footprintAvailable,
           }}
         />
         <div className="atlas-discover-summary" aria-label="Discover coverage">
           <div><strong>{savedSearches.length}</strong><span>Saved searches</span></div>
-          <div><strong>{sourceKindsLabel}</strong><span>Source kinds live</span></div>
+          <div><strong>{sourceKindsLabel}</strong><span>Source kinds ready</span></div>
         </div>
       </section>
 
@@ -244,9 +244,9 @@ export default function BoardDiscoverPage() {
               {sourceGroups.map((group) => (
                 <div className="atlas-discover-source-group" key={group.id}>
                   <div className="atlas-discover-source-group-heading">
-                    <span className={"atlas-discover-source-marker " + (group.live ? "is-live" : "is-unavailable")} aria-hidden="true" />
+                    <span className={"atlas-discover-source-marker " + (group.ready ? "is-live" : "is-unavailable")} aria-hidden="true" />
                     <strong>{group.label}</strong>
-                    <span>{group.live ? "Live" : "Unavailable"}</span>
+                    <span>{group.status}</span>
                   </div>
                   <p>{group.detail}</p>
                 </div>
