@@ -33,6 +33,8 @@ require(dashboard.includes("atlas-home-board-grid"), "Home must use the approved
 require(dashboard.includes("atlas-home-board-console"), "Home must use the framed launch console");
 require(dashboard.includes("Strongest routes"), "Home must reserve the right-hand strongest-routes panel");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
+require(dashboard.includes('label="People"') && dashboard.includes('label="Routes"') && dashboard.includes('label="Evidence records"'), "Home figures must use the board's three labels");
+require(!dashboard.includes("atlas-stat-icon") && !dashboard.includes("icon: Users") && !dashboard.includes("icon: Network"), "Home figures must remain typographic, not decorative icon tiles");
 require(!dashboard.includes("atlas-home-board-people") && !dashboard.includes("atlas-home-research-leads"), "Home must not retain legacy feed sections absent from the board");
 require(!dashboard.includes("function LeadCard") && !dashboard.includes("function SourceLeadCard") && legacyDashboard.includes("function LeadCard") && legacyDashboard.includes("function SourceLeadCard") && router.includes("DashboardLegacy"), "The new Home must not carry dead legacy feed code while the classic rollback remains intact");
 require(dashboard.includes("/api/dashboard/research-leads?limit=8"), "Home must keep the canonical research-lead projection warm without rendering the legacy feed");
@@ -84,6 +86,9 @@ require(deepSearch.includes('base + "/api/search/intelligent"'), "Discover searc
 require(deepSearch.includes("{query.length.toLocaleString()} / 1,200"), "Discover must display the board's live 1,200-character query counter");
 require(boardConnections.includes("The people between you") && boardConnections.includes("Routes through your contacts") && boardConnections.includes("Contact source unavailable") && boardConnections.includes("Contacts are yours") && boardConnections.includes("totalRelationships") && boardConnections.includes("Links") && !boardConnections.includes("0 contacts") && boardConnections.includes("disabled aria-disabled=\"true\"") && boardConnections.includes("stats?.totalRelationships == null ? null : Number(stats.totalRelationships)"), "Connections must distinguish missing contact data from real zero counts and keep relationship totals evidence-backed");
 require(router.includes('path="/network" component={GraphViewer}'), "The full relationship graph must remain available in the classic rollback");
+require(router.includes('path="/network/graph" component={GraphViewer}'), "The board must expose the full relationship graph at its own utility route");
+require(router.includes('path="/reactor/topology" component={IntelligenceReactorPage}'), "The original Reactor topology must remain available as a separate utility route");
+require(layout.includes('href: "/network/graph"') && layout.includes('href: "/reactor/topology"'), "Graph and Reactor topology utilities must be reachable from board navigation");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook") && reactor.includes("newest last"), "Reactor board must use the shared normalized live-telemetry store");
 require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board") && liveSurface.includes("boardMode ? 50 : 18"), "Reactor board must render the full normalized 50-step window in its paper logbook");
