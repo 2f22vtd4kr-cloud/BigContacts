@@ -2,11 +2,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const profileSource = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
+const boardProfileSource = readFileSync(new URL("../pages/board-profile.tsx", import.meta.url), "utf8");
 const boardModeStart = profileSource.lastIndexOf("if (boardMode)");
 const boardModeEnd = profileSource.indexOf("\n  return (", boardModeStart);
 const boardCardSource = profileSource.slice(boardModeStart, boardModeEnd);
 
 describe("board card person/company distinction", () => {
+  it("labels subject tabs from canonical entity types", () => {
+    expect(boardProfileSource).toContain('import { normalizeEntityType } from "@/lib/entity-taxonomy"');
+    expect(boardProfileSource).toContain('normalizedType === "Corporation" || normalizedType === "Trust" ? "Company"');
+    expect(boardProfileSource).toContain('normalizedType === "Other" ? "Record" : "Person"');
+  });
+
   it("keeps personal wealth exclusive to person cards", () => {
     const personFactsStart = boardCardSource.indexOf("{!isCompanyCard && (");
     const personFactsEnd = boardCardSource.indexOf("\n          )}", personFactsStart);
