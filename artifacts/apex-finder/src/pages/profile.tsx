@@ -305,7 +305,7 @@ function CategoryBadge({ category }: { category: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ApexProfile() {
+export default function ApexProfile({ boardMode = false }: { boardMode?: boolean } = {}) {
   const params = useParams<{ id: string }>();
   const entityId = parseInt(params.id ?? "0", 10);
 
@@ -2000,7 +2000,141 @@ export default function ApexProfile() {
                       {(() => {
                         const SANCTIONS_RE = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch/i;
                         const flagged = occrpData.datasets?.some((d: string) => SANCTIONS_RE.test(d));
-                        return (
+                        if (boardMode) {
+    const claimRows = (ledger as any[])
+      .filter((entry) => entry && entry.source && entry.source !== "Internal")
+      .slice(0, 5);
+    const relatedPeople = (relationships as any[])
+      .filter((rel) => String(rel.targetType ?? "").toLowerCase() === "entity" && rel.targetName)
+      .slice(0, 4);
+    const ownershipRows = (ledger as any[]).filter((entry) => /ownership|shareholder|beneficial owner|equity/i.test([entry.dataPoint, entry.category].filter(Boolean).join(" ")));
+    const ownershipSummary = typeof entityMetadata?.ownershipSummary === "string"
+      ? entityMetadata.ownershipSummary
+      : ownershipRows.length > 0
+        ? ownershipRows.map((entry) => entry.value).filter(Boolean).join(" · ")
+        : "No shareholder record yet. Atlas does not infer ownership from a title.";
+    const evidenceLabel = entityEvidenceLabel(entity);
+    const evidenceStatus = /verified/i.test(evidenceLabel) ? "verified" : /corroborated/i.test(evidenceLabel) ? "corroborated" : "review";
+    const score = Number(entity.bayesianScore ?? confidence?.overall);
+    const scoreLabel = Number.isFinite(score) && score >= 0 ? score.toFixed(2) : "—";
+    const personInitials = String(e.name ?? "Apex").trim().split(/\s+/).slice(0, 2).map((part: string) => part[0] ?? "").join("").toUpperCase();
+    const wealthLabel = displayableEstimatedNetWorth ? String(displayableEstimatedNetWorth) : "Not recorded";
+    return (
+      <div className="atlas-card-board">
+        <main className="atlas-card-main">
+          <header className="atlas-card-subject">
+            <div className="atlas-card-avatar" aria-hidden="true">{personInitials || "—"}</div>
+            <div className="atlas-card-subject-copy">
+              <div className="atlas-card-subject-type"><EntityTypeMark type={entity.type} />{String(entity.type ?? "Person")}</div>
+              <h2>{e.name}</h2>
+              <p>{profileWorkSummary || e.role || e.title || "Role not recorded"}</p>
+              {e.nationality && <span>{e.nationality}</span>}
+            </div>
+            <div className="atlas-card-subject-score">
+              <span className={"atlas-evidence-pattern is-" + evidenceStatus} aria-hidden="true" />
+              <span>{evidenceLabel}</span>
+              <strong>{scoreLabel}</strong>
+              <small>Evidence score</small>
+            </div>
+          </header>
+
+          <section className="atlas-card-section atlas-card-claims" aria-labelledby="atlas-card-claims-title">
+            <div className="atlas-card-section-heading">
+              <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Each claim is tied to a recorded source.</p></div>
+              <span>{claimRows.length} claims</span>
+            </div>
+            {claimRows.length === 0 ? (
+              <div className="atlas-card-empty">No source-backed claims have been recorded for this card yet.</div>
+            ) : (
+              <ul>
+                {claimRows.map((entry: any) => {
+                  const sources = String(entry.source ?? "").split(/[;,·]/).map((value) => value.trim()).filter(Boolean);
+                  const status = !entry.verified ? "review" : sources.length > 1 ? "corroborated" : "verified";
+                  const label = status === "verified" ? "Verified" : status === "corroborated" ? "Corroborated" : "In review";
+                  return (
+                    <li key={entry.id}>
+                      <span className={"atlas-evidence-pattern is-" + status} aria-hidden="true" />
+                      <div className="atlas-card-claim-copy">
+                        <strong>{entry.dataPoint || entry.category || "Recorded claim"}</strong>
+                        <p>{entry.value || "Value not recorded"}</p>
+                        <small>{entry.source || "Source not recorded"}</small>
+                      </div>
+                      <span className={"atlas-card-claim-status is-" + status}>{label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <div className="atlas-card-main-facts">
+            <section className="atlas-card-section">
+              <h3>Personal wealth</h3>
+              <strong className="atlas-card-fact-value">{wealthLabel}</strong>
+              <p>{displayableEstimatedNetWorth
+                ? "An attributable estimate is available in the recorded evidence."
+                : "No attributable record yet. Atlas does not infer wealth from a role or title."}</p>
+            </section>
+            <section className="atlas-card-section">
+              <h3>Ownership</h3>
+              <p>{ownershipSummary}</p>
+            </section>
+          </div>
+        </main>
+
+        <aside className="atlas-card-sidebar">
+          <section className="atlas-card-section">
+            <div className="atlas-card-section-heading">
+              <div><h3>People on this card</h3><p>Recorded relationships only</p></div>
+              <span>{relatedPeople.length}</span>
+            </div>
+            {relatedPeople.length === 0 ? (
+              <div className="atlas-card-empty">No linked people have been recorded.</div>
+            ) : (
+              <ul className="atlas-card-people-list">
+                {relatedPeople.map((rel: any) => (
+                  <li key={rel.id}>
+                    <Link href={"/profile/" + rel.targetId}>
+                      <strong>{rel.targetName}</strong>
+                      <span>{String(rel.relationshipType ?? "Relationship").replace(/_/g, " ")}</span>
+                    </Link>
+                    <small>{Number.isFinite(Number(rel.strength)) ? Math.round(Number(rel.strength) * 100) + "% strength" : "Strength not recorded"}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="atlas-card-section">
+            <div className="atlas-card-section-heading">
+              <div><h3>Ways to reach</h3><p>Attributable public contact routes</p></div>
+            </div>
+            <ContactSurface
+              contacts={(entity as { contacts?: unknown[] }).contacts as never}
+              phone={e.phone}
+              email={e.email && !isProtectedEmail(e.email) ? e.email : null}
+              linkedinUrl={e.linkedinUrl}
+              phoneSource={(entity as { phoneSource?: string }).phoneSource}
+              density="card"
+              evidenceCount={contactEvidence.length}
+            />
+          </section>
+
+          <section className="atlas-card-section atlas-card-behind">
+            <h3>Behind this card</h3>
+            <div className="atlas-card-behind-metrics">
+              <div><strong>{sessions.length}</strong><span>Research sessions</span></div>
+              <div><strong>{assets.length}</strong><span>Source records</span></div>
+            </div>
+            <p>Open the Reactor to inspect the recorded research steps behind this subject.</p>
+            <Link href="/reactor">Open in Reactor <ArrowUpRight className="w-3.5 h-3.5" /></Link>
+          </section>
+        </aside>
+      </div>
+    );
+  }
+
+  return (
                           <div className={cn(
                             "flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono font-bold",
                             flagged
