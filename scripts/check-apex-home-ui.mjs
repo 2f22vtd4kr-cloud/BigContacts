@@ -13,6 +13,14 @@ const launch = read("artifacts/apex-finder/src/components/launch-atlas-button.ts
 const launchApi = read("artifacts/apex-finder/src/lib/launch-atlas.ts");
 const shell = read("artifacts/apex-finder/src/components/layout.tsx");
 const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
+const router = read("artifacts/apex-finder/src/router.tsx");
+const boardFrame = read("artifacts/apex-finder/src/components/board-page-frame.tsx");
+const boardLedger = read("artifacts/apex-finder/src/pages/board-ledger.tsx");
+const boardDiscover = read("artifacts/apex-finder/src/pages/board-discover.tsx");
+const boardConnections = read("artifacts/apex-finder/src/pages/board-connections.tsx");
+const boardReactor = read("artifacts/apex-finder/src/pages/board-reactor.tsx");
+const boardProfile = read("artifacts/apex-finder/src/pages/board-profile.tsx");
+const deepSearch = read("artifacts/apex-finder/src/pages/deep-search.tsx");
 
 const failures = [];
 const require = (condition, message) => { if (!condition) failures.push(message); };
@@ -58,6 +66,20 @@ require(!layout.includes("icon: Cpu"), "sidebar Reactor navigation must not use 
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
 require(!/\bCpu\b/.test(reactor), "Reactor page must not use generic CPU iconography");
 require(mobile.includes('showTopology={false}'), "mobile Reactor surface must remain feed-first without topology");
+require(shell.includes("roundChildren") && shell.includes("legacyChildren"), "board pages and the classic rollback must render through separate route trees");
+require(router.includes("function BoardRoutes") && router.includes("function LegacyRoutes"), "router must keep board and classic page trees separate");
+require(router.includes("DashboardLegacy"), "classic rollback must retain the original Overview implementation");
+require(boardFrame.includes("atlas-board-page-intro"), "primary screens must share the board's semantic page frame");
+require(boardLedger.includes("Everyone on the register") && boardLedger.includes("EntityLedger"), "Ledger must use the board heading while retaining canonical entity controls");
+require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Source register"), "Discover must contain its saved-search and source-register surfaces");
+require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
+require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
+require(boardConnections.includes("The people between you") && boardConnections.includes("GraphViewer"), "Connections must retain the live relationship graph");
+require(boardReactor.includes("Every step, on the record") && boardReactor.includes("IntelligenceReactorPage"), "Reactor must retain the canonical live event feed");
+require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile"), "Card must retain the live evidence dossier");
+require(css.includes(".atlas-discover-layout") && css.includes("grid-template-columns:minmax(0,1.15fr)"), "Discover must follow the board's desktop two-column composition");
+require(css.includes(".atlas-discover-layout { grid-template-columns:minmax(0,1fr);"), "Discover must stack its search, saved searches and sources on mobile");
+
 
 if (failures.length) {
   console.error("Apex home UI contract failed:");
