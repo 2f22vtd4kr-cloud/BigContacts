@@ -411,6 +411,19 @@ export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
   const leadsQuery = useGetHotLeads({ limit: 8 });
+  const apiHealthQuery = useQuery({
+    queryKey: ["dashboard", "api-health"],
+    queryFn: async () => {
+      const response = await fetch("/api/healthz", { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("Research API unavailable (" + response.status + ").");
+      return response.json() as Promise<Record<string, unknown>>;
+    },
+    enabled: !mock,
+    retry: false,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
   const reviewLeadsQuery = useQuery({
     queryKey: ["dashboard", "research-leads"],
     queryFn: async () => {
@@ -431,7 +444,8 @@ export default function Dashboard() {
   const reviewLeadsLoading = mock ? false : reviewLeadsQuery.isLoading;
   const reviewLeadsError = mock ? false : reviewLeadsQuery.isError;
   const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
-  const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
+  const apiUnavailable = !mock && apiHealthQuery.isError;
+  const hasError = mock ? false : ((statsQuery.isError && !statsQuery.data) || (leadsQuery.isError && !leadsQuery.data));
 
   return (
     <div className="atlas-page atlas-home-board w-full min-w-0 max-w-full pb-12">
@@ -444,7 +458,7 @@ export default function Dashboard() {
 
           <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console">
             <div className="atlas-home-console-inner">
-              <LaunchAtlasButton variant="primary" className="atlas-home-launch" />
+              <LaunchAtlasButton variant="primary" className="atlas-home-launch" apiUnavailable={apiUnavailable} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>
           </section>
 
@@ -456,6 +470,9 @@ export default function Dashboard() {
             </div>
           ) : null}
 
+          {apiUnavailable && (stats || leads.length > 0) && (
+            <div className="atlas-home-stale-note" role="status">Saved copy remains visible. Scores may be out of date.</div>
+          )}
           <section className="atlas-home-figures" aria-label="Bureau figures">
             <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people, companies and trusts" icon={Users} testId="stat-total-entities" />
             <StatTile href="/network" label="Relationships" value={stats?.totalRelationships ?? "—"} detail="recorded connections" icon={Network} testId="stat-total-relationships" />
