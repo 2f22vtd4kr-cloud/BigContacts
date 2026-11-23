@@ -58,3 +58,18 @@ describe("Western registry seed source-catalogue honesty", () => {
     expect(dataSources).toContain('endpoint: "/api/ingest/land-registry"');
   });
 });
+
+const currentDashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
+
+describe("board Home relationship projection", () => {
+  it("shows live relationship records instead of mock evidence-status examples", () => {
+    expect(currentDashboardSource).toContain("useListRelationships");
+    expect(currentDashboardSource).toContain("Recent connections");
+    expect(currentDashboardSource).toContain("relationship.sourceEntityName");
+    expect(currentDashboardSource).toContain("relationship.targetName");
+    expect(currentDashboardSource).toContain("relationship.relationshipType");
+    expect(currentDashboardSource).not.toContain("Confirmed in a primary record");
+    expect(currentDashboardSource).not.toContain("Two independent sources agree");
+    expect(currentDashboardSource).not.toContain("One source so far, a second is pending");
+  });
+});
