@@ -17,7 +17,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("uses only the board's documented corner-radius scale", () => {
-    const radii = [...boardCss.matchAll(/border-radius:\\s*([^;]+)/g)].map((match) => match[1].trim());
+    const radii = [...boardCss.matchAll(/border-radius:\s*([^;]+)/g)].map((match) => match[1].trim());
     const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:6|10|12|16|20)px)(?:!important)?$/.test(radius));
     expect(unsupported).toEqual([]);
   });
