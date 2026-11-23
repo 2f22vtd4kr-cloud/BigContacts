@@ -183,10 +183,10 @@
 .atlas-round .atlas-card { border-radius:12px!important; }
 
 
-/* Board navigation: text-only desktop rail and persistent mobile tab bar. */
+/* Board navigation: a raised desktop tab bar and one collapsed mobile menu. */
 .atlas-round-header { background:var(--round-paper); backdrop-filter:none; }
 .atlas-round-primary .atlas-round-navlink svg { display:none; }
-.atlas-round-primary .atlas-round-navlink { min-height:36px; padding-inline:12px; border-radius:8px; font-size:12px; }
+.atlas-round-primary .atlas-round-navlink { min-height:40px; padding-inline:12px; border-radius:6px; font-size:12px; }
 .atlas-round-mobile-utilities { display:none; }
 @media (max-width:760px) {
   .atlas-round-mobile-utilities { position:fixed; z-index:100; top:calc(60px + env(safe-area-inset-top)); right:12px; left:12px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; max-height:calc(100dvh - 88px); overflow:auto; padding:12px; border:1px solid var(--round-line); border-radius:16px; background:#fff; box-shadow:0 8px 24px #18181a18; }
