@@ -64,7 +64,6 @@
 .atlas-round .atlas-round-mobile-toggle { min-width:44px; min-height:44px; }
 .atlas-round .atlas-round-content h1 { letter-spacing:-.035em; }
 @media (max-width:1100px) { .atlas-round-header { gap:12px; } .atlas-round-primary { gap:0; } .atlas-round-navlink { padding:0 8px; } .atlas-round-status { display:none; } }
-@media (max-width:760px) { .atlas-round .atlas-board-page-grid,.atlas-round .atlas-board-discover .atlas-board-page-grid,.atlas-round .atlas-board-reactor .atlas-board-page-grid { grid-template-columns:minmax(0,1fr); gap:24px; } .atlas-round .atlas-board-page-grid > .atlas-board-page-intro { grid-column:1; } }
 @media (max-width:760px) {
  .atlas-round-header { min-height:60px; padding-inline:16px; gap:12px; }
  .atlas-round-primary { display:none; }
@@ -938,3 +937,5 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-round-content [class*="text-[10px]"] {
   font-size:11px!important;
 }
+
+@media (max-width:760px) { .atlas-round .atlas-board-page-grid,.atlas-round .atlas-board-discover .atlas-board-page-grid,.atlas-round .atlas-board-reactor .atlas-board-page-grid { grid-template-columns:minmax(0,1fr); gap:24px; } .atlas-round .atlas-board-page-grid > .atlas-board-page-intro { grid-column:1; } }
