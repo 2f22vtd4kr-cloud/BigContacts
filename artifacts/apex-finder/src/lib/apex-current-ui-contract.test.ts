@@ -113,7 +113,7 @@ describe("current Apex UI contract", () => {
   it("keeps the four board patterns semantically distinct and the Home frame phase-aligned", () => {
     expect(boardCss).toContain(".atlas-home-board-console::before");
     expect(boardCss).toContain(".atlas-home-board-console::after");
-    expect(boardCss).toContain("background-size:12px 12px");
+    expect(boardCss).toContain("background-size: 24px 24px;");
     expect(boardCss).toContain("background-size:32px 24px");
     expect(boardCss).toContain("repeating-conic-gradient(#C8321E 0 25%,#EDB92B 0 50%)");
     expect(boardCss).toContain(".atlas-evidence-pattern.is-supported");
