@@ -142,19 +142,11 @@
 .atlas-evidence-dot.is-corroborated { background:#2757C6; }
 .atlas-evidence-dot.is-review { background:#EDB92B; }
 .atlas-home-route-empty > p { max-width:360px; margin:auto 0 0; color:var(--round-ink-3); font-size:13px; line-height:1.6; }
-.atlas-home-board-people { grid-column:1 / -1; grid-row:5; margin-top:36px; }
-.atlas-home-people-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.atlas-home-board-people .atlas-card { border-radius:12px!important; }
-.atlas-home-research-leads { margin-top:40px; padding-top:24px; border-top:1px solid var(--round-line); }
-.atlas-home-research-leads .atlas-card { border-radius:12px!important; }
-.atlas-home-route-loading { display:grid; gap:12px; }
-.atlas-home-route-skeleton { height:116px; border:1px solid var(--round-line); border-radius:10px; background:var(--round-raised); }
 .atlas-round:has(.atlas-home-board) .atlas-round-content { max-width:1600px; }
 @media (max-width:1000px) {
   .atlas-home-board-grid { grid-template-columns:minmax(0,1fr) minmax(280px,.85fr); column-gap:32px; }
   .atlas-home-board-intro h1 { font-size:clamp(38px,5.5vw,54px); }
-  .atlas-home-people-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
-}
+  }
 @media (max-width:760px) {
   .atlas-round .atlas-home-board { padding-top:24px; }
   .atlas-home-board-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
@@ -166,9 +158,7 @@
   .atlas-home-figures { grid-column:1; grid-row:4; margin-top:24px; }
   .atlas-home-board-routes { grid-column:1; grid-row:5; margin-top:32px; }
   .atlas-home-route-empty { min-height:240px; }
-  .atlas-home-board-people { grid-column:1; grid-row:6; margin-top:32px; }
-  .atlas-home-people-list { grid-template-columns:minmax(0,1fr); }
-  .atlas-home-section-heading { align-items:flex-start; }
+      .atlas-home-section-heading { align-items:flex-start; }
   .atlas-home-section-heading h2 { font-size:20px!important; }
   .atlas-home-console-inner { padding:14px; }
   .atlas-launch-settings { align-items:flex-start; flex-direction:column; }
@@ -227,13 +217,10 @@
   .atlas-home-stale-note { grid-column:1; grid-row:4; }
   .atlas-home-figures { grid-row:5; }
   .atlas-home-board-routes { grid-row:6; }
-  .atlas-home-board-people { grid-row:7; }
-}
+  }
 
-.atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-people { grid-row:auto; }
-@media (max-width:760px) {
-  .atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-routes,.atlas-home-board-people { grid-row:auto; }
-}
+.atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,@media (max-width:760px) {
+  .atlas-home-risk,.atlas-home-stale-note,.atlas-home-figures,.atlas-home-board-routes,}
 
 .atlas-home-board-intro { text-align:left; margin-inline-start:0; }
 
