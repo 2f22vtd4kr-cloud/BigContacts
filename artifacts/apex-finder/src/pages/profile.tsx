@@ -2010,7 +2010,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                         if (boardMode) {
     // Claim-level evidence comes from the persisted research-evidence endpoint,
     // not from entity-level registry names or locally inferred source counts.
-    const claimRows = researchEvidence.slice(0, 8);
+    const claimRows = researchEvidence.filter((entry: any) => Number(entry.entityId) === entityId).slice(0, 8);
     const displayType = displayEntityType(entity);
     const isCompanyCard = String(entity.type ?? "").toLowerCase() === "company" || displayType === "Corporation" || displayType === "Trust" || entityMeta(entity.type).shortLabel === "Company" || entityMeta(entity.type).shortLabel === "Trust";
     const boardEntityType = String(entity.type ?? "").toLowerCase() === "company" ? "Corporation" : entity.type;
@@ -2060,7 +2060,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             <div className="atlas-card-subject-copy">
               <div className="atlas-card-subject-type"><EntityTypeMark type={boardEntityType} /></div>
               <h2>{e.name}</h2>
-              <p>{profileWorkSummary || e.role || e.title || (isCompanyCard ? claimRows[0]?.source || "Company record" : "Role not recorded")}</p>
+              <p>{profileWorkSummary || e.role || e.title || (isCompanyCard ? claimRows[0]?.sourceName || "Company record" : "Role not recorded")}</p>
               {!isCompanyCard && e.nationality && <span>{e.nationality}</span>}
             </div>
             <div className="atlas-card-subject-score">
@@ -2072,7 +2072,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
 
           <section className="atlas-card-section atlas-card-claims" aria-labelledby="atlas-card-claims-title">
             <div className="atlas-card-section-heading">
-              <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Each claim is tied to a recorded source.</p></div>
+              <div><h3 id="atlas-card-claims-title">Claims on record</h3><p>Claim-level evidence from the latest research session.</p></div>
               <span>{claimRows.length} claims</span>
             </div>
             {researchEvidenceQuery.isLoading ? (
