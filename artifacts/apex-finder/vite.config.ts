@@ -12,6 +12,15 @@ const port = (Number.isNaN(parsedPort) || parsedPort <= 0) ? 23695 : parsedPort;
 const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
+  // Development and Vercel Preview are non-production workspaces. Keep the
+  // operator gate mounted for production builds; API-side auth remains intact.
+  define: {
+    "import.meta.env.VITE_APEX_OPERATOR_AUTH_BYPASS": JSON.stringify(
+      process.env.VITE_APEX_OPERATOR_AUTH_BYPASS === "true" ||
+      process.env.VERCEL_ENV === "preview" ||
+      process.env.NODE_ENV !== "production",
+    ),
+  },
   base: basePath,
   plugins: [
     react(),
