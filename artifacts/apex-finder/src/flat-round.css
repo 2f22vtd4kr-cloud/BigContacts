@@ -502,3 +502,6 @@
 .atlas-round .atlas-reactor-run-status-group { display:flex; align-items:center; gap:8px; }
 .atlas-round .atlas-reactor-run-status.is-api { border-color:rgba(200,50,30,.35)!important; color:var(--round-red)!important; }
 .atlas-round .atlas-reactor-run-status-group button { min-height:28px; padding:0 9px; border:1px solid var(--round-line); border-radius:5px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
+
+.atlas-round .atlas-ledger-view-all { display:inline-flex; align-items:center; justify-content:center; min-height:38px; margin:12px 0 0; padding:0 12px; border:1px solid var(--round-line); border-radius:6px; background:#fff; color:var(--round-ink-2); font:500 10px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-view-all:hover { border-color:var(--round-ink); color:var(--round-ink); }
