@@ -57,6 +57,8 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-size: 16px 16px;");
     expect(boardCss).toContain("radial-gradient(circle, #1F8A4D 1.15px, transparent 1.3px)");
     expect(boardCss).toContain("background-size: 4px 4px;");
+    expect(boardCss).toContain("background-color: #1F8A4D;");
+    expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
   });
 
   it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
@@ -64,6 +66,8 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss.split(continuousWaveRows).length - 1).toBe(2);
     expect(boardCss).toContain("width='32'%20height='24'%20viewBox='0%200%2032%2024'");
     expect(boardCss).toContain("background-size: 32px 24px;");
+    expect(boardCss).toContain("background-color: #2757C6;");
+    expect(boardCss).toContain("stroke='%23FAFAF8'");
     expect(boardCss).toContain(".atlas-home-board-console::before { left:0; border-radius:20px 0 0 20px; }");
     expect(boardCss).toContain(".atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }");
   });
@@ -72,6 +76,7 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-image: repeating-linear-gradient(135deg, #EDB92B 0 5px, #F8E8B7 5px 11px)");
     expect(boardCss).toMatch(/is-review\s*\{\s*background-image:\s*repeating-linear-gradient/ );
     expect(boardCss).toContain("background-repeat: no-repeat;\n  background-size: auto;");
+    expect(boardCss).toContain("background-color: #F8E8B7;");
   });
 
 });
