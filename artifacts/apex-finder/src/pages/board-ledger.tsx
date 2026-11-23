@@ -115,11 +115,6 @@ export default function BoardLedgerPage() {
               </button>
             ))}
           </div>
-          <div className="atlas-ledger-counts" aria-label="Contact outcome totals">
-            <div><strong>{counts.direct_contact_verified}</strong><span>Direct verified</span></div>
-            <div><strong>{counts.direct_contact_candidate}</strong><span>Direct candidates</span></div>
-            <div><strong>{counts.organization_contact}</strong><span>Organization</span></div>
-          </div>
         </section>
 
         <section className="atlas-ledger-register" aria-labelledby="atlas-ledger-register-title">
