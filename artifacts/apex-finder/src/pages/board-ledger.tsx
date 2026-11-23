@@ -49,21 +49,21 @@ export default function BoardLedgerPage() {
     return raw
       .filter((entity: any) => !entity.isHidden)
       .filter((entity: any) => ["HNWI", "PersonCandidate", "Gatekeeper"].includes(normalizeEntityType(displayEntityType(entity))))
-      .map((entity: any) => ({ ...entity, boardBoardEvidenceStatus: resolveBoardEvidenceStatus(entity.contacts) }));
+      .map((entity: any) => ({ ...entity, boardEvidenceStatus: resolveBoardEvidenceStatus(entity.contacts) }));
   }, [rawEntities]);
 
   const counts = useMemo(() => ({
     all: entities.length,
-    verified: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "verified").length,
-    corroborated: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "corroborated").length,
-    review: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "review").length,
-    disputed: entities.filter((entity: any) => entity.boardBoardEvidenceStatus === "disputed").length,
+    verified: entities.filter((entity: any) => entity.boardEvidenceStatus === "verified").length,
+    corroborated: entities.filter((entity: any) => entity.boardEvidenceStatus === "corroborated").length,
+    review: entities.filter((entity: any) => entity.boardEvidenceStatus === "review").length,
+    disputed: entities.filter((entity: any) => entity.boardEvidenceStatus === "disputed").length,
   }), [entities]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return entities.filter((entity: any) => {
-      if (filter !== "all" && entity.boardBoardEvidenceStatus !== filter) return false;
+      if (filter !== "all" && entity.boardEvidenceStatus !== filter) return false;
       if (!query) return true;
       const role = entityWorkSummary(entity) ?? "";
       const sources = sourceList(entity.sourceRegistries).join(" ");
@@ -150,7 +150,7 @@ export default function BoardLedgerPage() {
                 <tbody>
                   {displayed.map((entity: any) => {
                     const sources = sourceList(entity.sourceRegistries).filter((source) => !/^(manual|user|seed|imported)$/i.test(source));
-                    const evidence = entity.boardBoardEvidenceStatus as BoardEvidenceStatus;
+                    const evidence = entity.boardEvidenceStatus as BoardEvidenceStatus;
                     const pattern = evidence === "verified" ? "supported" : evidence === "corroborated" ? "corroborated" : evidence === "review" ? "review" : null;
                     const role = entityWorkSummary(entity);
                     return (
