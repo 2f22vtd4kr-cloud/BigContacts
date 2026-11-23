@@ -378,6 +378,7 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
     );
     return (
       <div className="atlas-discover-search-console">
+        <div className="atlas-discover-search-console-inner" style={boardMode ? { backgroundColor: "#fff", backgroundClip: "padding-box" } : undefined}>
         <div className="atlas-discover-search-heading">
           <div><h2>Search console</h2><p>Search people, companies, assets and public routes</p></div>
         </div>
@@ -444,6 +445,7 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
         {!result && !loading && !error && (
           <div className="atlas-discover-search-hint">Apex chooses the tools and sources for each investigation. Only evidence-backed results are promoted to the Ledger.</div>
         )}
+        </div>
       </div>
     );
   }

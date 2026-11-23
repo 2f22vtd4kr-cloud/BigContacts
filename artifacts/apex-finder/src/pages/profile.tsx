@@ -698,7 +698,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
     <div className="flex min-h-full w-full min-w-0 flex-col overflow-visible">
 
       {/* ── Desktop Header ────────────────────────────────────────────── */}
-      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
+      <div className="hidden lg:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 md:gap-4">
           <Link
             href="/profiles"

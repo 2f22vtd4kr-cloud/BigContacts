@@ -34,11 +34,14 @@ async function main() {
   try {
     for (const [name, viewport] of [
       ["desktop", { width: 1280, height: 900 }],
+      ["tablet", { width: 768, height: 1024 }],
       ["mobile", { width: 390, height: 844 }],
     ]) {
       const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
       const browserErrors = [];
       const failedRequests = [];
+      let currentPath = "/";
+      let routeFixtureMode = false;
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -51,7 +54,7 @@ async function main() {
         const url = route.request().url();
         let payload = {};
         if (url.endsWith("/api/healthz")) {
-          payload = { researchKeysConfigured: false };
+          payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
             ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
@@ -77,8 +80,12 @@ async function main() {
           payload = { active: false, status: "idle" };
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
+        } else if (url.endsWith("/api/registry-matrix")) {
+          payload = { sources: [] };
+        } else if (url.endsWith("/api/entities/1")) {
+          payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
-          payload = visualEntities;
+          payload = (currentPath === "/network" && routeFixtureMode) || currentPath === "/profile/1" ? visualEntities : [];
         } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
@@ -119,6 +126,7 @@ async function main() {
         throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
+      if (await page.locator(".atlas-round-brand-mark").count() !== 2) throw new Error("The heraldic Apex Atlas shield must appear in desktop and mobile navigation.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
@@ -186,8 +194,17 @@ async function main() {
           throw new Error("Mobile sidebar toggle is missing.");
         }
       }
+      currentPath = "/network";
       await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
       await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
+      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
+      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
+      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
+      routeFixtureMode = true;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".atlas-connections-path-finder select", { timeout: 10_000 });
       const routeSelects = page.locator(".atlas-connections-path-finder select");
       if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
       await routeSelects.nth(0).selectOption("1");
@@ -195,18 +212,99 @@ async function main() {
       await page.getByRole("button", { name: "Find shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
       routeFixtureLoaded = true;
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.waitForTimeout(80);
-      const connectionsScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
-      fs.writeFileSync(`/tmp/apex-connections-${name}.jpg`, connectionsScreenshot);
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
         url: page.url(),
         routeFixtureLoaded,
         pathResultVisible: await page.locator(".atlas-home-route-result").isVisible(),
         browserErrors: browserErrors.slice(0, 20),
-        failedRequests: failedRequests.slice(0, 20),
       })}`);
-      console.log(`APEX_VISUAL_IMAGE_${name}_connections=${connectionsScreenshot.toString("base64")}`);
+
+      for (const boardPage of [
+        { path: "/profiles", label: "ledger", heading: "Everyone on the register" },
+        { path: "/search", label: "discover", heading: "Where Atlas looks" },
+        { path: "/reactor", label: "reactor", heading: "Every step, on the record" },
+        { path: "/profile/1", label: "card", heading: "Mira Patel" },
+      ]) {
+        currentPath = boardPage.path;
+        await page.goto(new URL(boardPage.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.getByRole("heading", { name: boardPage.heading }).first().waitFor({ state: "visible", timeout: 12000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(100);
+        const boardDiagnostics = await page.evaluate((label) => {
+          const style = (selector) => {
+            const element = document.querySelector(selector);
+            return element ? getComputedStyle(element) : null;
+          };
+          const discover = document.querySelector(".atlas-discover-layout");
+          const discoverConsole = document.querySelector(".atlas-discover-search-console");
+          const discoverInner = document.querySelector(".atlas-discover-search-console-inner");
+          const discoverInput = document.querySelector(".atlas-discover-query-field input");
+          const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
+          const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
+          const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
+          const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
+          const reactorLastStep = document.querySelector(".atlas-reactor-last-step");
+          return {
+            discover: label === "discover" ? {
+              display: discover ? getComputedStyle(discover).display : null,
+              columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
+              inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
+              innerBackground: discoverInner ? getComputedStyle(discoverInner).backgroundColor : null,
+              checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
+              waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
+            } : null,
+            ledger: label === "ledger" ? {
+              columns: style(".atlas-ledger-layout")?.gridTemplateColumns ?? null,
+              checky: ledgerFrame ? getComputedStyle(ledgerFrame, "::before").backgroundImage : null,
+              waves: ledgerFrame ? getComputedStyle(ledgerFrame, "::after").backgroundImage : null,
+              metaDisplay: ledgerMeta ? getComputedStyle(ledgerMeta).display : null,
+              metaDirection: ledgerMeta ? getComputedStyle(ledgerMeta).flexDirection : null,
+            } : null,
+            reactor: label === "reactor" ? {
+              display: reactorGrid ? getComputedStyle(reactorGrid).display : null,
+              columns: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns : null,
+              columnCount: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns.split(/\s+/).length : 0,
+              viewportWidth: window.innerWidth,
+              metricsDisplay: reactorMetrics ? getComputedStyle(reactorMetrics).display : null,
+              metricLabels: reactorMetrics ? Array.from(reactorMetrics.querySelectorAll("span")).map((item) => item.textContent?.trim()) : [],
+              lastStepDisplay: reactorLastStep ? getComputedStyle(reactorLastStep).display : null,
+              lastStepDirection: reactorLastStep ? getComputedStyle(reactorLastStep).flexDirection : null,
+            } : null,
+          };
+        }, boardPage.label);
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+          throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
+        }
+        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
+          throw new Error(`Ledger console frame or register metric hierarchy failed: ${JSON.stringify(boardDiagnostics.ledger)}`);
+        }
+        if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed" || boardDiagnostics.reactor?.lastStepDisplay !== "flex" || boardDiagnostics.reactor?.lastStepDirection !== "column")) {
+          throw new Error(`Reactor run console/logbook split or metric hierarchy failed: ${JSON.stringify(boardDiagnostics.reactor)}`);
+        }
+        if (boardPage.label === "card") {
+          const visibleCardHeadings = await page.getByRole("heading", { name: "Mira Patel" }).count();
+          if (visibleCardHeadings !== 1) throw new Error(`Card responsive header is duplicated: ${visibleCardHeadings} visible headings`);
+          const cardColors = await page.evaluate(() => ({
+            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
+            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
+            neonTextCount: Array.from(document.querySelectorAll(".atlas-board-profile [style]")).filter((element) => ["rgb(156, 255, 26)", "rgb(184, 255, 77)"].includes(getComputedStyle(element).color)).length,
+          }));
+          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)" || cardColors.neonTextCount !== 0) {
+            throw new Error(`Card profile label contrast regression: ${JSON.stringify(cardColors)}`);
+          }
+        }
+        const boardScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
+        fs.writeFileSync(`/tmp/apex-${boardPage.label}-${name}.jpg`, boardScreenshot);
+        console.log(`APEX_VISUAL_META_${name}_${boardPage.label}=${JSON.stringify({
+          url: page.url(),
+          heading: boardPage.heading,
+          emptyEntitiesFixture: currentPath !== "/network",
+          titleVisible: await page.getByRole("heading", { name: boardPage.heading }).first().isVisible(),
+          boardDiagnostics,
+          browserErrors: browserErrors.slice(0, 20),
+        })}`);
+        console.log(`APEX_VISUAL_IMAGE_${name}_${boardPage.label}=${boardScreenshot.toString("base64")}`);
+      }
       await page.close();
     }
   } finally {

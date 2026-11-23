@@ -9,7 +9,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, resolveAtlasRightHandReviewWatermark, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, DISCOVERY_AI_OVERSIGHT_INTERVAL, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -57,7 +57,7 @@ export type CanonicalAtlasOptions = {
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
-export const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;
+export { MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS };
 
 /** Compact control-plane prose without changing the validated underlying decision. */
 function compactControlText(value: unknown, maxChars: number): string {

@@ -12,6 +12,8 @@
  * not: starting only Phase J, not: mock mode.
  */
 
+export const MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600;
+
 export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Find lesser-known people with credible wealth potential who may be relevant to the founder’s objective. Identify potential investors and other objective-fit people, companies, assets, relationships and public/professional routes. Honor explicit human scope and exclusions. The Investigator owns relevance, hypotheses, target selection, research direction, source/tool choice, follow-ups, evidence-led pivots and stopping; Boss authorizes material scope changes. Where geography is open, the Investigator may develop evidence-led jurisdiction hypotheses and propose them to Boss. Fame, wealth labels, seniority, size, listing status, sector, geography, source class, ranking and route category are context, not automatic qualifications or exclusions. Do not infer wealth, ownership, role, identity or contactability from snippets, prestige or proximity. Search results and registry hits are leads; consequential claims require attributable fetched evidence and exact quotations. Keep organization routes distinct from personal routes. Preserve model-selected provisional leads and uncertainty; target research verifies identity, ownership, materiality, counter-evidence and routes before promotion. No fixed source mix, search sequence, target class or geography. Operator caps are resource limits, not relevance or admission rules. Never invent people, relationships, wealth, contacts or URLs.";
 
 export const CANONICAL_ATLAS_LAUNCH_BODY = {

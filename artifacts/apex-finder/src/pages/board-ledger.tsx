@@ -92,7 +92,8 @@ export default function BoardLedgerPage() {
       description="The Ledger is the Bureau’s register. Each person Atlas has found is entered once, with recorded sources and the contact outcome Atlas has established."
     >
       <div className="atlas-ledger-layout">
-        <section className="atlas-ledger-console" aria-labelledby="atlas-ledger-console-title">
+        <section className="atlas-ledger-console atlas-ledger-board-console" aria-labelledby="atlas-ledger-console-title">
+          <div className="atlas-ledger-console-inner">
           <div className="atlas-ledger-section-heading">
             <h2 id="atlas-ledger-console-title">Register console</h2>
           </div>
@@ -115,10 +116,6 @@ export default function BoardLedgerPage() {
               </button>
             ))}
           </div>
-          <div className="atlas-ledger-counts" aria-label="Contact outcome totals">
-            <div><strong>{counts.direct_contact_verified}</strong><span>Direct verified</span></div>
-            <div><strong>{counts.direct_contact_candidate}</strong><span>Direct candidates</span></div>
-            <div><strong>{counts.organization_contact}</strong><span>Organization</span></div>
           </div>
         </section>
 

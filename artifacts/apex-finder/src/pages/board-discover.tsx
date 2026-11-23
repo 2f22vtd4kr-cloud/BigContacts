@@ -178,6 +178,7 @@ export default function BoardDiscoverPage() {
       title="Where Atlas looks"
       description="Saved searches and the sources behind them. Atlas chooses its own sources for each run; this page shows what it can choose from."
     >
+      <div className="atlas-discover-layout">
       <section className="atlas-discover-search" aria-label="Public-record search">
         <DeepSearch
           boardMode
@@ -257,6 +258,7 @@ export default function BoardDiscoverPage() {
           )}
         </section>
       </aside>
+      </div>
     </BoardPageFrame>
   );
 }

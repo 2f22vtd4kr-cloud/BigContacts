@@ -3,6 +3,8 @@ import fs from "node:fs";
 const middleware = fs.readFileSync("artifacts/api-server/src/src/middlewares/normalize-atlas-launch-body.ts", "utf8");
 const canonicalLauncher = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts", "utf8");
 const canonicalDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const launchDefaults = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-launch-defaults.ts", "utf8");
+const healthRoute = fs.readFileSync("artifacts/api-server/src/src/routes/health.ts", "utf8");
 const launchButton = fs.readFileSync("artifacts/apex-finder/src/components/launch-atlas-button.tsx", "utf8");
 const router = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "utf8");
 const legacyAtlas = fs.readFileSync("artifacts/api-server/src/src/routes/atlas.ts", "utf8");
@@ -52,10 +54,12 @@ if (!canonicalLauncher.includes('body.discoveryObjective !== undefined && typeof
   console.error("ATLAS INPUT NORMALIZATION FAIL: separate bounded model-owned objective/context inputs are not validated and forwarded");
   failed = true;
 }
-if (!canonicalDiscovery.includes("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600") ||
-    !launchButton.includes('const objectiveLimit = variant === "primary" ? 1_200 : 1_600;') ||
-    !launchButton.includes("maxLength={objectiveLimit}")) {
-  console.error("ATLAS INPUT NORMALIZATION FAIL: the canonical API must retain its 1,600-character ceiling while Home uses the 1,200-character design-board limit");
+if (!launchDefaults.includes("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS = 1_600") ||
+    !canonicalDiscovery.includes("MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS") ||
+    !healthRoute.includes("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS") ||
+    !launchButton.includes("maxLength={objectiveLimit ?? undefined}") ||
+    !launchButton.includes("objective.length > objectiveLimit")) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: backend-authoritative 1,600-character launch limit is not shared through the API contract and enforced by the frontend");
   failed = true;
 }
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check

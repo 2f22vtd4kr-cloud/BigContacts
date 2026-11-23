@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { hasResearchProviderKey } from "../lib/research-key-readiness";
+import { MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS } from "../lib/atlas-launch-defaults";
 
 const router: IRouter = Router();
 
@@ -18,9 +19,9 @@ async function redisSnapshot() {
 
 router.get("/healthz", async (_req, res) => {
   const snap = await redisSnapshot();
-  // Public probes reveal only liveness, distributed-store health, and a coarse
-  // research-key readiness bit. Provider names, counts, models, and secret state
-  // remain behind the authenticated diagnostic endpoint below.
+  // Public probes reveal liveness, distributed-store health, a coarse research-key
+  // readiness bit, and non-sensitive launch constraints. Provider names, counts,
+  // models, and secret state remain behind the authenticated diagnostic endpoint below.
   // Provider readiness and durable Redis health are independent signals.
   // This coarse public bit only says some research/provider credential exists;
   // it does not certify that all canonical launch roles are configured.
@@ -29,6 +30,7 @@ router.get("/healthz", async (_req, res) => {
     status: "ok",
     redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached },
     researchKeysConfigured,
+    launchLimits: { discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS },
   });
 });
 

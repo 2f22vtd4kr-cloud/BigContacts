@@ -53,7 +53,7 @@
 .atlas-round .atlas-dashboard-hero-copy h1 { color:var(--round-ink)!important; font-weight:500; }
 .atlas-round .atlas-dashboard-hero-copy p { color:var(--round-ink-2)!important; }
 .atlas-round .atlas-dashboard-hero-copy > div { color:var(--round-green)!important; }
-.atlas-round .atlas-home-actions { padding:16px; background:linear-gradient(#fff,#fff) padding-box,repeating-conic-gradient(#C8321E 0 25%,#FAFAF8 0 50%) 0/16px 16px border-box!important; border:8px solid transparent; border-radius:10px; box-shadow:none!important; }
+.atlas-round .atlas-home-actions { border-radius:20px; box-shadow:none!important; }
 .atlas-round .atlas-home-primary-row { width:100%; }
 .atlas-round .atlas-home-launch { width:100%; }
 .atlas-round .atlas-dashboard-wide { min-width:0; }
@@ -265,9 +265,9 @@
 
 /* Discover board: search desk on the left; saved work and source register on the right. */
 .atlas-round .atlas-discover-layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); gap:36px; align-items:start; }
-.atlas-round .atlas-discover-search { min-width:0; min-height:620px; }
-.atlas-round .atlas-discover-search > div { min-height:620px; background:transparent!important; }
-.atlas-round .atlas-discover-search > div > div:first-child { padding:0 0 20px!important; background:transparent!important; border-color:var(--round-line)!important; }
+.atlas-round .atlas-discover-search { min-width:0; min-height:0; }
+.atlas-round .atlas-discover-search > div { min-height:0; }
+.atlas-round .atlas-discover-search-console-inner > .atlas-discover-search-heading { padding:0 0 16px!important; background:transparent!important; border-color:var(--round-line)!important; }
  .atlas-round .atlas-discover-search input { min-height:48px; border:1px solid var(--round-line)!important; border-radius:10px!important; background:#fff!important; color:var(--round-ink)!important; font:400 14px "Geist",sans-serif!important; }
 .atlas-round .atlas-discover-search button[type="submit"] { min-height:44px; border-radius:10px!important; background:var(--round-red)!important; color:#fff!important; box-shadow:none!important; font:500 12px "Geist",sans-serif!important; letter-spacing:0!important; text-transform:none!important; }
 .atlas-round .atlas-discover-search button[type="submit"]:disabled { background:var(--round-raised)!important; color:var(--round-ink-3)!important; }
@@ -297,7 +297,7 @@
 .atlas-round .atlas-discover-source-row span:last-child { flex:none; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; text-align:right; }
 @media (max-width:760px) {
   .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
-  .atlas-round .atlas-discover-search,.atlas-round .atlas-discover-search > div { min-height:520px; }
+  .atlas-round .atlas-discover-search,.atlas-round .atlas-discover-search > div { min-height:0; }
   .atlas-round .atlas-discover-panel-heading h2 { font-size:18px!important; }
 }
 
@@ -565,6 +565,11 @@
 .atlas-round .atlas-board-profile [class*="text-[#9CFF1A]"],
 .atlas-round .atlas-board-profile [class*="text-lime-"],
 .atlas-round .atlas-board-profile [class~="text-primary"] { color:var(--round-green)!important; }
+.atlas-round .atlas-board-profile [class*="text-primary/"],
+.atlas-round .atlas-board-profile [class*="text-[#d4ff8a]"] { color:var(--round-green)!important; opacity:1!important; }
+.atlas-round .atlas-board-profile [style*="156, 255, 26"],
+.atlas-round .atlas-board-profile [style*="184, 255, 77"] { color:var(--round-green)!important; background-color:rgba(31,138,77,.08)!important; }
+.atlas-round .atlas-board-profile [class*="text-secondary/"] { color:var(--round-ink-2)!important; opacity:1!important; }
 .atlas-round .atlas-board-profile [class*="bg-[#9CFF1A]"],
 .atlas-round .atlas-board-profile [class*="bg-lime-"],
 .atlas-round .atlas-board-profile [class*="bg-primary/"] { background-color:rgba(31,138,77,.07)!important; }
@@ -662,6 +667,9 @@
 .atlas-round-shell { display:flex; min-height:100dvh; min-width:0; background:var(--round-paper); }
 .atlas-round-sidebar { position:sticky; top:0; z-index:90; display:flex; width:240px; min-width:240px; height:100dvh; flex-direction:column; padding:24px 16px 16px; border-right:1px solid var(--round-line); background:var(--round-paper); }
 .atlas-round-sidebar-brand { padding:4px 8px 28px; border-bottom:1px solid var(--round-line); }
+.atlas-round-wordmark { display:flex; flex-direction:row; align-items:center; gap:8px; }
+.atlas-round-brand-mark { display:block; width:28px; height:32px; flex:none; }
+.atlas-round-mobile-header .atlas-round-brand-mark { width:24px; height:28px; }
 .atlas-round-sidebar-brand .atlas-round-wordmark { color:var(--round-ink); text-decoration:none; }
 .atlas-round-sidebar-brand .atlas-round-wordmark strong { font:500 20px/1.1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-round-sidebar-nav { display:flex; flex-direction:column; gap:4px; padding-top:24px; }
@@ -899,4 +907,158 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-round-content [class*="text-[9px]"],
 .atlas-round .atlas-round-content [class*="text-[10px]"] {
   font-size:11px!important;
+}
+
+
+
+/* Correct the Discover board composition and its search-console form hierarchy. */
+.atlas-round .atlas-discover-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);
+  gap:36px;
+  align-items:start;
+}
+.atlas-round .atlas-board-discover .atlas-discover-search .atlas-discover-search-console {
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+  min-height:420px;
+  padding:8px;
+  overflow:hidden;
+  border:0;
+  border-radius:20px;
+  background:transparent;
+}
+.atlas-round .atlas-discover-search-console-inner {
+  position:relative;
+  z-index:1;
+  min-height:404px;
+  padding:20px;
+  border-radius:12px;
+  background:#fff;
+}
+.atlas-round .atlas-discover-search-console::before,
+.atlas-round .atlas-discover-search-console::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  z-index:-1;
+  width:50%;
+  pointer-events:none;
+}
+.atlas-round .atlas-discover-search-console::before {
+  left:0;
+  border-radius:20px 0 0 20px;
+  background-color:#EDB92B;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20y='12'%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3Crect%20y='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:24px 24px;
+}
+.atlas-round .atlas-discover-search-console::after {
+  right:0;
+  border-radius:0 20px 20px 0;
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:32px 24px;
+}
+.atlas-round .atlas-discover-search-heading { padding:0 0 16px; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-discover-search-heading h2 { margin:0; color:var(--round-ink); font:500 20px/1.2 "Geist",sans-serif; }
+.atlas-round .atlas-discover-search-heading p { margin:8px 0 0; color:var(--round-ink-3); font:400 12px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-discover-search-form { display:flex; flex-direction:column; gap:16px; padding-top:16px; }
+.atlas-round .atlas-discover-query-field { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; color:var(--round-ink-2); font:500 12px "Geist",sans-serif; }
+.atlas-round .atlas-discover-query-field input { width:100%; min-width:0; min-height:44px; padding:0 12px!important; border:1px solid var(--round-line)!important; border-radius:6px!important; background:#fff!important; color:var(--round-ink)!important; font:400 13px "Geist",sans-serif!important; box-shadow:none!important; }
+.atlas-round .atlas-discover-query-field input::placeholder { color:var(--round-ink-3)!important; opacity:1; }
+.atlas-round .atlas-discover-query-field small { justify-self:end; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-search-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.atlas-round .atlas-discover-source-chip { display:inline-flex; align-items:center; gap:8px; min-height:28px; padding:0 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-source-chip i { width:7px; height:7px; border-radius:50%; background:var(--round-ink-3); }
+.atlas-round .atlas-discover-source-chip.is-live i { background:var(--round-green); }
+.atlas-round .atlas-discover-source-chip.is-unavailable i { background:var(--round-gold); }
+.atlas-round .atlas-discover-search-actions { display:flex; align-items:center; gap:8px; }
+.atlas-round .atlas-discover-search-actions button { display:inline-flex; min-height:40px; align-items:center; justify-content:center; gap:8px; padding:0 16px; border:1px solid var(--round-line); border-radius:6px; font:500 12px "Geist",sans-serif; cursor:pointer; }
+.atlas-round .atlas-discover-save-button { background:#fff; color:var(--round-ink); }
+.atlas-round .atlas-discover-run-button { background:var(--round-red); color:#fff; border-color:var(--round-red)!important; }
+.atlas-round .atlas-discover-search-actions button:disabled { opacity:.45; cursor:not-allowed; }
+.atlas-round .atlas-discover-search-hint { margin-top:16px; color:var(--round-ink-3); font:400 12px/1.6 "Geist",sans-serif; }
+.atlas-round .atlas-discover-search-error { display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--round-red); font:400 12px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-discover-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:16px; border-top:1px solid var(--round-line); }
+.atlas-round .atlas-discover-summary > div { display:flex; flex-direction:column; gap:4px; padding:16px 12px 0; }
+.atlas-round .atlas-discover-summary > div:first-child { padding-left:0; }
+.atlas-round .atlas-discover-summary > div + div { border-left:1px solid var(--round-line); }
+.atlas-round .atlas-discover-summary strong { color:var(--round-ink); font:500 22px "Geist",sans-serif; font-variant-numeric:tabular-nums; }
+.atlas-round .atlas-discover-summary span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-discover-source-group-heading { display:grid; grid-template-columns:8px minmax(0,1fr) auto; align-items:center; gap:8px; color:var(--round-ink); font:500 12px "Geist",sans-serif; }
+.atlas-round .atlas-discover-source-group-heading > span:last-child { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; text-align:right; }
+.atlas-round .atlas-discover-source-marker { width:7px; height:7px; border-radius:50%; background:var(--round-gold); }
+.atlas-round .atlas-discover-source-marker.is-live { background:var(--round-green); }
+.atlas-round .atlas-discover-source-group p { margin:8px 0 0 16px; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; overflow-wrap:anywhere; }
+.atlas-round .atlas-discover-rail { gap:24px; }
+
+/* Ledger's search/filter console uses the same split heraldic frame as Overview. */
+.atlas-round .atlas-ledger-board-console {
+  position:relative;
+  isolation:isolate;
+  padding:8px;
+  overflow:hidden;
+  border:0;
+  border-radius:20px;
+  background:transparent;
+}
+.atlas-round .atlas-ledger-board-console::before,
+.atlas-round .atlas-ledger-board-console::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  z-index:-1;
+  width:50%;
+  pointer-events:none;
+}
+.atlas-round .atlas-ledger-board-console::before {
+  left:0;
+  border-radius:20px 0 0 20px;
+  background-color:#EDB92B;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20y='12'%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3Crect%20y='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:24px 24px;
+}
+.atlas-round .atlas-ledger-board-console::after {
+  right:0;
+  border-radius:0 20px 20px 0;
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:32px 24px;
+}
+.atlas-round .atlas-ledger-console-inner { position:relative; z-index:1; padding:20px; border-radius:12px; background:#fff; }
+.atlas-round .atlas-ledger-register-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; white-space:nowrap; }
+.atlas-round .atlas-ledger-register-meta span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-register-meta strong { color:var(--round-ink); font:500 13px "Geist Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+
+/* Reactor's run console belongs on the left; the recorded logbook belongs on the right. */
+.atlas-round .atlas-reactor-board-layout { display:grid; grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr); gap:36px; align-items:start; }
+.atlas-round .atlas-reactor-run-status-group { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.atlas-round .atlas-reactor-run-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0; padding:16px 0; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-reactor-run-metrics > div { display:flex; min-width:0; flex-direction:column; gap:4px; padding:0 8px; }
+.atlas-round .atlas-reactor-run-metrics > div:first-child { padding-left:0; }
+.atlas-round .atlas-reactor-run-metrics > div + div { border-left:1px solid var(--round-line); }
+.atlas-round .atlas-reactor-run-metrics strong { color:var(--round-ink); font:500 21px "Geist",sans-serif; font-variant-numeric:tabular-nums; }
+.atlas-round .atlas-reactor-run-metrics span { color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-last-step { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin:0; padding:12px 0; border-bottom:1px solid var(--round-line); }
+.atlas-round .atlas-reactor-last-step span { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-reactor-last-step strong { color:var(--round-ink); font:500 13px/1.4 "Geist",sans-serif; }
+.atlas-round .atlas-reactor-topology-link { display:inline-flex; align-items:center; gap:8px; margin-top:16px; color:var(--round-ink-2); font:500 11px "Geist",sans-serif; text-decoration:none; }
+.atlas-round .atlas-reactor-topology-link:hover { color:var(--round-ink); }
+@media (max-width:820px) {
+  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+}
+@media (max-width:760px) {
+  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .atlas-round .atlas-discover-search-console { min-height:0; }
+  .atlas-round .atlas-discover-search-console-inner { min-height:0; padding:16px; }
+  .atlas-round .atlas-ledger-console-inner { padding:16px; }
+  .atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
 }

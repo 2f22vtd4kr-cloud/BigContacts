@@ -5,6 +5,12 @@ const manual = readFileSync(new URL("../pages/manual.tsx", import.meta.url), "ut
 const statusPage = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const healthRoute = readFileSync(new URL("../../../api-server/src/src/routes/health.ts", import.meta.url), "utf8");
+const boardLedger = readFileSync(new URL("../pages/board-ledger.tsx", import.meta.url), "utf8");
+const boardLayout = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
+const boardDiscover = readFileSync(new URL("../pages/board-discover.tsx", import.meta.url), "utf8");
+const boardReactor = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
+const deepSearch = readFileSync(new URL("../pages/deep-search.tsx", import.meta.url), "utf8");
 const launchHelper = readFileSync(new URL("./launch-atlas.ts", import.meta.url), "utf8");
 const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
 const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
@@ -18,6 +24,7 @@ const integrityBanner = readFileSync(new URL("../components/bureau-integrity-ban
 const sharedStatus = readFileSync(new URL("./system-status.ts", import.meta.url), "utf8");
 const replitPreflight = readFileSync(new URL("../../../../scripts/replit-preflight.mjs", import.meta.url), "utf8");
 const themeCss = readFileSync(new URL("../index.css", import.meta.url), "utf8");
+const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -95,9 +102,46 @@ describe("current Apex UI contract", () => {
     expect(launchHelper).toContain("discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
     expect(launchHelper).toContain("A source-backed operating company is a valid finding");
     expect(launchButton).toContain("textarea-atlas-discovery-objective");
-    expect(launchButton).toContain("maxLength={1_200}");
+    expect(healthRoute).toContain("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS");
+    expect(launchButton).toContain("maxLength={objectiveLimit ?? undefined}");
+    expect(launchButton).toContain("setObjectiveLimit(limit)");
+    expect(launchButton).toContain("value.slice(0, objectiveLimit)");
+    expect(launchButton).toContain("objective.length > objectiveLimit");
+    expect(launchButton).not.toContain("1_200");
+    expect(launchButton).not.toContain("1_600");
     expect(launchButton).toContain("discoveryObjective: objective");
     expect(launchButton).toContain("Apex chooses its own targets, sources, providers, queries and next actions from the evidence");
+  });
+
+  it("keeps the four board patterns semantically distinct and the Home frame phase-aligned", () => {
+    expect(boardCss).toContain(".atlas-home-board-console::before");
+    expect(boardCss).toContain(".atlas-home-board-console::after");
+    expect(boardCss).toContain("background-size: 24px 24px;");
+    expect(boardCss).toContain("background-size:32px 24px");
+    expect(boardCss).toContain("repeating-conic-gradient(#C8321E 0 25%,#EDB92B 0 50%)");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-supported");
+    expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-corroborated");
+    expect(boardCss).toContain("stroke-width='1.35'");
+    expect(boardCss).toContain(".atlas-evidence-pattern.is-review");
+    expect(boardCss).toContain("repeating-linear-gradient(135deg");
+  });
+
+  it("keeps Discover and Reactor board columns connected to their actual page markup", () => {
+    expect(boardDiscover).toContain('className="atlas-discover-layout"');
+    expect(boardDiscover).toContain('className="atlas-discover-search"');
+    expect(deepSearch).toContain('className="atlas-discover-search-console"');
+    expect(deepSearch).toContain('className="atlas-discover-search-console-inner"');
+    expect(boardReactor).toContain('className="atlas-reactor-board-layout"');
+    expect(boardReactor).toContain('className="atlas-reactor-run-metrics"');
+    expect(boardCss).toContain(".atlas-round .atlas-reactor-board-layout");
+  });
+
+  it("uses the backend launch limit and avoids duplicate Ledger totals while restoring the heraldic mark", () => {
+    expect(boardLedger).not.toContain("atlas-ledger-counts");
+    expect(boardLayout).toContain("ApexAtlasMark");
+    expect(boardLayout).toContain("#C8321E");
+    expect(boardLayout).toContain("#EDB92B");
   });
 
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
