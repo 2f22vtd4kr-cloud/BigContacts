@@ -178,7 +178,7 @@ export function LaunchAtlasButton({
             </div>
           </div>
         )}
-        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
         </button>
         {variant !== "header" && controls}
