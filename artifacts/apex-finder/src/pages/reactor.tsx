@@ -2963,30 +2963,22 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
 
   if (boardMode) {
     return (
-      <div className="atlas-reactor-board-shell">
-        <style>{KEYFRAMES}</style>
-        <DesktopReactor
-          boardMode
-          apiAvailable={apiAvailable}
-          onRetryApi={checkApi}
-          liveNodes={liveNodes}
-          liveLabel={liveLabel}
-          livePhaseDetail={livePhaseDetail}
-          atlasState={atlasState}
-          scheduler={scheduler}
-          schedulerNow={schedulerNow}
-          isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
-          totalEntities={totalEntities}
-          hotCount={hotCount}
-          totalAssets={totalAssets}
-          sessionCount={sessions.length}
-          launchSlot={(
-            <div data-testid="reactor-launch-bar-board">
-              <LaunchAtlasButton variant="primary" navigateToReactor={false} label="Launch Apex Atlas" />
-            </div>
-          )}
-        />
-      </div>
+      <DesktopReactor
+        boardMode
+        apiAvailable={apiAvailable}
+        onRetryApi={checkApi}
+        liveNodes={liveNodes}
+        liveLabel={liveLabel}
+        livePhaseDetail={livePhaseDetail}
+        atlasState={atlasState}
+        scheduler={scheduler}
+        schedulerNow={schedulerNow}
+        isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
+        totalEntities={totalEntities}
+        hotCount={hotCount}
+        totalAssets={totalAssets}
+        sessionCount={sessions.length}
+      />
     );
   }
 
