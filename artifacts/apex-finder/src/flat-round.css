@@ -854,7 +854,7 @@ body:has(.atlas-round-shell) {
     position:fixed;
     top:20px;
     right:72px;
-    z-index:35;
+    z-index:85;
   }
   .atlas-round-status-full { display:none; }
   .atlas-round-status-short { display:inline; }
