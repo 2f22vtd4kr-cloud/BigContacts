@@ -487,3 +487,6 @@
   .atlas-round .atlas-profile-tab { min-width:118px; padding:10px 11px; }
   .atlas-round .atlas-profile-tabs { margin-bottom:12px; }
 }
+
+.atlas-round .atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }
+.atlas-round .atlas-reactor-launch-slot .atlas-launch-primary-root { width:100%; }
