@@ -987,7 +987,7 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-discover-source-group-heading > span:last-child { margin-left:auto; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-discover-source-marker { width:7px; height:7px; flex:none; border-radius:50%; background:var(--round-green); }
 .atlas-round .atlas-discover-source-marker.is-unavailable { border:1px solid var(--round-ink-3); background:transparent; }
-.atlas-round .atlas-discover-source-group p { margin:6px 0 0 15px; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-discover-source-group p { margin:8px 0 0 16px; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
 /* The Reactor board gives the logbook the broad left column and the run console the right rail. */
 .atlas-round .atlas-board-reactor .atlas-reactor-logbook { grid-column:1; grid-row:2; }
 .atlas-round .atlas-board-reactor .atlas-reactor-run-console { grid-column:2; grid-row:2; }
