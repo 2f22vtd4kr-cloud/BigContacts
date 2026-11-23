@@ -480,19 +480,6 @@ export default function Dashboard() {
             <StatTile href="/profiles" label="Evidence records" value={stats?.totalAssets ?? "—"} detail="linked public records and assets" icon={Database} testId="stat-total-assets" />
           </section>
 
-          <section className="atlas-home-board-people" aria-labelledby="atlas-home-people-title">
-            <div className="atlas-home-section-heading">
-              <div>
-                <h2 id="atlas-home-people-title">People and organisations</h2>
-                <p>Source-backed findings, strongest contact paths first</p>
-              </div>
-              <Link href="/profiles">Open Ledger <ChevronRight aria-hidden="true" /></Link>
-            </div>
-            {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
-              isLoading ? <div className="atlas-home-route-loading" aria-label="Loading findings">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div> :
-              leads.length === 0 ? <EmptyLeads /> :
-              <div className="atlas-home-people-list">{leads.slice(0, 3).map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
-          </section>
         </div>
 
         <aside className="atlas-home-board-routes" aria-labelledby="atlas-home-routes-title">
@@ -510,6 +497,20 @@ export default function Dashboard() {
             <p>{Number(stats?.totalRelationships ?? 0) > 0 ? "Recorded relationships are available in Connections. A ranked, evidence-backed route is shown here only when its complete path is available." : "No routes yet. Launch a run and the strongest evidenced paths will appear here."}</p>
           </div>
         </aside>
+
+          <section className="atlas-home-board-people" aria-labelledby="atlas-home-people-title">
+            <div className="atlas-home-section-heading">
+              <div>
+                <h2 id="atlas-home-people-title">People and organisations</h2>
+                <p>Source-backed findings, strongest contact paths first</p>
+              </div>
+              <Link href="/profiles">Open Ledger <ChevronRight aria-hidden="true" /></Link>
+            </div>
+            {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
+              isLoading ? <div className="atlas-home-route-loading" aria-label="Loading findings">{[0,1,2].map((item) => <LeadSkeleton key={item} />)}</div> :
+              leads.length === 0 ? <EmptyLeads /> :
+              <div className="atlas-home-people-list">{leads.slice(0, 3).map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+          </section>
       </div>
 
       <section className="atlas-home-research-leads" data-testid="section-research-leads">
