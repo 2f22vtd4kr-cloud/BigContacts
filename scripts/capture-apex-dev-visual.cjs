@@ -95,6 +95,14 @@ async function main() {
       });
       await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
       await page.waitForTimeout(400);
+      const workspaceStatusVisible = await page.evaluate(() => {
+        const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
+        if (!status) return false;
+        const rect = status.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return rect.width > 0 && rect.height > 0 && !!hit && (hit === status || status.contains(hit));
+      });
+      if (!workspaceStatusVisible) throw new Error("Workspace status is obscured by the shell header");
 
       const prompt = page.locator("textarea").first();
       if (await prompt.count()) {
