@@ -92,8 +92,8 @@ export default function Dashboard() {
           )}
           <section className="atlas-home-figures" aria-label="Bureau figures">
             <StatTile href="/profiles" label="People" value={stats?.totalEntities ?? "—"} testId="stat-total-entities" />
-            <StatTile href="/network" label="Routes" value={stats?.totalRelationships ?? "—"} testId="stat-total-relationships" />
-            <StatTile href="/profiles" label="Evidence records" value={stats?.totalAssets ?? "—"} testId="stat-total-assets" />
+            <StatTile href="/network" label="Relationships" value={stats?.totalRelationships ?? "—"} testId="stat-total-relationships" />
+            <StatTile href="/profiles" label="Assets" value={stats?.totalAssets ?? "—"} testId="stat-total-assets" />
           </section>
 
         </div>
