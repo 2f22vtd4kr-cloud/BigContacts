@@ -70,7 +70,7 @@ require(shell.includes("roundChildren") && shell.includes("legacyChildren"), "bo
 require(router.includes("function BoardRoutes") && router.includes("function LegacyRoutes"), "router must keep board and classic page trees separate");
 require(router.includes("DashboardLegacy"), "classic rollback must retain the original Overview implementation");
 require(boardFrame.includes("atlas-board-page-intro"), "primary screens must share the board's semantic page frame");
-require(boardLedger.includes("Everyone on the register") && boardLedger.includes("useListEntities") && boardLedger.includes("atlas-ledger-table"), "Ledger must render a live strongest-first evidence register");
+require(boardLedger.includes("Everyone on the register") && boardLedger.includes("useListEntities") && boardLedger.includes("atlas-ledger-table") && boardLedger.includes("View all "), "Ledger must render a live strongest-first evidence register with a working expand control");
 require(boardDiscover.includes("Where Atlas looks") && boardDiscover.includes("Saved searches") && boardDiscover.includes("Source register"), "Discover must contain its saved-search and source-register surfaces");
 require(boardDiscover.includes("localStorage") && boardDiscover.includes("/api/system/status") && boardDiscover.includes("/api/registry-matrix"), "Discover must persist saved searches locally and read real source status");
 require(deepSearch.includes("onSaveSearch") && deepSearch.includes("onSearchCompleted"), "Discover save and run actions must use the live search component");
@@ -82,7 +82,7 @@ require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor
 require(reactor.includes('"/api/healthz"') && reactor.includes("onRetryApi") && reactor.includes("API down"), "Reactor must expose a verified API-down state with retry");
 require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
 require(router.includes('path="/reactor/topology"'), "The original Reactor topology must remain reachable as a secondary utility");
-require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile"), "Card must retain the live evidence dossier");
+require(boardProfile.includes("One card, one subject") && boardProfile.includes("ApexProfile") && boardProfile.includes("RECENT_CARD_KEY"), "Card must retain the live evidence dossier and real recently opened subject tabs");
 require(css.includes(".atlas-discover-layout") && css.includes("grid-template-columns:minmax(0,1.15fr)"), "Discover must follow the board's desktop two-column composition");
 require(css.includes(".atlas-discover-layout { grid-template-columns:minmax(0,1fr);"), "Discover must stack its search, saved searches and sources on mobile");
 
