@@ -20,7 +20,6 @@ import {
   BarChart2,
   Loader2,
   Play,
-  Sparkles,
   CheckCircle2,
   ChevronRight,
   Shield,
@@ -1970,7 +1969,7 @@ export default function ApexProfile() {
                           <div className="text-[12px] font-mono text-primary">{formatCurrency(asset.estimatedValue)}</div>
                         )}
                         {(asset.latitude != null) && (
-                          <div className="text-[11px] font-mono text-muted-foreground/50">📍 mapped</div>
+                          <div className="inline-flex items-center gap-1 text-[11px] font-mono text-muted-foreground/50"><MapPin className="h-3 w-3" aria-hidden="true" /> mapped</div>
                         )}
                       </div>
                     </div>
