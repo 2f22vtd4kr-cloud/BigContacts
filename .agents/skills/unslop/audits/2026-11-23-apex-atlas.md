@@ -18,7 +18,7 @@ Recovered board-specific Home direction: two-column desktop composition; left-si
 ### 1. Spacing
 - Shared board page frame and board-scoped spacing rules establish consistent page edges, panel gaps and mobile stacking.
 - The Home composition keeps its left launch column and right route panel on desktop, then stacks in the supplied mobile order.
-- The page-specific spacing for Ledger, Discover, Reactor, Card and Connections is still provisional because their exact board screens were not retrievable.
+- The supplied board PDF now provides page-specific desktop and 390px mobile compositions for all six screens; each must be compared against an actual rendered build before visual sign-off.
 
 ### 2. Color
 - Legacy neon green accents in Home, Discover and Card were mapped to the board's muted green evidence tincture; primary actions remain red.
@@ -42,8 +42,11 @@ Recovered board-specific Home direction: two-column desktop composition; left-si
 
 ### 6. Layout
 - Home uses the recovered board two-column desktop structure and responsive board order.
-- Ledger is an evidence register, Discover combines search with saved searches/source status, Reactor is a logbook plus run console, Card retains the evidence dossier, and Connections presents contact/route availability.
-- These five page compositions are implementation proposals, not certified copies of their board screens, because the screen-specific specifications were not available in the recovered context.
+- Ledger is a strongest-first register with person, evidence, score and source columns; the board includes filled, empty, API-down and phone states.
+- Discover places the search console beside saved searches and a source register; its phone layout stacks these regions in the board's order.
+- Reactor pairs a searchable, filterable live Logbook with a canonical Run console; the board shows running and phone states, including recorded evidence and explicit current run status.
+- Card uses per-subject tabs and a dossier. Person cards show claims, evidence provenance, route, wealth limitations and ways to reach; company cards show people on the card and company evidence.
+- Connections shows contacts and routes through them, with evidence status. The implementation must keep contact-source unavailability explicit until a user-owned contacts source exists.
 
 ### 7. Details
 - Full-pill filters become compact rectangular controls and hairline surfaces; evidence statuses retain distinct verified/corroborated/in-review treatments.
@@ -64,13 +67,15 @@ Recovered board-specific Home direction: two-column desktop composition; left-si
 
 ## Source and verification limits
 
-The user-supplied design-board URL, https://design-board-812905.netlify.app, could not be retrieved by the available browser (the fetch returned a cache miss). Recovered prior context contains the Home composition, Home control details, palette, type and evidence signature, but not the exact screen-specific layouts for Ledger, Discover, Reactor, Card or Connections. Those five active-page compositions therefore cannot honestly be certified as exact matches yet. Do not merge this PR as a finished design-board match until the board screens are available as screenshots/PDF or the board URL can be inspected.
+The user supplied the complete one-page Design Board PDF on 2026-11-23. Its parsed text and rendered page are now the authoritative specification for all six screens, including filled/empty/API-down Home and Ledger states, Discover's saved-search/source register, Reactor's running Logbook and Run console, person/company Card variants, and Connections' contact-route composition. The board specifies Geist/Geist Mono, paper #FAFAF8, card #FFFFFF, raised #F3F3F0, ink #18181A, ink-2 #55555A, ink-3 #74747A, gules #C8321E, vert #1F8A4D, azure #2757C6, or #EDB92B, and the semantic checky/waves/dots/bends patterns.
 
-The Netlify deploy previews are available at:
+The PDF resolves the missing specification, but it does not prove that the implementation matches. A rendered side-by-side comparison is still required at desktop and 390px mobile sizes for each active board route, including designed empty and API-down states where they can be safely exercised. Do not report exact visual conformance until those screenshots have been inspected.
+
+The earlier 98902e0 Netlify preview deployments were available at:
 - https://deploy-preview-943--apexatlasnetlify.netlify.app
 - https://deploy-preview-943--relaxed-bonbon-8725c2.netlify.app
 
-On the current branch head, the frontend responsive contract, frontend build, Reactor no-fabrication contract, discovery static check and prompt architecture audit pass. The API regression suite and full codebase audits are still running. The Vercel deployment is rate-limited; Netlify previews remain available. No authenticated browser screenshot was available in this pass, so pixel comparison against the supplied board is not complete.
+The preview host could not be opened by the available browser in this audit, and no screenshot-capable browser was available. Source-level contracts are not visual proof. Vercel's earlier deployment status was rate-limited; Netlify previews remain the available deployment path.
 
 ## Unresolved data-model dependency
 
