@@ -827,7 +827,7 @@ body:has(.atlas-round-shell) {
 .atlas-round-main { position:relative; }
 .atlas-round-desktop-status {
   position:absolute;
-  top:28px;
+  top:12px;
   right:32px;
   z-index:8;
 }
@@ -849,13 +849,13 @@ body:has(.atlas-round-shell) {
 .atlas-round-status-dot.is-offline { background:#C8321E; }
 .atlas-round-status-short { display:none; }
 @media (max-width:760px) {
-  .atlas-round-desktop-status { display:none; }
-  .atlas-round-mobile-status { margin-left:auto; margin-right:8px; }
-}
-@media (min-width:761px) {
-  .atlas-round-mobile-status { display:none; }
-}
-@media (max-width:480px) {
+  .atlas-round-desktop-status {
+    display:block;
+    position:fixed;
+    top:20px;
+    right:72px;
+    z-index:35;
+  }
   .atlas-round-status-full { display:none; }
   .atlas-round-status-short { display:inline; }
 }
