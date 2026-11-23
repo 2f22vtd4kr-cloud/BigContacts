@@ -59,6 +59,8 @@ interface AutoPipelineScheduler {
 
 interface AtlasLiveState {
   jobId?: string;
+  createdAt?: string;
+  updatedAt?: string;
   runStatus: "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
@@ -1642,14 +1644,79 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     const runStatus = telemetry.runStatus;
     const statusLabel = apiAvailable === false ? "API down" : apiAvailable === null ? "Checking"
       : runStatus === "running" || runStatus === "queued" || runStatus === "paused"
-        ? "Running" : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Cancelled" : "Idle";
-    const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ");
+        ? runStatus === "queued" ? "Queued" : runStatus === "paused" ? "Paused" : "Running"
+        : runStatus === "done" ? "Finished" : runStatus === "failed" ? "Failed" : runStatus === "cancelled" ? "Stopped" : "Idle";
+    const runTarget = atlasState?.currentEntities?.filter(Boolean).join(", ") || atlasState?.atlasTelemetry?.targetName;
     const telemetryLive = runStatus === "running" || runStatus === "paused";
+    const runInFlight = telemetryLive || runStatus === "queued";
+    const stepCount = atlasState?.recentSpans?.length ?? logItems.length;
+    const sourceUrls = logItems.flatMap((activity) => activity.sourceUrls ?? []);
+    const sourceHosts = new Set<string>();
+    for (const value of sourceUrls) {
+      try { sourceHosts.add(new URL(value).hostname.toLowerCase()); } catch { /* Keep only recorded HTTP URLs. */ }
+    }
+    const sourceCount = typeof atlasState?.atlasTelemetry?.sources === "number"
+      ? atlasState.atlasTelemetry.sources
+      : sourceHosts.size;
+    const createdAt = atlasState?.createdAt ? Date.parse(atlasState.createdAt) : NaN;
+    const endedAt = atlasState?.updatedAt ? Date.parse(atlasState.updatedAt) : NaN;
+    const elapsedEnd = telemetryLive || runStatus === "queued" ? Date.now() : endedAt;
+    const elapsedMs = Number.isFinite(createdAt) && Number.isFinite(elapsedEnd) ? Math.max(0, elapsedEnd - createdAt) : NaN;
+    const elapsedSeconds = Number.isFinite(elapsedMs) ? Math.floor(elapsedMs / 1000) : null;
+    const elapsedLabel = elapsedSeconds == null
+      ? "—"
+      : String(Math.floor(elapsedSeconds / 60)).padStart(2, "0") + ":" + String(elapsedSeconds % 60).padStart(2, "0");
+    const latestStep = logItems[0];
+    const latestStepAt = latestStep?.endedAt || latestStep?.startedAt;
+    const lastStepLabel = latestStepAt
+      ? (() => {
+          const age = Math.max(0, Math.floor((Date.now() - Date.parse(latestStepAt)) / 1000));
+          return Number.isFinite(age) ? age < 60 ? String(age) + "s ago" : age < 3600 ? String(Math.floor(age / 60)) + "m ago" : String(Math.floor(age / 3600)) + "h ago" : "Time not recorded";
+        })()
+      : "No step recorded yet";
     return (
-      <div className="atlas-reactor-board-layout">
+      <>
+        <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
+          <div className="atlas-reactor-board-heading">
+            <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
+            <div className="atlas-reactor-run-status-group">
+              <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase().replace(/\s+/g, "-")}>{statusLabel}</span>
+              {apiAvailable === false && onRetryApi && <button type="button" onClick={() => void onRetryApi()}>Retry</button>}
+            </div>
+          </div>
+          <div className="atlas-reactor-current-run">
+            <span>Current objective</span>
+            <strong>{runTarget || (telemetryLive ? "Research in progress" : "No active target")}</strong>
+            <p>{apiAvailable === false
+              ? "The Reactor API is unreachable. Previously recorded evidence remains available; new run state cannot be verified."
+              : atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : runStatus === "done" ? "This run finished. Its recorded steps remain in the Logbook." : "No run is active. Launch an objective from Overview to begin.")}</p>
+          </div>
+          <div className="atlas-reactor-run-metrics" aria-label="Run metrics">
+            <div><strong>{stepCount || "—"}</strong><span>Steps</span></div>
+            <div><strong>{sourceCount}</strong><span>Sources</span></div>
+            <div><strong>{elapsedLabel}</strong><span>Elapsed</span></div>
+          </div>
+          <dl className="atlas-reactor-run-facts">
+            <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
+            <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
+            <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
+          </dl>
+          <p className="atlas-reactor-last-step">Last step recorded {lastStepLabel}</p>
+          {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
+          {runInFlight ? (
+            <div className="atlas-reactor-run-actions">
+              <button type="button" disabled aria-disabled="true" title="Pause is not supported by the current Atlas run controller">Pause</button>
+              <LaunchAtlasButton variant="header" label="Stop run" navigateToReactor={false} />
+            </div>
+          ) : (
+            <a className="atlas-reactor-launch-slot" href="/">Launch a run from Overview</a>
+          )}
+          <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
+        </aside>
+
         <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
           <div className="atlas-reactor-board-heading">
-            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps, newest last</p></div>
+            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps in the live record, newest first</p></div>
             <span className={telemetryLive ? "is-live" : ""}>{telemetryLive ? "Following live" : "Recorded"}</span>
           </div>
           <label className="atlas-reactor-log-search">
@@ -1664,12 +1731,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             ))}
           </div>
           {filteredBoardItems.length === 0 ? (
-            <div className="atlas-reactor-log-empty">
+            <div className="atlas-reactor-log-empty" role="status">
               <strong>{logItems.length === 0 ? "No recorded steps yet." : "No steps match this view."}</strong>
-              <p>{logItems.length === 0 ? "Launch a run. Every actual search, page visit and registry check will be recorded here." : "Clear the search or choose another event type."}</p>
+              <p>{logItems.length === 0 ? "Launch a run from Overview. Every actual search, page visit and registry check will be recorded here." : "Clear the search or choose another event type."}</p>
             </div>
           ) : (
-            <div className="atlas-reactor-log-list">
+            <div className="atlas-reactor-log-list" role="log" aria-live={telemetryLive ? "polite" : "off"}>
               <ReactorLiveSurface
                 events={[]}
                 activities={filteredBoardItems}
@@ -1680,32 +1747,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             </div>
           )}
         </section>
-
-        <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
-          <div className="atlas-reactor-board-heading">
-            <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
-            <div className="atlas-reactor-run-status-group">
-              <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase()}>{statusLabel}</span>
-              {apiAvailable === false && onRetryApi && <button type="button" onClick={() => void onRetryApi()}>Retry</button>}
-            </div>
-          </div>
-          <div className="atlas-reactor-current-run">
-            <span>Current run</span>
-            <strong>{runTarget || (telemetryLive ? "Research in progress" : "No active target")}</strong>
-            <p>{apiAvailable === false ? "The Reactor API is unreachable. Previously recorded evidence remains available; new run state cannot be verified." : atlasState?.detail || (telemetryLive ? "Atlas is working. New steps appear in the logbook when recorded." : "No run is active. Launch an objective to begin a new investigation.")}</p>
-          </div>
-          <dl className="atlas-reactor-run-facts">
-            <div><dt>Phase</dt><dd>{atlasState?.phaseLabel || "Idle"}</dd></div>
-            <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
-            <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
-          </dl>
-          {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
-          <div className="atlas-reactor-launch-slot">{launchSlot}</div>
-        </aside>
-      </div>
+      </>
     );
   }
-
 
 
   return (
@@ -2705,6 +2749,8 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
         nextAtlasState = {
           ...structured,
           jobId: atlasPoll.jobId,
+          createdAt: typeof jobData.createdAt === "string" ? jobData.createdAt : undefined,
+          updatedAt: typeof jobData.updatedAt === "string" ? jobData.updatedAt : undefined,
           entityProgress: jobData.entityProgress != null ? Number(jobData.entityProgress) : null,
           entityTotal: jobData.entityTotal != null ? Number(jobData.entityTotal) : null,
           currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
