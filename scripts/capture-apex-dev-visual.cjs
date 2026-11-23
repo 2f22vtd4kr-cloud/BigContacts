@@ -158,6 +158,8 @@ async function main() {
         })(),
         scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean),
       }));
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
       const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
       fs.writeFileSync(`/tmp/apex-home-${name}.jpg`, screenshot);
       console.log(`APEX_VISUAL_META_${name}=${JSON.stringify({
