@@ -140,6 +140,13 @@ export function LaunchAtlasButton({
           <button type="button" onClick={onRetryApi} disabled={!onRetryApi}>Retry</button>
         </div>
       )}
+      {variant === "primary" && (
+        <div className="atlas-home-source-status" aria-label="Available source kinds">
+          <span>Web search</span>
+          <span>Registries</span>
+          <span className="is-unavailable">Footprint tools unavailable</span>
+        </div>
+      )}
       {variant !== "header" && !inFlight && (
         <label className="flex w-full flex-col gap-1.5">
           
