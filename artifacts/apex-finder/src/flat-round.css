@@ -404,6 +404,7 @@
 @media (max-width:760px) { .atlas-round .atlas-home-route-result-meta { flex-direction:column; gap:4px; } .atlas-round .atlas-home-route-legend > div { grid-template-columns:12px minmax(0,1fr); } .atlas-round .atlas-home-route-legend > div > span:last-child { grid-column:2; } }
 
 /* Connections board: user-owned contacts and only complete, source-backed routes. */
+.atlas-round .atlas-board-connections .atlas-board-page-content,.atlas-round .atlas-connections-layout { display:block; width:100%; max-width:none!important; min-width:0; }
 .atlas-round .atlas-connections-layout { display:grid; grid-template-columns:minmax(270px,.82fr) minmax(0,1.18fr); gap:48px; align-items:start; }
 .atlas-round .atlas-connections-console,.atlas-round .atlas-connections-routes { min-width:0; border-top:1px solid var(--round-line); }
 .atlas-round .atlas-connections-console { padding-top:16px; }
