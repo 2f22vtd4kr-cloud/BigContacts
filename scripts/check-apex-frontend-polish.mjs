@@ -26,6 +26,7 @@ const contactSurface = read("artifacts/apex-finder/src/components/contact-surfac
 const profile = read("artifacts/apex-finder/src/pages/profile.tsx");
 const pathFinder = read("artifacts/apex-finder/src/components/connection-path-finder.tsx");
 const ledger = read(files.ledger);
+const ledgerEvidence = read("artifacts/apex-finder/src/lib/board-ledger-evidence.ts");
 const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
@@ -78,7 +79,7 @@ const checks = [
   ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
   ["tablet desks avoid legacy md geometry", !tabletSurfaces[5].includes("md:w-80") && !tabletSurfaces[0].includes("md:rotate-0")],
 ["Ledger imports its evidence-aware entity display classifier", ledger.includes('import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";') && ledger.includes("normalizeEntityType(displayEntityType(entity))")],
-  ["Ledger derives the row status from the primary presented contact and uses evidence tinctures", ledger.includes("entity.contacts[0]") && ledger.includes("validationStatus") && ledger.includes("boardEvidenceStatus") && ledger.includes("atlas-evidence-pattern is-") && ledger.includes("<th>Person</th><th>Evidence</th><th>Score</th><th>Sources</th>")],
+  ["Ledger derives the row status from the primary presented contact and uses evidence tinctures", ledger.includes("resolveBoardEvidenceStatus(entity.contacts)") && ledgerEvidence.includes("contacts[0]") && ledgerEvidence.includes("validationStatus") && ledger.includes("boardEvidenceStatus") && ledger.includes("atlas-evidence-pattern is-") && ledger.includes("<th>Person</th><th>Evidence</th><th>Score</th><th>Sources</th>")],
   ["Ledger outcome totals render as a separated three-column summary instead of concatenated inline text", flatRound.includes(".atlas-round .atlas-ledger-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));") && flatRound.includes(".atlas-round .atlas-ledger-counts > div { display:flex; min-width:0; flex-direction:column;") && flatRound.includes(".atlas-round .atlas-ledger-counts strong {") && flatRound.includes(".atlas-round .atlas-ledger-counts span {")],
   ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
   ["dashboard rows stay inside the shell canvas", /atlas-home-board-grid/.test(dashboard) && /max-width:\s*1600px/.test(flatRound) && /min-width:\s*0/.test(flatRound) && !/inline-size:\s*100vw/.test(flatRound) && !/atlas-sidebar-offset/.test(flatRound)],
