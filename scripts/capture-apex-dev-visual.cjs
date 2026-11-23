@@ -3,6 +3,32 @@ const fs = require("node:fs");
 
 const baseUrl = process.env.APEX_VISUAL_BASE_URL || "http://127.0.0.1:23695";
 
+// Synthetic browser-only fixtures for the visual harness. The route interceptor
+// below serves these responses locally; no fixture is written to or sent to Apex.
+const visualEntities = [
+  { id: 1, name: "Mira Patel", type: "HNWI", isHidden: false },
+  { id: 2, name: "Noah Reed", type: "HNWI", isHidden: false },
+  { id: 3, name: "Northstar Capital", type: "Corporation", isHidden: false },
+  { id: 4, name: "Harbor Ventures", type: "Corporation", isHidden: false },
+];
+const visualConnectionPath = {
+  found: true,
+  path: [
+    { id: "1", label: "Mira Patel", nodeType: "Person", isTarget: true, isCentral: true },
+    { id: "3", label: "Northstar Capital", nodeType: "Organization", isTarget: false, isCentral: false },
+    { id: "4", label: "Harbor Ventures", nodeType: "Organization", isTarget: false, isCentral: false },
+    { id: "2", label: "Noah Reed", nodeType: "Person", isTarget: true, isCentral: false },
+  ],
+  edges: [
+    { id: "edge-1", source: "1", target: "3", label: "Founder at", strength: 0.82, evidenceStatus: "supported" },
+    { id: "edge-2", source: "3", target: "4", label: "Investment relationship", strength: 0.61, evidenceStatus: "disputed" },
+    { id: "edge-3", source: "4", target: "2", label: "Board connection", strength: 0.74, evidenceStatus: "review" },
+  ],
+  hops: 3,
+  pathScore: 0.72,
+  recommendation: "Review the disputed middle relationship before relying on this path.",
+};
+
 async function main() {
   const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   try {
@@ -49,7 +75,11 @@ async function main() {
           payload = { leads: [], sourceLeads: [], activeDiscovery: false };
         } else if (url.includes("/api/ingest/job/active/atlas-run")) {
           payload = { active: false, status: "idle" };
-        } else if (url.includes("/api/relationships") || url.includes("/api/entities") || url.includes("/api/assets")) {
+        } else if (url.includes("/api/graph/path")) {
+          payload = visualConnectionPath;
+        } else if (url.includes("/api/entities")) {
+          payload = visualEntities;
+        } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
           payload = [];
         }
         await route.fulfill({
@@ -69,6 +99,16 @@ async function main() {
       if (await prompt.count()) {
         await prompt.fill("Founders of UK climate startups with a warm route");
         await page.waitForTimeout(250);
+      }
+
+      let routeFixtureLoaded = false;
+      const routeSelects = page.locator(".atlas-home-route-finder select");
+      if (await routeSelects.count() === 2) {
+        await routeSelects.nth(0).selectOption("1");
+        await routeSelects.nth(1).selectOption("2");
+        await page.getByRole("button", { name: "Find shortest path" }).click();
+        await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
+        routeFixtureLoaded = true;
       }
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
@@ -101,12 +141,13 @@ async function main() {
         })(),
         scripts: Array.from(document.scripts).map((script) => script.src).filter(Boolean),
       }));
-      const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: false });
+      const screenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: name === "mobile" });
       fs.writeFileSync(`/tmp/apex-home-${name}.jpg`, screenshot);
       console.log(`APEX_VISUAL_META_${name}=${JSON.stringify({
         title,
         url: page.url(),
         hasOperatorSignIn: /operator sign-in|operator login/i.test(bodyText),
+        routeFixtureLoaded,
         body: bodyText.slice(0, 900),
         diagnostics,
         browserErrors: browserErrors.slice(0, 20),
