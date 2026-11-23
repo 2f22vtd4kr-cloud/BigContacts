@@ -658,8 +658,8 @@
 .atlas-round-sidebar-brand .atlas-round-wordmark { color:var(--round-ink); text-decoration:none; }
 .atlas-round-sidebar-brand .atlas-round-wordmark strong { font:500 20px/1.1 "Geist",sans-serif; letter-spacing:-.045em; }
 .atlas-round-sidebar-nav { display:flex; flex-direction:column; gap:4px; padding-top:24px; }
-.atlas-round-sidebar-label { padding:0 10px 8px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:.08em; }
-.atlas-round-sidebar .atlas-round-navlink { display:flex; min-height:38px; justify-content:flex-start; gap:10px; padding:0 10px; border-radius:6px; color:var(--round-ink-2); font:400 13px/1.2 "Geist",sans-serif; text-decoration:none; }
+.atlas-round-sidebar-label { padding:0 8px 8px; color:var(--round-ink-3); font:400 10px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:.08em; }
+.atlas-round-sidebar .atlas-round-navlink { display:flex; min-height:38px; justify-content:flex-start; gap:8px; padding:0 8px; border-radius:6px; color:var(--round-ink-2); font:400 13px/1.2 "Geist",sans-serif; text-decoration:none; }
 .atlas-round-sidebar .atlas-round-navlink svg { display:block; width:16px; height:16px; color:var(--round-ink-3); stroke-width:1.7; }
 .atlas-round-sidebar .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
 .atlas-round-sidebar .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); font-weight:500; }
