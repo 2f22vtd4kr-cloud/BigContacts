@@ -193,6 +193,10 @@ async function main() {
         }
       }
       await page.goto(new URL("/network", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector(".atlas-connections-layout", { timeout: 15000 });
+      const connectionsLayout = await page.locator(".atlas-connections-layout").boundingBox();
+      const connectionsContent = await page.locator(".atlas-board-page-content").boundingBox();
+      if (!connectionsLayout || !connectionsContent || connectionsLayout.width < connectionsContent.width * 0.95) throw new Error("Connections workspace must fill the board content width.");
       await page.waitForSelector(".atlas-connections-path-finder", { timeout: 10_000 });
       const routeSelects = page.locator(".atlas-connections-path-finder select");
       if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
