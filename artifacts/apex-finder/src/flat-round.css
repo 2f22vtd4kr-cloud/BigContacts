@@ -96,6 +96,12 @@
 .atlas-home-board-console::before { left:0; border-radius:20px 0 0 20px; }
 .atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }
 .atlas-home-console-inner { position:relative; z-index:1; min-width:0; padding:20px; border:1px solid var(--round-line); border-radius:12px; background:var(--round-card); }
+.atlas-round .atlas-home-source-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; min-height:24px; color:var(--round-ink-2); font:400 11px/1.3 "Geist",sans-serif; }
+.atlas-round .atlas-home-source-status > span { display:inline-flex; align-items:center; gap:6px; }
+.atlas-round .atlas-home-source-status .atlas-home-console-label { margin-right:8px; color:var(--round-ink); font:500 13px "Geist",sans-serif; }
+.atlas-round .atlas-home-console-label svg { width:16px; height:16px; flex:none; }
+.atlas-round .atlas-home-source-status > span:not(.atlas-home-console-label)::before { content:""; width:7px; height:7px; border-radius:50%; background:#1F8A4D; }
+.atlas-round .atlas-home-source-status > .is-unavailable::before { background:transparent; border:1px solid var(--round-ink-3); }
 .atlas-home-board-console .atlas-launch-primary-root { display:flex; width:100%; flex-direction:column; gap:16px; }
 .atlas-home-board-console .atlas-launch-primary-root label { display:flex; width:100%; flex-direction:column; gap:8px; }
 .atlas-home-board-console .atlas-launch-primary-root label > span:first-child { color:var(--round-ink-2); font-family:"Geist Mono",ui-monospace,monospace; font-size:12px; letter-spacing:0; }
