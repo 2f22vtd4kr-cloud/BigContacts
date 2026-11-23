@@ -921,9 +921,6 @@ body:has(.atlas-round-shell) {
   padding:20px;
   border:8px solid transparent;
   border-radius:20px;
-  background-color:transparent!important;
-  background-image:linear-gradient(#fff,#fff)!important;
-  background-clip:padding-box!important;
 }
 .atlas-round .atlas-discover-search-console::before,
 .atlas-round .atlas-discover-search-console::after {
