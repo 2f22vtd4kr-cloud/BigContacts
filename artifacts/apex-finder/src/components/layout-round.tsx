@@ -20,6 +20,8 @@ const utilityNav = [
   { name: "Persona review", href: "/improvements", icon: Settings2 },
   { name: "Duplicate review", href: "/duplicates", icon: GitCompare },
   { name: "Workspace activity", href: "/jobs", icon: Activity },
+  { name: "Network graph", href: "/network/graph", icon: Network },
+  { name: "Reactor topology", href: "/reactor/topology", icon: Activity },
   { name: "Intel terminal", href: "/research", icon: Crosshair },
 ];
 
