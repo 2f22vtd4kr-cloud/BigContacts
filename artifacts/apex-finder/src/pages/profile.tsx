@@ -2005,6 +2005,15 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
     const claimRows = (ledger as any[])
       .filter((entry) => entry && entry.source && entry.source !== "Internal")
       .slice(0, 5);
+    const displayType = displayEntityType(entity);
+    const isCompanyCard = displayType === "Corporation" || displayType === "Trust";
+    const companyContacts = Array.isArray((entity as any).contacts)
+      ? (entity as any).contacts.filter((route: any) => String(route?.mark ?? "").toLowerCase() === "organization")
+      : [];
+    const companyPhoneSource = String((entity as any).phoneSource ?? "");
+    const companyPhone = /(?:-org$|^EDGAR-Phone$|^EDGAR-Issuer-Phone$|^CompaniesHouse-Phone$)/.test(companyPhoneSource)
+      ? e.phone
+      : null;
     const relatedPeople = (relationships as any[])
       .filter((rel) => String(rel.targetType ?? "").toLowerCase() === "entity" && rel.targetName)
       .slice(0, 4);
@@ -2027,9 +2036,9 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
           <header className="atlas-card-subject">
             <div className="atlas-card-avatar" aria-hidden="true">{personInitials || "—"}</div>
             <div className="atlas-card-subject-copy">
-              <div className="atlas-card-subject-type"><EntityTypeMark type={entity.type} />{String(entity.type ?? "Person")}</div>
+              <div className="atlas-card-subject-type"><EntityTypeMark type={entity.type} /></div>
               <h2>{e.name}</h2>
-              <p>{profileWorkSummary || e.role || e.title || "Role not recorded"}</p>
+              <p>{profileWorkSummary || e.role || e.title || (isCompanyCard ? claimRows[0]?.source || "Company record" : "Role not recorded")}</p>
               {e.nationality && <span>{e.nationality}</span>}
             </div>
             <div className="atlas-card-subject-score">
@@ -2069,19 +2078,17 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             )}
           </section>
 
-          <div className="atlas-card-main-facts">
-            <section className="atlas-card-section">
-              <h3>Personal wealth</h3>
-              <strong className="atlas-card-fact-value">{wealthLabel}</strong>
-              <p>{displayableEstimatedNetWorth
-                ? "An attributable estimate is available in the recorded evidence."
-                : "No attributable record yet. Atlas does not infer wealth from a role or title."}</p>
-            </section>
-            <section className="atlas-card-section">
-              <h3>Ownership</h3>
-              <p>{ownershipSummary}</p>
-            </section>
-          </div>
+          {!isCompanyCard && (
+            <div className="atlas-card-main-facts">
+              <section className="atlas-card-section">
+                <h3>Personal wealth</h3>
+                <strong className="atlas-card-fact-value">{wealthLabel}</strong>
+                <p>{displayableEstimatedNetWorth
+                  ? "An attributable estimate is available in the recorded evidence."
+                  : "No attributable record yet. Atlas does not infer wealth from a role or title."}</p>
+              </section>
+            </div>
+          )}
         </main>
 
         <aside className="atlas-card-sidebar">
@@ -2112,15 +2119,25 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
               <div><h3>Ways to reach</h3><p>Attributable public contact routes</p></div>
             </div>
             <ContactSurface
-              contacts={(entity as { contacts?: unknown[] }).contacts as never}
-              phone={e.phone}
-              email={e.email && !isProtectedEmail(e.email) ? e.email : null}
-              linkedinUrl={e.linkedinUrl}
-              phoneSource={(entity as { phoneSource?: string }).phoneSource}
+              contacts={isCompanyCard ? companyContacts : (entity as { contacts?: unknown[] }).contacts as never}
+              phone={isCompanyCard ? companyPhone : e.phone}
+              email={isCompanyCard ? null : e.email && !isProtectedEmail(e.email) ? e.email : null}
+              linkedinUrl={isCompanyCard ? null : e.linkedinUrl}
+              phoneSource={isCompanyCard ? companyPhoneSource : (entity as { phoneSource?: string }).phoneSource}
               density="card"
               evidenceCount={contactEvidence.length}
             />
           </section>
+
+          {isCompanyCard && (
+            <section className="atlas-card-section atlas-card-ownership">
+              <div className="atlas-card-section-heading">
+                <div><h3>Ownership</h3><p>Recorded ownership evidence only</p></div>
+                <span>{ownershipRows.length > 0 ? "Recorded" : "Not recorded"}</span>
+              </div>
+              <p>{ownershipSummary}</p>
+            </section>
+          )}
 
           <section className="atlas-card-section atlas-card-behind">
             <h3>Behind this card</h3>
