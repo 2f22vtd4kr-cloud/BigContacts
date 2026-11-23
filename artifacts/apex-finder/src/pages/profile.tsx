@@ -12,6 +12,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   ArrowLeft,
+  ArrowUpRight,
   Network,
   Target as TargetIcon,
   KanbanSquare,
@@ -43,7 +44,7 @@ import {
   Phone,
   Flame,
 } from "lucide-react";
-import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
+import { cn, entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
@@ -2015,7 +2016,8 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
         : "No shareholder record yet. Atlas does not infer ownership from a title.";
     const evidenceLabel = entityEvidenceLabel(entity);
     const evidenceStatus = /verified/i.test(evidenceLabel) ? "verified" : /corroborated/i.test(evidenceLabel) ? "corroborated" : "review";
-    const score = Number(entity.bayesianScore ?? confidence?.overall);
+    const rawScore = entity.bayesianScore ?? confidence?.overall;
+    const score = rawScore == null ? NaN : Number(rawScore);
     const scoreLabel = Number.isFinite(score) && score >= 0 ? score.toFixed(2) : "—";
     const personInitials = String(e.name ?? "Apex").trim().split(/\s+/).slice(0, 2).map((part: string) => part[0] ?? "").join("").toUpperCase();
     const wealthLabel = displayableEstimatedNetWorth ? String(displayableEstimatedNetWorth) : "Not recorded";
