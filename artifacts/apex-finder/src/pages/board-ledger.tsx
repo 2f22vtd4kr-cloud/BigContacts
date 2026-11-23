@@ -26,8 +26,8 @@ function sourceList(value: unknown): string[] {
 
 function evidenceStatus(entity: any): EvidenceStatus {
   const metadata = parseMetadata(entity.metadata);
-  const level = String(metadata.verificationLevel ?? metadata.evidenceStatus ?? metadata.verificationStatus ?? "").toLowerCase();
-  if (level === "verified" || entity.contactOutcome === "direct_contact_verified") return "verified";
+  const level = String(entity.verificationLevel ?? metadata.verificationLevel ?? metadata.evidenceStatus ?? metadata.verificationStatus ?? "").toLowerCase();
+  if (level === "verified") return "verified";
   if (level === "corroborated") return "corroborated";
   return "review";
 }
