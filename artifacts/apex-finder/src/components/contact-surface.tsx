@@ -54,18 +54,17 @@ function routeTier(route: ContactRouteView): { label: string; title: string; col
   if (!context && route.metadata) {
     try { const parsed = JSON.parse(route.metadata) as Record<string, unknown>; context = String(parsed.contextType ?? parsed.contactContext ?? "").toLowerCase().replace(/\s+/g, "_"); } catch {}
   }
-  if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) return { label: "NOT A ROUTE", title: "This context is not used for outreach ranking", color: "#94a3b8" };
-  if (route.mark === "organization") return { label: "PUBLIC COMPANY", title: "Generic corporate route; useful but low-exclusivity", color: "#a78bfa" };
-  const verified = /verified|corroborated|accepted/i.test(String(route.validationStatus ?? ""));
-  const professional = ["professional", "business", "public_professional", "public_business"].includes(context);
-  if (route.mark === "personal" && verified && professional && (route.sourceReliability ?? 0) >= 0.7 && (route.directnessScore ?? 0) >= 0.7 && (route.independentCorroboration ?? 0) >= 1) return { label: "DIRECT PROFESSIONAL", title: "Verified public professional route", color: "#34d399" };
-  return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
+  if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) return { label: "Not a route", title: "This context is not used for outreach ranking", color: "#74747A" };
+  const validation = String(route.validationStatus ?? "").toLowerCase();
+  if (/corroborated/.test(validation)) return { label: "Corroborated", title: "Independent sources support this public route", color: "#2757C6" };
+  if (/verified|accepted/.test(validation)) return { label: "Verified", title: "This public route has recorded verification", color: "#1F8A4D" };
+  return { label: "In review", title: "Source context or attribution still needs review", color: "#EDB92B" };
 }
 
 function markColor(mark?: string): string {
-  if (mark === "personal") return "#34d399";
-  if (mark === "organization") return "#a78bfa";
-  return "#94a3b8";
+  if (mark === "personal") return "#1F8A4D";
+  if (mark === "organization") return "#2757C6";
+  return "#74747A";
 }
 
 export function ContactSurface({
