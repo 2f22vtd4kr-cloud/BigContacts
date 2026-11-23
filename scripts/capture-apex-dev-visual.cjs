@@ -236,6 +236,7 @@ async function main() {
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
           const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
           const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
+          const reactorLastStep = document.querySelector(".atlas-reactor-last-step");
           return {
             discover: label === "discover" ? {
               display: discover ? getComputedStyle(discover).display : null,
@@ -257,6 +258,8 @@ async function main() {
               columns: reactorGrid ? getComputedStyle(reactorGrid).gridTemplateColumns : null,
               metricsDisplay: reactorMetrics ? getComputedStyle(reactorMetrics).display : null,
               metricLabels: reactorMetrics ? Array.from(reactorMetrics.querySelectorAll("span")).map((item) => item.textContent?.trim()) : [],
+              lastStepDisplay: reactorLastStep ? getComputedStyle(reactorLastStep).display : null,
+              lastStepDirection: reactorLastStep ? getComputedStyle(reactorLastStep).flexDirection : null,
             } : null,
           };
         }, boardPage.label);
@@ -266,7 +269,7 @@ async function main() {
         if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
           throw new Error(`Ledger console frame or register metric hierarchy failed: ${JSON.stringify(boardDiagnostics.ledger)}`);
         }
-        if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed")) {
+        if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed" || boardDiagnostics.reactor?.lastStepDisplay !== "flex" || boardDiagnostics.reactor?.lastStepDirection !== "column")) {
           throw new Error(`Reactor run console/logbook split or metric hierarchy failed: ${JSON.stringify(boardDiagnostics.reactor)}`);
         }
         const boardScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
