@@ -81,7 +81,7 @@ require(boardConnections.includes("The people between you") && boardConnections.
 require(router.includes('path="/network" component={GraphViewer}'), "The full relationship graph must remain available in the classic rollback");
 require(boardReactor.includes("Every step, on the record") && boardReactor.includes("boardMode"), "Reactor must use the board logbook and run-console composition");
 require(reactor.includes("telemetry.activities") && reactor.includes("ReactorLiveSurface") && reactor.includes("atlas-reactor-logbook"), "Reactor board must use the shared normalized live-telemetry store");
-require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board"), "Reactor board must render a paper-style list from the shared normalized event stream");
+require(liveSurface.includes("boardMode") && liveSurface.includes("atlas-reactor-live-board") && liveSurface.includes("boardMode ? 50 : 18"), "Reactor board must render the full normalized 50-step window in its paper logbook");
 require(reactor.includes('<LaunchAtlasButton variant="primary" navigateToReactor={false}'), "Reactor run console must preserve the board 25-person objective controls");
 require(reactor.includes('"/api/healthz"') && reactor.includes("onRetryApi") && reactor.includes("API down"), "Reactor must expose a verified API-down state with retry");
 require(css.includes(".atlas-reactor-launch-slot .atlas-home-source-status { display:none!important; }"), "Reactor run console must not inherit the Home-only source row");
