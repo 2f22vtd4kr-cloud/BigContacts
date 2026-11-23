@@ -2023,6 +2023,10 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       : ownershipRows.length > 0
         ? ownershipRows.map((entry) => entry.value).filter(Boolean).join(" · ")
         : "No shareholder record yet. Atlas does not infer ownership from a title.";
+    const hasOwnershipEvidence = ownershipRows.length > 0 || (
+      typeof entityMetadata?.ownershipSummary === "string" &&
+      !/no shareholder record|not recorded|unknown/i.test(entityMetadata.ownershipSummary)
+    );
     const evidenceLabel = entityEvidenceLabel(entity);
     const evidenceStatus = /verified/i.test(evidenceLabel) ? "verified" : /corroborated/i.test(evidenceLabel) ? "corroborated" : "review";
     const rawScore = entity.bayesianScore ?? confidence?.overall;
@@ -2105,7 +2109,11 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
                   <li key={rel.id}>
                     <Link href={"/profile/" + rel.targetId}>
                       <strong>{rel.targetName}</strong>
-                      <span>{String(rel.relationshipType ?? "Relationship").replace(/_/g, " ")}</span>
+                      <span>{String(rel.role ?? rel.relationshipType ?? "Relationship")
+                        .replace(/[_-]+/g, " ")
+                        .trim()
+                        .replace(/^co\s+/i, "co-")
+                        .replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
                     </Link>
                     <small>{Number.isFinite(Number(rel.strength)) ? Math.round(Number(rel.strength) * 100) + "% strength" : "Strength not recorded"}</small>
                   </li>
@@ -2133,7 +2141,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
             <section className="atlas-card-section atlas-card-ownership">
               <div className="atlas-card-section-heading">
                 <div><h3>Ownership</h3><p>Recorded ownership evidence only</p></div>
-                <span>{ownershipRows.length > 0 ? "Recorded" : "Not recorded"}</span>
+                <span>{hasOwnershipEvidence ? "Recorded" : "Not recorded"}</span>
               </div>
               <p>{ownershipSummary}</p>
             </section>
