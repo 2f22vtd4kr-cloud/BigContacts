@@ -49,7 +49,7 @@ require(dashboard.includes("Saved copy remains visible"), "Home must preserve an
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
 const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
 require(objective.length > 0 && objective.length <= 1600, "default mission must fit the canonical 1,600-character launch contract");
-require(launch.includes('maxLength={variant === "primary" ? 1_200 : 1_600}'), "Home prompt must match the board 1,200-character limit while non-Home callers retain the 1,600-character API allowance");
+require(launch.includes("maxLength={1_600}"), "launch objective input must preserve the canonical 1,600-character limit");
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
