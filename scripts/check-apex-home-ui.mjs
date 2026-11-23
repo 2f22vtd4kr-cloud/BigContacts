@@ -12,6 +12,7 @@ const css = read("artifacts/apex-finder/src/flat-round.css");
 const launch = read("artifacts/apex-finder/src/components/launch-atlas-button.tsx");
 const launchApi = read("artifacts/apex-finder/src/lib/launch-atlas.ts");
 const shell = read("artifacts/apex-finder/src/components/layout.tsx");
+const roundLayout = read("artifacts/apex-finder/src/components/layout-round.tsx");
 
 const failures = [];
 const require = (condition, message) => { if (!condition) failures.push(message); };
@@ -36,6 +37,15 @@ require(launch.includes("targetCount: opts?.targetCount ?? launchTargetCount"), 
 require(launch.includes("button-depth-"), "depth choices must be real interactive controls");
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
+require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
+require(roundLayout.includes('className="atlas-round-mobile-nav"'), "mobile primary navigation must remain visible as a tab bar");
+require(roundLayout.includes("atlas-round-mobile-utilities"), "mobile utility navigation must remain available from the menu");
+require(css.includes("position:fixed") && css.includes("bottom:0"), "mobile tab bar must be fixed to the bottom safe area");
+require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
+require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
+require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
+const objective = launchApi.match(/DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "([^"]*)"/)?.[1] ?? "";
+require(objective.length > 0 && objective.length <= 1200, "default mission must fit the design-board 1,200-character limit");
 require(layout.includes("icon: ReactorMark"), "sidebar Reactor navigation must use ReactorMark");
 require(!layout.includes("icon: Cpu"), "sidebar Reactor navigation must not use generic CPU icon");
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
