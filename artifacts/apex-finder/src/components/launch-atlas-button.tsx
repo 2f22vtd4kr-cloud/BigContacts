@@ -51,7 +51,7 @@ export function LaunchAtlasButton({
   const [status, setStatus] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
-  const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? 25)));
+  const [launchTargetCount, setLaunchTargetCount] = useState(Math.min(25, Math.max(1, opts?.targetCount ?? (variant === "primary" ? 25 : 1))));
   const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? (variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE));
   const { run, refresh } = useAtlasRun(8_000);
 
@@ -84,7 +84,7 @@ export function LaunchAtlasButton({
       return;
     }
     setBusy(true);
-    const result = await launchAtlasPipeline({ ...opts, targetCount: opts?.targetCount ?? launchTargetCount, discoveryObjective: objective, researchDepth: opts?.researchDepth ?? launchDepth });
+    const result = await launchAtlasPipeline({ ...opts, targetCount: opts?.targetCount ?? (variant === "primary" ? launchTargetCount : undefined), discoveryObjective: objective, researchDepth: opts?.researchDepth ?? launchDepth });
     setBusy(false);
     setStatus(result.message);
     onLaunched?.(result);
