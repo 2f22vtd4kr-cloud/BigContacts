@@ -19,9 +19,9 @@ async function redisSnapshot() {
 
 router.get("/healthz", async (_req, res) => {
   const snap = await redisSnapshot();
-  // Public probes reveal only liveness, distributed-store health, and a coarse
-  // research-key readiness bit. Provider names, counts, models, and secret state
-  // remain behind the authenticated diagnostic endpoint below.
+  // Public probes reveal liveness, distributed-store health, a coarse research-key
+  // readiness bit, and non-sensitive launch constraints. Provider names, counts,
+  // models, and secret state remain behind the authenticated diagnostic endpoint below.
   // Provider readiness and durable Redis health are independent signals.
   // This coarse public bit only says some research/provider credential exists;
   // it does not certify that all canonical launch roles are configured.
