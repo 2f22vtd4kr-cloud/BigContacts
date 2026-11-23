@@ -25,7 +25,7 @@ function evidenceStatusLabel(status: EvidenceStatus) {
 }
 
 function initials(value: unknown): string {
-  const words = String(value ?? "").trim().split(/\\s+/).filter(Boolean);
+  const words = String(value ?? "").trim().split(/\s+/).filter(Boolean);
   return words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? "").join("") || "—";
 }
 
