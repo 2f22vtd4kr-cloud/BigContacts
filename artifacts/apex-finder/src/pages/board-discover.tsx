@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import DeepSearch from "@/pages/deep-search";
-import { Check, Clock3, Database, Globe, HardDrive, Trash2 } from "lucide-react";
+import { Clock3, Database, Globe, HardDrive, RefreshCw, Trash2 } from "lucide-react";
 
 type SavedSearch = {
   id: string;
@@ -193,8 +193,8 @@ export default function BoardDiscoverPage() {
                 <h2 id="atlas-source-register-title">Sources</h2>
                 <p>Live configuration, not a promise of results</p>
               </div>
-              <button type="button" className="atlas-discover-refresh" onClick={() => void loadSources()} disabled={sourcesLoading} aria-label="Refresh source status">
-                <Check aria-hidden="true" />
+              <button type="button" className="atlas-discover-refresh" onClick={() => void loadSources()} disabled={sourcesLoading} aria-label="Refresh source status" aria-busy={sourcesLoading}>
+                <RefreshCw aria-hidden="true" />
               </button>
             </div>
             {sourcesLoading ? (
