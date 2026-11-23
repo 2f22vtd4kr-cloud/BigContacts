@@ -676,7 +676,7 @@
 .atlas-round-mobile-header { display:none; }
 .atlas-round-sidebar-backdrop { display:none; }
 @media (max-width:1000px) and (min-width:761px) {
-  .atlas-round-sidebar { width:208px; min-width:208px; padding-inline:12px; }
+  .atlas-round-sidebar { width:240px; min-width:240px; padding-inline:16px; }
   .atlas-round-content { padding-inline:28px; }
 }
 @media (max-width:760px) {
@@ -740,3 +740,16 @@
 }
 
 .atlas-round .atlas-card-claim-status.is-disputed { color:#C8321E; }
+
+
+/* Tablet keeps the 240px rail and stacks content before either column becomes cramped. */
+@media (max-width:1000px) and (min-width:761px) {
+  .atlas-home-board-grid { grid-template-columns:minmax(0,1fr); column-gap:0; row-gap:32px; }
+  .atlas-home-board-routes { grid-column:1; grid-row:auto; margin-top:0; }
+  .atlas-round .atlas-discover-layout,
+  .atlas-round .atlas-ledger-layout,
+  .atlas-round .atlas-connections-layout,
+  .atlas-round .atlas-reactor-board-layout { grid-template-columns:minmax(0,1fr); gap:28px; }
+  .atlas-round .atlas-board-profile [class*="grid-cols-2"] { grid-template-columns:minmax(0,1fr); }
+  .atlas-round-content { padding-inline:24px; }
+}
