@@ -194,7 +194,7 @@ export function ContactSurface({
           <a
             href={primaryHref}
             className={cn(
-              "truncate font-mono text-foreground hover:text-[#9CFF1A]",
+              cn("truncate font-mono text-foreground", boardMode ? "hover:text-[#2757C6]" : "hover:text-[#9CFF1A]"),
               density === "card" ? "text-sm" : "text-xs",
             )}
             onClick={(e) => e.stopPropagation()}
@@ -255,7 +255,7 @@ export function ContactSurface({
               title={`${r.label || r.mark} · ${r.source || ""}`}
             >
               {href ? (
-                <a href={href} className="truncate hover:text-[#9CFF1A]" onClick={(e) => e.stopPropagation()}>
+                <a href={href} className={cn("truncate", boardMode ? "hover:text-[#2757C6]" : "hover:text-[#9CFF1A]")} onClick={(e) => e.stopPropagation()}>
                   {r.value}
                 </a>
               ) : (
