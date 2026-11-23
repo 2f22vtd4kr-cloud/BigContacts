@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
-import { ScoreboardStrip } from "@/components/scoreboard-strip";
 import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, NationalityCell } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import { ReactorMark } from "@/components/reactor-mark";
@@ -482,7 +481,7 @@ export default function Dashboard() {
           <div className="atlas-home-section-heading">
             <div>
               <h2 id="atlas-home-routes-title">Strongest routes</h2>
-              <p>{leads.length ? `${Math.min(leads.length, 3)} of ${leads.length} surfaced` : "Evidence-backed connections"}</p>
+              <p>"Evidence-backed connections"</p>
             </div>
             <Link href="/network" aria-label="Open all connections">All routes <ChevronRight aria-hidden="true" /></Link>
           </div>
