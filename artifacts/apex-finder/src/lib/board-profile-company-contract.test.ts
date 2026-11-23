@@ -31,6 +31,10 @@ describe("board card person/company distinction", () => {
     expect(boardCardSource).toContain("phone={isCompanyCard ? companyPhone");
     expect(boardCardSource).toContain("email={isCompanyCard ? null");
     expect(boardCardSource).toContain("linkedinUrl={isCompanyCard ? null");
+    expect(boardCardSource).toContain('renderContactGroup("Personal", personalContacts)');
+    expect(boardCardSource).toContain('renderContactGroup("Organisation", companyContacts, companyPhone, companyPhoneSource)');
+    expect(boardCardSource).toContain('renderContactGroup("Needs review", reviewContacts, reviewPhone, companyPhoneSource)');
+    expect(boardCardSource).toContain("None recorded.");
   });
 
   it("renders relationship roles as readable labels", () => {
