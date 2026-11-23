@@ -4,14 +4,12 @@ export function BoardPageFrame({
   title,
   description,
   className,
-  breadcrumb,
   split = false,
   children,
 }: {
   title: string;
   description: string;
   className: string;
-  breadcrumb: string;
   split?: boolean;
   children: ReactNode;
 }) {
@@ -24,11 +22,6 @@ export function BoardPageFrame({
 
   return (
     <div className={`atlas-board-page ${className}`}>
-      <nav className="atlas-board-page-breadcrumb" aria-label="Breadcrumb">
-        <span>Apex Atlas</span>
-        <span aria-hidden="true">/</span>
-        <span>{breadcrumb}</span>
-      </nav>
       {split ? (
         <div className="atlas-board-page-grid">
           {intro}
