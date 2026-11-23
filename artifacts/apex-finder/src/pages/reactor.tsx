@@ -1720,7 +1720,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
         <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
           <div className="atlas-reactor-board-heading">
-            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps in the live record, newest first</p></div>
+            <div><h2 id="atlas-reactor-logbook-title">Logbook</h2><p>{logItems.length} steps in the live record, newest last</p></div>
             <span className={telemetryLive ? "is-live" : ""}>{telemetryLive ? "Following live" : "Recorded"}</span>
           </div>
           <label className="atlas-reactor-log-search">
