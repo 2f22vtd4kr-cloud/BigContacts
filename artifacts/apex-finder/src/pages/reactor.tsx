@@ -1705,7 +1705,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
             <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
           </dl>
-          <p className="atlas-reactor-last-step">Last step recorded {lastStepLabel}</p>
+          <p className="atlas-reactor-last-step"><span>Last step recorded</span><strong>{lastStepLabel}</strong></p>
           {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
           {runInFlight ? (
             <div className="atlas-reactor-run-actions">
