@@ -664,3 +664,13 @@ const displayCount = (value: number) => isLoading || isError ? "—" : value.toL
   All three filter chips and all three summary figures use `displayCount`. A successful response containing no records still displays the real value `0`; loading and error states display an em dash. The register header and right-rail status separately say Loading or Unavailable.
 - Safety: values remain computed from the same `useListRelationships` response; no synthetic fallback or zero-valued placeholder is introduced.
 - Verification: source assertions confirmed the formatter is present and used in the page. Runtime loading/error state screenshots remain pending.
+## Final handoff checkpoint — 2026-11-24
+- Branch: `ui/connections-design-board-2026-11-24`.
+- Draft PR: https://github.com/2f22vtd4kr-cloud/BigContacts/pull/951.
+- Compare against `main`: 6 changed files only — the Connections page, shortest-path component, shared layout shell, shared round stylesheet, favicon, and this audit. No backend/API/schema/database/auth/worker/research files are in the diff.
+- Source-level assertions passed: the five existing navigation hrefs are present; the page uses the generated relationship query key; the path finder uses the generated entity/path query keys; the redesigned left/right columns and loading/error count formatter are present; no sample contact names or board specimen counts were introduced.
+- Generated client inspection confirmed the query-key helpers resolve to the existing `/api/relationships`, `/api/entities`, and `/api/graph/path` GET requests.
+- The branch's only reported commit status is a Vercel failure linking to the team's build-rate-limit page; it is an infrastructure quota failure, not a reported frontend compile failure. GitHub returned no workflow-run records for the PR head.
+- A local source checkout/build could not be run in this environment because the container could not resolve `github.com`; the Replit app search returned no editable Apex Atlas/BigContacts workspace. No build or visual screenshot verification is claimed.
+- Still required before merge: run the frontend-only Vite production build and Connections TypeScript check in an available workspace, then inspect desktop and 390px mobile screenshots against the design board. Exercise loading/error/empty states and a real path response only when using the existing safe frontend/API test environment; do not start bureau/research workflows to do so.
+- PR remains draft and must not be merged on the basis of source review alone.
