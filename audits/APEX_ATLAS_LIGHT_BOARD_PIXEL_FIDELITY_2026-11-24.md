@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-24  
 **Base:** `main` at `642979564449699a142b0a8336a6f2d64ab03406`  
-**Work branch:** `fix/light-board-pixel-fidelity-2026-11-24`  
+**Work branch:** `fix/light-board-api-down-frame-and-alerts-2026-11-24`  
 **Visual authority:** [Current Apex Atlas design board](https://design-board-812905.netlify.app/)  
 **Explicit exclusion:** the obsolete dark-green design is not a target and is not modified.
 
