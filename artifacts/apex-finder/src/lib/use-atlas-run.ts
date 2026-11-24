@@ -17,7 +17,11 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
   const currentRequestController = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    if (isMockMode()) { setRun({ active: false }); setReady(true); return; }
+    if (isMockMode()) {
+      setRun({ active: false });
+      setReady(true);
+      return;
+    }
     const requestId = ++requestGeneration.current;
     currentRequestController.current?.abort();
     const requestController = new AbortController();
