@@ -341,6 +341,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <button
         type="button"
         aria-label={desktopNavOpen ? "Collapse menu" : "Open menu"}
+        aria-expanded={desktopNavOpen}
+        aria-controls="atlas-desktop-sidebar"
         data-testid="button-desktop-nav-toggle"
         onClick={() => setDesktopNavOpen((v) => !v)}
         onMouseEnter={armEdgeHot}
