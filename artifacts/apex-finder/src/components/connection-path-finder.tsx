@@ -85,7 +85,7 @@ export function ConnectionPathFinder() {
           disabled={mock || entitiesQuery.isLoading || sourceId <= 0 || targetId <= 0 || sourceId === targetId || routeQuery.isFetching}
           onClick={() => setFindPath(true)}
         >
-          {routeQuery.isFetching ? "Finding path…" : "Find shortest path"}
+          {routeQuery.isFetching ? "Finding path…" : "Find a shortest path"}
         </button>
         {sourceId > 0 && sourceId === targetId && <p role="status">Choose two different records.</p>}
         {mock && <p role="status">Route search is disabled in the design preview.</p>}
