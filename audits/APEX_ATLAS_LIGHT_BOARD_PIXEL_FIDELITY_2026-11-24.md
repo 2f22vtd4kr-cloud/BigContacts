@@ -130,3 +130,8 @@ The changes are frontend-only and scoped to the current light shell. The legacy 
 **Verification:** `pnpm --dir artifacts/apex-finder build` passed, including all frontend contract gates; the Apex user-error boundary passed **14/14** checks, including the new credential-wording and session-dismissal checks. The visual captures are local sandbox evidence, not committed screenshot assets.
 
 **Still not claimed:** this pass is not a complete pixel-by-pixel review of every page and state. It fixes the specific Home API-down comparison and shared frame pattern geometry identified in the supplied screenshots. The API-key classification change improves diagnosis and guidance; it does not provision or repair deployment secrets.
+
+
+Additional focused checks after the final CSS adjustment:
+- Executed the real TypeScript classifier under Node 24: `API keys not set`, `SERPER_API_KEY is not configured`, and `provider credential missing` each returned `MISSING_CREDENTIAL`.
+- In the same browser tab, dismissed the API-down notice, reloaded the app, and confirmed the same error code did not reopen during that session.
