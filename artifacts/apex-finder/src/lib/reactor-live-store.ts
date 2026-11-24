@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { normalizeLiveActivities, parseCanonicalActiveJobProjection, type LiveActivity, type ReactorSpanLike } from "./reactor-live-model";
 import { readApiJson } from "./api-json";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type StoreSnapshot = {
   runStatus: string;
