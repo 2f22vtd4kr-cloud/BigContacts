@@ -221,7 +221,7 @@ function DbRow({
           "flex items-center gap-2 rounded-full px-2 py-1 font-mono text-[12px] font-medium",
           ok ? "bg-[#F3F3F0] text-[#1F8A4D]" : "bg-[#F3F3F0] text-[#C8321E]",
         )}>
-          {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+          {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           {ok ? "Connected" : status}
         </span>
       </div>
@@ -356,22 +356,17 @@ export default function SystemStatusPage() {
       {status && (
         <div className={cn(
           "flex min-w-0 flex-col gap-2 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
-          totalActive > 0
+          totalActive > 0 || totalCooling > 0
             ? "border-[#E4E4DF] bg-[#F3F3F0]"
             : "border-[#E4E4DF] bg-[#FAFAF8]",
         )}>
           <div className="flex min-w-0 items-start gap-3">
             <div className={cn(
               "mt-2 h-2 w-2 shrink-0 rounded-full",
-              totalActive > 0 ? "bg-[#1F8A4D]" : "bg-[#C8321E]",
+              totalActive > 0 ? "bg-[#1F8A4D]" : totalCooling > 0 ? "bg-[#EDB92B]" : "bg-[#C8321E]",
             )} />
             <span className="min-w-0 text-[13px] font-medium leading-snug text-[#18181A] break-words">
-              {totalActive > 0
-                ? `${totalActive} search-provider slot${totalActive === 1 ? "" : "s"} active (${aiProviders
-                    .filter((k) => (status.ai[k]?.filter((s) => s.state === "active").length ?? 0) > 0)
-                    .map((k) => PROVIDER_LABELS[k] ?? k)
-                    .join(" · ")})`
-                : "No active search-provider pool keys. Check provider-specific Secrets and restart the API."}
+              {keySummary}
             </span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[12px] text-[#74747A]">
@@ -388,7 +383,7 @@ export default function SystemStatusPage() {
             <div className="font-mono text-[12px] font-medium text-[#C8321E]">Could not load system status</div>
             <p className="font-mono text-[11px] leading-relaxed text-[#C8321E]">{error}</p>
             <p className="text-[11px] leading-relaxed text-[#74747A]">
-              This page needs api-server at <span className="font-mono">/api/system/status</span>. Static UI alone will show this error.
+              The live provider and database snapshot requires the API service at <span className="font-mono">/api/system/status</span>.
             </p>
           </div>
         </div>
@@ -410,8 +405,8 @@ export default function SystemStatusPage() {
           data-testid="status-bureau-integrity"
           className={
             integrity.level === "critical"
-              ? "rounded-xl border border-rose-500/40 bg-rose-950/50 px-4 py-4"
-              : "rounded-xl border border-lime-500/35 bg-lime-950/40 px-4 py-4"
+              ? "rounded-xl border border-[#C8321E]/30 bg-[#F3F3F0] px-4 py-3"
+              : "rounded-xl border border-[#EDB92B]/30 bg-[#F3F3F0] px-4 py-3"
           }
         >
           <div className="text-[13px] font-medium text-[#18181A]">
@@ -445,7 +440,7 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-[#74747A]">
-          Each bar shows only keys you have set. Green = live right now. Cooling keys are dimmer. Empty secret slots are not shown — there is no fixed “out of 11”. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below.
+          Each bar shows configured slots only. Green marks active keys; gold marks rate-limited keys cooling down. Missing slots are not counted. The model roles above use separate credentials.
         </p>
       </section>
 
@@ -460,13 +455,13 @@ export default function SystemStatusPage() {
           {[
             {
               label: "Groq Boss",
-              sub: "Case direction · Investigator selection",
+              sub: "GROQ_BOSS_API_KEY · case direction",
               configured: status?.groqBoss?.configured ?? false,
               model: status?.groqBoss?.model,
             },
             {
               label: "Groq Right-hand",
-              sub: "Independent bounded oversight · no browsing",
+              sub: "GROQ_RIGHT_HAND_API_KEY · independent oversight",
               configured: status?.groqRightHand?.configured ?? false,
               model: status?.groqRightHand?.model,
             },
