@@ -235,3 +235,14 @@ if (boardMode) {
 - No navigation destination or route was added.
 
 **Verification:** GitHub content update succeeded. Runtime screenshot verification remains pending.
+
+### 3. Ledger breadcrumb and neutral subject-tab mark
+
+**Files:** `artifacts/apex-finder/src/components/board-page-frame.tsx`, `artifacts/apex-finder/src/pages/board-profile.tsx`
+
+- Added optional breadcrumb support to the shared board page frame; other pages remain unchanged when the prop is omitted.
+- Added the existing Ledger link and current Cards breadcrumb to the Card page.
+- Added a neutral dashed tab mark. The frontend does not infer verification from a source count or score.
+- Subject tabs remain the existing backend-derived entities; no new tabs or routes were introduced.
+
+**Verification:** Both GitHub content updates succeeded. Responsive runtime verification remains pending.
