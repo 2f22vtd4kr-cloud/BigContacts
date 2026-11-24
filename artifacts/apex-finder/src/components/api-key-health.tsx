@@ -12,7 +12,7 @@ import { fetchSystemStatus, summarizeApiKeys } from "@/lib/system-status";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-type ChipState = "loading" | "ok" | "degraded" | "offline";
+type ChipState = "loading" | "ok" | "degraded" | "unconfigured" | "offline";
 
 type PublicHealth = {
   researchKeysConfigured?: boolean;
@@ -40,9 +40,12 @@ export function ApiKeyHealth({ className }: { className?: string }) {
 
       // This is intentionally only a coarse public readiness signal. Never expose
       // provider names, counts, rate limits, or secret state on the public shell.
-      if (health?.researchKeysConfigured) {
+      if (health?.researchKeysConfigured === true) {
         setState("degraded");
         setLabel("Keys configured");
+      } else if (health?.researchKeysConfigured === false) {
+        setState("unconfigured");
+        setLabel("No keys");
       }
 
       // If an operator session exists, upgrade the coarse state to the precise
@@ -61,18 +64,24 @@ export function ApiKeyHealth({ className }: { className?: string }) {
           setLabel("Limited");
           return;
         }
-        if (health?.researchKeysConfigured) {
+        if (health?.researchKeysConfigured === true) {
           setState("degraded");
           setLabel("Keys configured");
+        } else if (health?.researchKeysConfigured === false) {
+          setState("unconfigured");
+          setLabel("No keys");
         } else {
           setState("offline");
-          setLabel("Keys off");
+          setLabel("API offline");
         }
       } catch {
         if (cancelled) return;
-        if (!health?.researchKeysConfigured) {
+        if (health?.researchKeysConfigured === false) {
+          setState("unconfigured");
+          setLabel("No keys");
+        } else if (health?.researchKeysConfigured !== true) {
           setState("offline");
-          setLabel("Keys off");
+          setLabel("API offline");
         }
       }
     };
@@ -91,7 +100,9 @@ export function ApiKeyHealth({ className }: { className?: string }) {
         ? "text-[#EDB92B] border-[#E4E4DF] bg-[#F3F3F0]"
         : state === "loading"
           ? "text-[#74747A] border-[#E4E4DF] bg-[#FAFAF8]"
-          : "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]";
+          : state === "unconfigured"
+            ? "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]"
+            : "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]";
 
   return (
     <Link
