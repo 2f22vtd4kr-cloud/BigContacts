@@ -41,7 +41,7 @@ export function ApexErrorNotice() {
   if (!error) return null;
 
   return (
-    <div className="atlas-error-notice" role="alert" aria-live="assertive">
+    <div className="atlas-error-notice max-h-[38dvh] sm:max-h-[min(52dvh,360px)]" role="alert" aria-live="assertive">
       <section className="atlas-error-notice-card" data-severity={error.severity}>
         <div className="atlas-error-notice-layout">
           <span className="atlas-error-notice-icon" aria-hidden="true">
@@ -59,7 +59,7 @@ export function ApexErrorNotice() {
             </div>
             <div className="atlas-error-notice-actions">
               {error.retryable && (
-                <button type="button" onClick={() => window.location.reload()} className="atlas-error-notice-action">
+                <button type="button" onClick={() => window.location.reload()} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
                   Try again
                 </button>
               )}
@@ -68,7 +68,7 @@ export function ApexErrorNotice() {
               </Link>
             </div>
           </div>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss message" className="atlas-error-notice-close">
+          <button type="button" onClick={() => setError(null)} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
             <X aria-hidden="true" />
           </button>
         </div>
