@@ -338,7 +338,7 @@ async function main() {
       const offlineRoutes = [
         { path: "/", label: "home", selector: ".atlas-home-board-console.is-api-down" },
         { path: "/search", label: "discover", selector: ".atlas-discover-search-console" },
-        { path: "/profiles", label: "ledger", selector: ".atlas-ledger-board-console" },
+        { path: "/profiles", label: "ledger", selector: ".atlas-ledger-console" },
         { path: "/network", label: "connections", selector: ".atlas-connections-console" },
         { path: "/reactor", label: "reactor", selector: ".atlas-reactor-run-console.is-api-down" },
       ];
