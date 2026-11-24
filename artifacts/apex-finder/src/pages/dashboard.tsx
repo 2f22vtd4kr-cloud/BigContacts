@@ -136,20 +136,22 @@ export default function Dashboard() {
             </div>
             <Link href="/network" aria-label="Open all connections">All connections <ChevronRight aria-hidden="true" /></Link>
           </div>
-          <div className="atlas-home-route-empty">
-            {apiUnavailable ? (
-              <><strong>Route data unavailable</strong><p>Atlas could not confirm recorded routes while the research API is offline.</p></>
-            ) : (
-              <><strong>No routes yet</strong><p>The register contains entity and asset links, but no personal contact routes to rank yet. Use Connections to inspect recorded links or calculate a shortest path.</p>
-                <Link href="/network" className="atlas-home-route-empty-link">Find a shortest path in Connections <ChevronRight aria-hidden="true" /></Link>
-              </>
-            )}
-          </div>
-          <div className="atlas-home-route-legend" aria-label="Route evidence status legend">
+          <div className="atlas-home-route-card">
+            <div className="atlas-home-route-empty">
+              {apiUnavailable ? (
+                <><strong>Route data unavailable</strong><p>Atlas could not confirm recorded routes while the research API is offline.</p></>
+              ) : (
+                <><strong>No routes yet</strong><p>The register contains entity and asset links, but no personal contact routes to rank yet. Use Connections to inspect recorded links or calculate a shortest path.</p>
+                  <Link href="/network" className="atlas-home-route-empty-link">Find a shortest path in Connections <ChevronRight aria-hidden="true" /></Link>
+                </>
+              )}
+            </div>
+            <div className="atlas-home-route-legend" aria-label="Route evidence status legend">
             <div><span className="atlas-evidence-pattern is-supported" aria-hidden="true" /><strong>Supported</strong><span>Provenance meets Atlas’s support threshold</span></div>
             <div><span className="atlas-evidence-pattern is-corroborated" aria-hidden="true" /><strong>Corroborated</strong><span>Independent sources support the same claim</span></div>
             <div><CircleAlert className="atlas-evidence-disputed-mark" aria-hidden="true" /><strong>Disputed</strong><span>The relationship carries a dispute or rejection note</span></div>
-            <div><span className="atlas-evidence-pattern is-review" aria-hidden="true" /><strong>In review</strong><span>Provenance does not meet the support threshold yet</span></div>
+              <div><span className="atlas-evidence-pattern is-review" aria-hidden="true" /><strong>In review</strong><span>Provenance does not meet the support threshold yet</span></div>
+            </div>
           </div>
         </aside>
 
