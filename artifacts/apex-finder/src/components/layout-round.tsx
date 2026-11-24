@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Database, House, Menu, Network, Search, X } from "lucide-react";
-import { ReactorMark } from "@/components/reactor-mark";
+import { Menu, X } from "lucide-react";
 import { WorkspaceStatus } from "@/components/workspace-status";
 
 function ApexAtlasMark() {
@@ -24,11 +23,11 @@ function ApexAtlasMark() {
 }
 
 const primaryNav = [
-  { name: "Overview", href: "/", icon: House },
-  { name: "Ledger", href: "/profiles", icon: Database },
-  { name: "Discover", href: "/search", icon: Search },
-  { name: "Connections", href: "/network", icon: Network },
-  { name: "Reactor", href: "/reactor", icon: ReactorMark },
+  { name: "Overview", href: "/" },
+  { name: "Ledger", href: "/profiles" },
+  { name: "Discover", href: "/search" },
+  { name: "Connections", href: "/network" },
+  { name: "Reactor", href: "/reactor" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
@@ -60,46 +59,47 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
 
   const NavItems = () => (
     <>
-      {primaryNav.map((item) => {
-        const Icon = item.icon;
-        return <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}
+      {primaryNav.map((item) => (
+        <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}
           onClick={() => setMobileOpen(false)}
           className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""}`}>
-          <Icon aria-hidden="true" /> <span>{item.name}</span>
-        </Link>;
-      })}
+          <span>{item.name}</span>
+        </Link>
+      ))}
     </>
   );
 
   return (
     <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
-      <header className="atlas-round-mobile-header">
-        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
-        <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
-          aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
-          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
-          onClick={() => setMobileOpen((value) => !value)}>
-          {mobileOpen ? <X /> : <Menu />}
-        </button>
+      <header className="atlas-round-header">
+        <div className="atlas-round-brand">
+          <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
+        </div>
+        <nav className="atlas-round-primary" aria-label="Primary navigation"><NavItems /></nav>
+        <div className="atlas-round-actions">
+          <div className="atlas-round-desktop-status"><WorkspaceStatus compact /></div>
+          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
+            aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setMobileOpen((value) => !value)}>
+            {mobileOpen ? <X /> : <Menu />}
+          </button>
+        </div>
       </header>
       {mobileOpen && <button type="button" className="atlas-round-sidebar-backdrop"
         aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <aside id="atlas-round-sidebar" className={`atlas-round-sidebar ${mobileOpen ? "is-open" : ""}`}
-        aria-label="Apex Atlas sidebar">
+        aria-label="Apex Atlas navigation">
         <div className="atlas-round-sidebar-brand">
           <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
         </div>
-        <nav className="atlas-round-sidebar-nav" aria-label="Primary navigation">
-          <div className="atlas-round-sidebar-label">Workspace</div>
-          <NavItems />
-        </nav>
+        <nav className="atlas-round-sidebar-nav" aria-label="Primary navigation"><NavItems /></nav>
       </aside>
       <div className="atlas-round-main-column">
         <main id="main-content" tabIndex={-1} className="atlas-round-main">
-          <div className="atlas-round-desktop-status"><WorkspaceStatus compact /></div>
           <div className="atlas-round-content">{children}</div>
-            </main>
+        </main>
       </div>
     </div>
   );
