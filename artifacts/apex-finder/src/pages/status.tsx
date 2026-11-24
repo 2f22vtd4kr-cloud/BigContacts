@@ -87,13 +87,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   exa: "Exa search",
 };
 
-const PROVIDER_COLORS: Record<string, string> = {
-  groqInvestigator: "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
-  serper: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
-  tavily: "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
-  exa: "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
-};
-
 function SlotBar({ active, cooling }: { active: number; cooling: number }) {
   const n = Math.max(active + cooling, 1);
   // Only draw keys that exist — never a fixed grid of empty slots.
@@ -103,12 +96,12 @@ function SlotBar({ active, cooling }: { active: number; cooling: number }) {
   ];
   if (active === 0 && cooling === 0) {
     return (
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/35" role="img" aria-label="No keys" />
+      <div className="h-2 w-full overflow-hidden rounded-full bg-[#E4E4DF]" role="img" aria-label="No keys" />
     );
   }
   return (
     <div
-      className="flex h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-muted/25"
+      className="flex h-2 w-full max-w-[12rem] overflow-hidden rounded-full bg-[#E4E4DF]"
       role="img"
       aria-label={`${active} live${cooling ? `, ${cooling} cooling` : ""}`}
     >
@@ -116,9 +109,9 @@ function SlotBar({ active, cooling }: { active: number; cooling: number }) {
         <div
           key={`${kind}-${i}`}
           className={cn(
-            "h-full flex-1 border-r border-background/30 last:border-r-0",
-            kind === "active" && "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.45)]",
-            kind === "cool" && "bg-[#9CFF1A]/70 animate-pulse",
+            "h-full flex-1 border-r border-[#FAFAF8] last:border-r-0",
+            kind === "active" && "bg-[#1F8A4D]",
+            kind === "cool" && "bg-[#EDB92B]",
           )}
           style={{ minWidth: `${Math.max(12, 100 / n)}%`, maxWidth: "100%" }}
         />
@@ -134,27 +127,25 @@ function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
 
   const tone =
     active > 0
-      ? "border-[#9CFF1A]/25 bg-gradient-to-br from-lime-500/[0.07] via-[#0d1219] to-transparent"
+      ? "border-[#E4E4DF] bg-[#F3F3F0]"
       : rateLimited > 0
-        ? "border-[#9CFF1A]/25 bg-gradient-to-br from-[#9CFF1A]/[0.07] via-[#0d1219] to-transparent"
-        : "border-[#9CFF1A]/12 bg-card/30";
+        ? "border-[#E4E4DF] bg-[#F3F3F0]"
+        : "border-[#E4E4DF] bg-[#FAFAF8]";
 
   return (
     <article
       className={cn(
-        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a]/80 p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#9CFF1A]/30",
+        "group relative min-w-0 max-w-full overflow-hidden rounded-xl border border-[#E4E4DF] p-4 transition-colors hover:border-[#BDBDB8]",
         tone,
-        configured === 0 && "opacity-55",
       )}
       data-testid={`provider-card-${name}`}
     >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#9CFF1A]/[0.06] blur-3xl" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
+          <div className="font-sans text-[14px] font-medium text-[#18181A]">
             {PROVIDER_LABELS[name] ?? (name.charAt(0).toUpperCase() + name.slice(1))}
           </div>
-          <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.14em] text-muted-foreground/70">
+          <div className="mt-1 font-mono text-[12px] text-[#74747A]">
             {configured === 0
               ? "No keys configured"
               : configured === 1
@@ -164,32 +155,32 @@ function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
+            "shrink-0 rounded-md border px-2 py-1 font-mono text-[11px] font-medium",
             active > 0
-              ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
+              ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#1F8A4D]"
               : rateLimited > 0
-                ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-                : "border-[#9CFF1A]/10 bg-muted/20 text-muted-foreground",
+                ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#1F8A4D]"
+                : "border-[#E4E4DF] bg-[#F3F3F0] text-[#74747A]",
           )}
         >
-          {active > 0 ? `${active} live` : rateLimited > 0 ? "cooldown" : "empty"}
+          {active > 0 ? `${active} active` : rateLimited > 0 ? "cooldown" : "empty"}
         </span>
       </div>
 
       <div className="relative mt-4 space-y-2">
         <SlotBar active={active} cooling={rateLimited} />
-        <div className="font-mono text-[12px] text-muted-foreground">
+        <div className="font-mono text-[12px] text-[#74747A]">
           {active > 0 && (
-            <span className="text-[#d4ff8a]/90">
+            <span className="text-[#1F8A4D]">
               {active} live now
               {rateLimited > 0 ? ` · ${rateLimited} cooling` : ""}
             </span>
           )}
           {active === 0 && rateLimited > 0 && (
-            <span className="text-[#d4ff8a]/90">{rateLimited} cooling — will return</span>
+            <span className="text-[#1F8A4D]">{rateLimited} cooling — will return</span>
           )}
           {active === 0 && rateLimited === 0 && (
-            <span className="text-muted-foreground/55">Add a key in Secrets, then restart API</span>
+            <span className="text-[#74747A]">Add a key in Secrets, then restart API</span>
           )}
         </div>
       </div>
@@ -207,21 +198,21 @@ function DbRow({
 }) {
   const ok = status === "ok" || status === "ready";
   return (
-    <div className="flex items-center justify-between rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
+    <div className="flex items-center justify-between rounded-md border border-[#E4E4DF] px-4 py-3">
       <div className="flex items-center gap-3">
-        <Icon className={cn("h-4 w-4", ok ? "text-primary" : "text-destructive")} />
-        <span className="font-mono text-[12px] text-foreground">{label}</span>
+        <Icon className={cn("h-4 w-4", ok ? "text-[#1F8A4D]" : "text-[#C8321E]")} />
+        <span className="font-mono text-[12px] text-[#18181A]">{label}</span>
       </div>
       <div className="flex items-center gap-3">
         {latency !== null && (
-          <span className="font-mono text-[11px] text-muted-foreground">{latency}ms</span>
+          <span className="font-mono text-[11px] text-[#74747A]">{latency}ms</span>
         )}
         <span className={cn(
-          "flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
-          ok ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
+          "flex items-center gap-2 rounded-full px-2 py-1 font-mono text-[12px] font-medium",
+          ok ? "bg-[#F3F3F0] text-[#1F8A4D]" : "bg-[#F3F3F0] text-[#C8321E]",
         )}>
           {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-          {ok ? "connected" : status}
+          {ok ? "Connected" : status}
         </span>
       </div>
     </div>
@@ -315,25 +306,25 @@ export default function SystemStatusPage() {
   const upstashSlots = status?.databases?.upstash ?? [];
 
   return (
-    <div className="atlas-page max-w-4xl space-y-5 sm:space-y-8">
+    <div className="atlas-system-status atlas-page max-w-4xl space-y-5 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="max-w-full text-[13px] leading-relaxed text-stone-400 break-words">
-            AI search pools, Redis, and database health. Other tools (Scrapfly, Companies House, etc.) show under research lanes below — not in the five pool rows.
+          <p className="max-w-full text-[13px] leading-relaxed text-[#55555A] break-words">
+            Search-provider key pools, Redis and database health. Other source tools appear under research lanes below; the Groq model roles are reported separately.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {lastFetch && (
-            <span className="font-mono text-[12px] text-muted-foreground/60">
+            <span className="font-mono text-[12px] text-[#74747A]">
               Updated {lastFetch.toLocaleTimeString()}
             </span>
           )}
           <button
             onClick={fetchStatus}
-            className="atlas-outline-btn atlas-pressable flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
+            className="atlas-outline-btn atlas-pressable flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-md px-3 py-2 font-mono text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/40"
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             Refresh
           </button>
         </div>
@@ -342,39 +333,39 @@ export default function SystemStatusPage() {
       {/* Quick-glance banner */}
       {status && (
         <div className={cn(
-          "flex min-w-0 flex-col gap-2 rounded-2xl border px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+          "flex min-w-0 flex-col gap-2 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
-            ? "border-[#9CFF1A]/25 bg-gradient-to-r from-lime-500/[0.08] to-transparent"
-            : "border-destructive/30 bg-destructive/5",
+            ? "border-[#E4E4DF] bg-[#F3F3F0]"
+            : "border-[#E4E4DF] bg-[#FAFAF8]",
         )}>
           <div className="flex min-w-0 items-start gap-3">
             <div className={cn(
-              "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-              totalActive > 0 ? "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.7)]" : "bg-destructive",
+              "mt-2 h-2 w-2 shrink-0 rounded-full",
+              totalActive > 0 ? "bg-[#1F8A4D]" : "bg-[#C8321E]",
             )} />
-            <span className="min-w-0 text-[13px] font-semibold leading-snug tracking-tight text-stone-100 break-words">
+            <span className="min-w-0 text-[13px] font-medium leading-snug text-[#18181A] break-words">
               {totalActive > 0
-                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (${aiProviders
+                ? `${totalActive} search-provider slot${totalActive === 1 ? "" : "s"} active (${aiProviders
                     .filter((k) => (status.ai[k]?.filter((s) => s.state === "active").length ?? 0) > 0)
                     .map((k) => PROVIDER_LABELS[k] ?? k)
                     .join(" · ")})`
-                : "No AI pool keys live — check Secrets and restart API"}
+                : "No active search-provider pool keys. Check provider-specific Secrets and restart the API."}
             </span>
           </div>
-          <div className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
-            <Activity className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2 font-mono text-[12px] text-[#74747A]">
+            <Activity className="h-4 w-4" />
             {status.cached ? `Cached · ${Math.round(status.cachedAgoMs / 1000)}s` : "Live feed"}
           </div>
         </div>
       )}
 
       {error && (
-        <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-start sm:gap-3" role="alert">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" aria-hidden />
+        <div className="flex flex-col gap-3 rounded-xl border border-[#C8321E]/30 bg-[#F3F3F0] px-4 py-3 sm:flex-row sm:items-start" role="alert">
+          <AlertCircle className="h-4 w-4 text-[#C8321E] shrink-0 mt-1" aria-hidden />
           <div className="min-w-0 space-y-1">
-            <div className="font-mono text-[12px] font-semibold text-destructive">Could not load system status</div>
-            <p className="font-mono text-[11px] leading-relaxed text-destructive/90">{error}</p>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <div className="font-mono text-[12px] font-medium text-[#C8321E]">Could not load system status</div>
+            <p className="font-mono text-[11px] leading-relaxed text-[#C8321E]">{error}</p>
+            <p className="text-[11px] leading-relaxed text-[#74747A]">
               This page needs api-server at <span className="font-mono">/api/system/status</span>. Static UI alone will show this error.
             </p>
           </div>
@@ -384,9 +375,9 @@ export default function SystemStatusPage() {
       {/* AI Key Pools */}
       <section>
         <div className="mb-4 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            AI Engine Key Pools
+          <Zap className="h-4 w-4 text-[#2757C6]" />
+          <h2 className="font-mono text-[14px] font-medium text-[#18181A]">
+            Search provider key pools
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -397,25 +388,25 @@ export default function SystemStatusPage() {
           data-testid="status-bureau-integrity"
           className={
             integrity.level === "critical"
-              ? "rounded-2xl border border-rose-500/40 bg-rose-950/50 px-4 py-3.5"
-              : "rounded-2xl border border-lime-500/35 bg-lime-950/40 px-4 py-3.5"
+              ? "rounded-xl border border-rose-500/40 bg-rose-950/50 px-4 py-4"
+              : "rounded-xl border border-lime-500/35 bg-lime-950/40 px-4 py-4"
           }
         >
-          <div className="text-[12px] font-semibold tracking-tight text-stone-100">
+          <div className="text-[13px] font-medium text-[#18181A]">
             {integrity.level === "critical"
               ? "Bureau is not functioning correctly"
               : "Bureau is degraded"}
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-stone-300">
+          <p className="mt-1 text-[11px] leading-relaxed text-[#55555A]">
             Apex uses the canonical Groq roles and model-selected public-source capabilities. This state means
             one or more configured capabilities are currently unavailable or rate-limited.
           </p>
-          <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-stone-300">
+          <ul className="mt-2 list-inside list-disc space-y-1 text-[11px] text-[#55555A]">
             {(integrity.reasons.length ? integrity.reasons : ["See healthz.lanesHonesty"]).slice(0, 5).map((r, i) => (
               <li key={i}>{r}</li>
             ))}
           </ul>
-          <div className="mt-2 font-mono text-[12px] text-stone-500">
+          <div className="mt-2 font-mono text-[12px] text-[#74747A]">
             agentic LLM slots: {integrity.agenticSlots ?? "—"}
             {" · "}web search: {integrity.webSearch ?? "—"}
             {" · "}last step: {integrity.lastOk === false ? "failed" : integrity.lastOk === true ? `ok (${integrity.lastModel ?? "—"})` : "not exercised"}
@@ -431,19 +422,19 @@ export default function SystemStatusPage() {
             />
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-3 text-[11px] leading-relaxed text-[#74747A]">
           Each bar shows only keys you have set. Green = live right now. Cooling keys are dimmer. Empty secret slots are not shown — there is no fixed “out of 11”. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below.
         </p>
       </section>
 
       <section data-testid="canonical-model-roles">
         <div className="mb-4 flex items-center gap-2">
-          <Wifi className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+          <Wifi className="h-4 w-4 text-[#2757C6]" />
+          <h2 className="font-mono text-[14px] font-medium text-[#18181A]">
             Canonical model roles
           </h2>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             {
               label: "Groq Boss",
@@ -458,20 +449,20 @@ export default function SystemStatusPage() {
               model: status?.groqRightHand?.model,
             },
           ].map((role) => (
-            <div key={role.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-[#9CFF1A]/15 bg-card/30 px-4 py-3.5">
+            <div key={role.label} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[#E4E4DF] bg-[#FAFAF8] px-4 py-3">
               <div className="min-w-0">
-                <div className="text-[13px] font-semibold tracking-tight text-foreground">{role.label}</div>
-                <div className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70">{role.sub}</div>
-                <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{role.model ?? "Model route not reported"}</div>
+                <div className="text-[13px] font-medium text-[#18181A]">{role.label}</div>
+                <div className="mt-1 font-mono text-[11px] text-[#74747A]">{role.sub}</div>
+                <div className="mt-1 truncate font-mono text-[11px] text-[#74747A]">{role.model ?? "Model route not reported"}</div>
               </div>
               <span className={cn(
-                "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase",
-                role.configured ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#d4ff8a]" : "border-border bg-muted/20 text-muted-foreground",
-              )}>{role.configured ? "configured" : "missing"}</span>
+                "shrink-0 rounded-md border px-2 py-1 font-mono text-[11px] font-medium",
+                role.configured ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#1F8A4D]" : "border-[#E4E4DF] bg-[#F3F3F0] text-[#74747A]",
+              )}>{role.configured ? "Configured" : "Missing"}</span>
             </div>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-3 text-[11px] leading-relaxed text-[#74747A]">
           The selected Groq Investigator owns research choices and tool selection. Runtime-generated availability and authorization determine which capabilities can execute; role credentials are never crossed over.
         </p>
       </section>
@@ -479,8 +470,8 @@ export default function SystemStatusPage() {
       {/* Databases */}
       <section>
         <div className="mb-4 flex items-center gap-2">
-          <Database className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+          <Database className="h-4 w-4 text-[#2757C6]" />
+          <h2 className="font-mono text-[14px] font-medium text-[#18181A]">
             Databases
           </h2>
         </div>
@@ -503,47 +494,47 @@ export default function SystemStatusPage() {
       {/* Upstash Slots */}
       <section>
         <div className="mb-4 flex items-center gap-2">
-          <Wifi className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+          <Wifi className="h-4 w-4 text-[#2757C6]" />
+          <h2 className="font-mono text-[14px] font-medium text-[#18181A]">
             Upstash Permanent Cache Slots
           </h2>
         </div>
         {upstashSlots.length === 0 ? (
-          <p className="font-mono text-[12px] text-muted-foreground">No Upstash slots configured.</p>
+          <p className="font-mono text-[12px] text-[#74747A]">No Upstash slots configured.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {upstashSlots.map((slot) => (
               <div
                 key={slot.slot}
                 className={cn(
-                  "rounded-lg border px-3 py-3 text-center",
+                  "rounded-xl border px-3 py-3 text-center",
                   slot.quotaExhausted
-                    ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
+                    ? "border-[#E4E4DF] bg-[#F3F3F0]"
                     : slot.status === "ready"
-                    ? "border-primary/30 bg-primary/5"
-                    : "border-[#9CFF1A]/10 bg-muted/10",
+                    ? "border-[#E4E4DF] bg-[#F3F3F0]"
+                    : "border-[#E4E4DF] bg-[#FAFAF8]",
                 )}
               >
-                <div className="mb-1 font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground/60">
+                <div className="mb-1 font-mono text-[12px] text-[#74747A]">
                   Slot {slot.slot}
                 </div>
-                <div className="flex items-center justify-center gap-1.5">
+                <div className="flex items-center justify-center gap-2">
                   {slot.quotaExhausted
-                    ? <WifiOff className="h-3.5 w-3.5 text-[#9CFF1A]" />
+                    ? <WifiOff className="h-4 w-4 text-[#EDB92B]" />
                     : slot.status === "ready"
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    : <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    ? <CheckCircle2 className="h-4 w-4 text-[#1F8A4D]" />
+                    : <Clock className="h-4 w-4 text-[#74747A]" />
                   }
                   <span className={cn(
-                    "font-mono text-[12px] font-bold uppercase",
-                    slot.quotaExhausted ? "text-[#9CFF1A]" :
-                    slot.status === "ready" ? "text-primary" : "text-muted-foreground",
+                    "font-mono text-[12px] font-medium",
+                    slot.quotaExhausted ? "text-[#EDB92B]" :
+                    slot.status === "ready" ? "text-[#1F8A4D]" : "text-[#74747A]",
                   )}>
                     {slot.quotaExhausted ? "quota" : slot.status}
                   </span>
                 </div>
                 {typeof slot.latencyMs === "number" && slot.latencyMs !== null && (
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground/50">{slot.latencyMs}ms</div>
+                  <div className="mt-1 font-mono text-[11px] text-[#74747A]">{slot.latencyMs}ms</div>
                 )}
               </div>
             ))}
@@ -552,15 +543,15 @@ export default function SystemStatusPage() {
       </section>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 border-t border-[#9CFF1A]/08 pt-5 font-mono text-[12px] text-muted-foreground/60">
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
+      <div className="flex flex-wrap gap-4 border-t border-[#E4E4DF] pt-4 font-mono text-[12px] text-[#74747A]">
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-[#1F8A4D]" /> Active — key operational
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-[#9CFF1A]" /> Temporary cooldown — provider returned 429 (auto-recovers)
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full bg-[#EDB92B]" /> Temporary cooldown — provider returned 429 (auto-recovers)
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full border border-muted/50 bg-muted/20" /> Missing — secret not configured
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full border border-[#E4E4DF] bg-[#F3F3F0]" /> Missing — secret not configured
         </div>
       </div>
     </div>
