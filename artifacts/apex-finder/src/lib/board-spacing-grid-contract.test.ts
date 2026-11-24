@@ -7,6 +7,7 @@ const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.
 const workspaceStatusSource = readFileSync(new URL("../components/workspace-status.tsx", import.meta.url), "utf8");
 const apiKeyHealthSource = readFileSync(new URL("../components/api-key-health.tsx", import.meta.url), "utf8");
 const systemStatusPageSource = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
+const providerSecretsDoc = readFileSync(new URL("../../../../docs/APEX_ATLAS_PROVIDER_SECRETS.md", import.meta.url), "utf8");
 const launchAtlasButtonSource = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
 const captureScriptSource = readFileSync(new URL("../../../../scripts/capture-apex-dev-visual.cjs", import.meta.url), "utf8");
 const responsiveWorkflowSource = readFileSync(new URL("../../../../.github/workflows/frontend-responsive.yml", import.meta.url), "utf8");
@@ -173,7 +174,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(systemStatusPageSource).toContain("GROQ_INVESTIGATOR_API_KEY");
     expect(systemStatusPageSource).toContain("No active search-provider pool keys");
     expect(systemStatusPageSource).toContain("totalCooling");
-    expect(systemStatusPageSource).toContain("generic GROQ_API_KEY is not a substitute");
+    expect(providerSecretsDoc).toContain("A generic `GROQ_API_KEY` is a retired legacy name and does not substitute for these role-specific variables.");
   });
 
   it("keeps operational status surfaces within the board's quiet visual language", () => {
