@@ -21,10 +21,18 @@ function Icon({severity}:{severity:ApexUserError["severity"]}) {
 export function ApexErrorNotice() {
   const [error,setError]=useState<ApexUserError|null>(null);
   useEffect(()=>{
-    const on=(e:Event)=>setError((e as CustomEvent<ApexUserError>).detail);
+    const showError=(next:ApexUserError)=>{
+      const onReactor=window.location.pathname==="/reactor"||window.location.pathname.startsWith("/reactor/");
+      const isInlineReactorApiError=next.title==="The Apex research service is unavailable"
+        ||/Research API is not reachable \\(got an HTML page instead of JSON\\)/i.test(next.message)
+        ||/^API returned non-JSON \\(\\d{3}\\)/i.test(next.message);
+      if(onReactor&&isInlineReactorApiError) return;
+      setError(next);
+    };
+    const on=(e:Event)=>showError((e as CustomEvent<ApexUserError>).detail);
     window.addEventListener("apex:error",on);
-    const onWindow=(e:ErrorEvent)=>setError(classifyApexError(e.error?.message ?? e.message));
-    const onRejection=(e:PromiseRejectionEvent)=>setError(classifyApexError(e.reason?.message ?? e.reason));
+    const onWindow=(e:ErrorEvent)=>showError(classifyApexError(e.error?.message ?? e.message));
+    const onRejection=(e:PromiseRejectionEvent)=>showError(classifyApexError(e.reason?.message ?? e.reason));
     window.addEventListener("error",onWindow);
     window.addEventListener("unhandledrejection",onRejection);
     return()=>{window.removeEventListener("apex:error",on);window.removeEventListener("error",onWindow);window.removeEventListener("unhandledrejection",onRejection)};
