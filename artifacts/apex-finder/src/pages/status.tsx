@@ -87,6 +87,13 @@ const PROVIDER_LABELS: Record<string, string> = {
   exa: "Exa search",
 };
 
+const PROVIDER_SECRET_LABELS: Record<string, string> = {
+  groqInvestigator: "GROQ_INVESTIGATOR_API_KEY · numbered slots supported",
+  serper: "SERPER_API_KEY · SERPER_KEY also accepted",
+  tavily: "TAVILY_API_KEY · numbered slots supported",
+  exa: "EXA_API_KEY · numbered slots supported",
+};
+
 function SlotBar({ active, cooling }: { active: number; cooling: number }) {
   const n = Math.max(active + cooling, 1);
   // Only draw keys that exist — never a fixed grid of empty slots.
@@ -152,6 +159,9 @@ function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
                 ? "1 key configured"
                 : `${configured} keys configured`}
           </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[#74747A]" title={PROVIDER_SECRET_LABELS[name]}>
+            {PROVIDER_SECRET_LABELS[name] ?? "Provider-specific secret"}
+          </div>
         </div>
         <span
           className={cn(
@@ -159,7 +169,7 @@ function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
             active > 0
               ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#1F8A4D]"
               : rateLimited > 0
-                ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#1F8A4D]"
+                ? "border-[#E4E4DF] bg-[#F3F3F0] text-[#EDB92B]"
                 : "border-[#E4E4DF] bg-[#F3F3F0] text-[#74747A]",
           )}
         >
@@ -177,7 +187,7 @@ function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
             </span>
           )}
           {active === 0 && rateLimited > 0 && (
-            <span className="text-[#1F8A4D]">{rateLimited} cooling — will return</span>
+            <span className="text-[#EDB92B]">{rateLimited} cooling — will return</span>
           )}
           {active === 0 && rateLimited === 0 && (
             <span className="text-[#74747A]">Add a key in Secrets, then restart API</span>
@@ -302,6 +312,18 @@ export default function SystemStatusPage() {
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
     : 0;
+  const totalCooling = status?.ai
+    ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "rate_limited").length ?? 0), 0)
+    : 0;
+  const activeProviderNames = aiProviders
+    .filter((k) => (status?.ai[k]?.filter((slot) => slot.state === "active").length ?? 0) > 0)
+    .map((k) => PROVIDER_LABELS[k] ?? k)
+    .join(" · ");
+  const keySummary = totalActive > 0
+    ? totalActive + " search-provider slots active (" + activeProviderNames + ")" + (totalCooling > 0 ? " · " + totalCooling + " cooling" : "")
+    : totalCooling > 0
+      ? totalCooling + " search-provider slots cooling down after provider rate limits."
+      : "No active search-provider pool keys. Check the provider-specific Secrets listed below and restart the API.";
 
   const upstashSlots = status?.databases?.upstash ?? [];
 
