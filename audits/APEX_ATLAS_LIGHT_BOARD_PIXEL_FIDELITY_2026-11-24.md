@@ -161,3 +161,20 @@ The user correctly pointed out that merely lengthening the checker/wave tiles di
 - The API-down state is now true for ?mock=1, because mock mode intentionally disables the API. The local preview therefore reproduces the board's grey API-down Home frame rather than showing a false ready-state red/blue frame.
 
 **Remaining verification:** CI checks were still running after these commits. A fresh Chromium capture at 390px and 402px phone widths plus 1440px desktop is required before this follow-up is visually signed off.
+
+## Verification after the continuous-wave correction
+
+**Local production build:** passed on the current PR head after the mock API-down, shared frame geometry, and sidebar test correction.
+
+- `pnpm --dir artifacts/apex-finder build` — **passed**; Vite production bundle completed.
+- Apex user-error boundary — **17/17 checks passed**, including provider-key wording, mock/API-down state, shared Reactor-style continuous wave geometry, full-height text-only sidebar, and repeated-notice dismissal.
+- Operator-auth boundary — **12/12 checks passed**.
+- Profile route contract — **8/8 checks passed**.
+- Generated Reactor TSX syntax — **passed**.
+- The first run exposed an over-broad regression assertion that searched the entire stylesheet for an old red active stripe. The stylesheet intentionally retains earlier cascade rules overridden by the final light-shell rule. The assertion now checks the final active-navigation rule itself; the rerun passes.
+
+**Browser access limitation:** the current Vercel deployment is READY, but its URL redirects automated Chromium to Vercel Login. The Netlify deploy previews also show Team Protection. The local Vite dev server started, but the browser session could not reach its port from the Playwright process. Therefore no new screenshot-level visual sign-off is claimed for this latest CSS correction. The earlier user-provided screenshots remain the visual comparison basis; inspect the protected preview in the user's authenticated Replit/browser session once the PR is available there.
+
+**Deployment status at latest check:** GitHub commit status is success; Vercel deployment READY and Netlify deploy previews READY. This means the deploy artifacts completed, not that an unauthenticated browser can view them.
+
+No API service, worker, Bureau, research operation, database, or persistent fixture was started or modified.
