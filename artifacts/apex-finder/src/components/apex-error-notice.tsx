@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X, ArrowUpRight } from "lucide-react";
 import { classifyApexError, type ApexUserError } from "@/lib/apex-errors";
 import { Link } from "wouter";
+
+function dismissalKey(error: ApexUserError) {
+  return `${error.code}:${error.provider ?? ""}:${error.title}`;
+}
 
 function Icon({ severity }: { severity: ApexUserError["severity"] }) {
   if (severity === "critical" || severity === "error") return <AlertCircle className="h-5 w-5" />;
@@ -12,6 +16,15 @@ function Icon({ severity }: { severity: ApexUserError["severity"] }) {
 
 export function ApexErrorNotice() {
   const [error, setError] = useState<ApexUserError | null>(null);
+  const dismissedKeys = useRef<Set<string>>(new Set());
+
+  const dismissError = () => {
+    if (!error) return;
+    const key = dismissalKey(error);
+    dismissedKeys.current.add(key);
+    try { window.sessionStorage.setItem(`apex:dismissed-error:${encodeURIComponent(key)}`, "1"); } catch { /* Storage can be unavailable in private/restricted contexts. */ }
+    setError(null);
+  };
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
@@ -63,12 +76,12 @@ export function ApexErrorNotice() {
                   Try again
                 </button>
               )}
-              <Link href="/status" onClick={() => setError(null)} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
+              <Link href="/status" onClick={dismissError} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
                 System Status <ArrowUpRight aria-hidden="true" />
               </Link>
             </div>
           </div>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
+          <button type="button" onClick={dismissError} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
             <X aria-hidden="true" />
           </button>
         </div>
