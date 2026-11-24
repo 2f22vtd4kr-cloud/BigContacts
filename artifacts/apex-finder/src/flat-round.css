@@ -2121,3 +2121,17 @@ html.light main,
   .atlas-round .atlas-home-board-console .atlas-launch-cta { width:100%!important; }
   .atlas-round .atlas-home-console-inner { padding:16px; }
 }
+
+/* Mobile uses the full drawer width even though desktop starts in compact mode. */
+@media (max-width:760px) {
+  .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
+    width:min(288px,calc(100vw - 56px));
+    min-width:0;
+    padding:calc(20px + env(safe-area-inset-top)) 16px 20px;
+  }
+  .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink {
+    justify-content:flex-start;
+    padding-inline:12px;
+  }
+  .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span { display:inline; }
+}
