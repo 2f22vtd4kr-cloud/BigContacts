@@ -8,6 +8,8 @@ const workspaceStatusSource = readFileSync(new URL("../components/workspace-stat
 const apiKeyHealthSource = readFileSync(new URL("../components/api-key-health.tsx", import.meta.url), "utf8");
 const systemStatusPageSource = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const launchAtlasButtonSource = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const captureScriptSource = readFileSync(new URL("../../../../scripts/capture-apex-dev-visual.cjs", import.meta.url), "utf8");
+const responsiveWorkflowSource = readFileSync(new URL("../../../../.github/workflows/frontend-responsive.yml", import.meta.url), "utf8");
 const secondaryRouteSources = [
   "graph",
   "jobs",
@@ -197,6 +199,17 @@ describe("Apex Atlas design-board and unslop contract", () => {
     for (const source of secondaryRouteSources) {
       expect(source).not.toMatch(/text-\[(?:10|9|8)px\]|uppercase|tracking-\[|tracking-wider|tracking-wide|font-bold|font-semibold|bg-gradient-to-|blur-3xl|shadow-2xl|shadow-xl|shadow-lg|animate-pulse|#9CFF1A|#b8ff4d|#d4ff8a/);
     }
+  });
+
+  it("runs and retains real-browser evidence for missing-key and API-down states", () => {
+    expect(responsiveWorkflowSource).toContain("fix/light-board-api-down-frame-and-alerts-2026-11-24");
+    expect(responsiveWorkflowSource).toContain("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02");
+    expect(captureScriptSource).toContain("apiDownMode = true");
+    expect(captureScriptSource).toContain("No active search-provider pool keys");
+    expect(captureScriptSource).toContain('backgroundSize !== "64px 24px"');
+    expect(captureScriptSource).toContain('checkerSize !== "22px 14px"');
+    expect(captureScriptSource).toContain('headerBorderBottomWidth !== "0px"');
+    expect(captureScriptSource).toContain("APEX_VISUAL_IMAGE_mobile_api_down_");
   });
 
   it("keeps the Discover rail inside the phone viewport after final desktop sizing", () => {
