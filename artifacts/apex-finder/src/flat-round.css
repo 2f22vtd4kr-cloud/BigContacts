@@ -335,7 +335,7 @@
 .atlas-round .atlas-ledger-register { grid-column:2; grid-row:1 / span 3; min-width:0; padding-top:4px; }
 .atlas-round .atlas-ledger-register-heading { padding-bottom:16px; border-bottom:1px solid var(--round-line); }
 .atlas-round .atlas-ledger-register-heading p { max-width:440px; margin:8px 0 0; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
-.atlas-round .atlas-ledger-register-meta { display:flex; flex:none; flex-direction:column; align-items:flex-end; gap:6px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.atlas-round .atlas-ledger-register-meta { display:flex; flex:none; flex-direction:column; align-items:flex-end; gap:8px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; white-space:nowrap; }
 .atlas-round .atlas-ledger-register-meta strong { color:var(--round-ink); font-weight:500; font-variant-numeric:tabular-nums; }
 .atlas-round .atlas-ledger-table-wrap { width:100%; overflow-x:auto; }
 .atlas-round .atlas-ledger-table { width:100%; border-collapse:collapse; text-align:left; }
@@ -373,7 +373,7 @@
   .atlas-round .atlas-ledger-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .atlas-round .atlas-ledger-summary { grid-column:1; grid-row:auto; margin-top:0; }
   .atlas-round .atlas-ledger-summary strong { font-size:21px; }
-  .atlas-round .atlas-ledger-summary > div { padding:14px 8px; }
+  .atlas-round .atlas-ledger-summary > div { padding:16px 8px; }
   .atlas-round .atlas-ledger-register { grid-column:1; grid-row:auto; padding-top:0; }
   .atlas-round .atlas-ledger-register-heading { align-items:flex-start; }
   .atlas-round .atlas-ledger-register-heading h2 { font-size:18px!important; }

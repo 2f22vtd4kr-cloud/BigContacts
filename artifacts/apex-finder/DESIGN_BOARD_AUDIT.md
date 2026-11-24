@@ -83,3 +83,14 @@ This pass follows Unslop by Damir Sokolovsky, licensed CC BY 4.0: https://github
 .atlas-round .atlas-ledger-view-all { border-radius:10px; }
 ```
 - The mobile metadata remains 11px after the prior correction. No component, API, route or backend code changed.
+
+
+## Follow-up correction — complete 4px spacing grid
+- The shared spacing contract found two remaining declarations in the new Ledger block: `gap:6px` in register metadata and `padding:14px 8px` on mobile summary cells.
+- Corrected to the documented 4px scale:
+```css
+.atlas-round .atlas-ledger-register-meta { gap:8px; }
+.atlas-round .atlas-ledger-summary > div { padding:16px 8px; }
+```
+- Exact local regex recheck after this edit: zero spacing declarations outside 4px increments; zero unsupported border radii.
+- The 11px minimum metadata correction remains in place.
