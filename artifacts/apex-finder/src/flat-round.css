@@ -2501,3 +2501,37 @@ html.light main,
     grid-template-columns:minmax(0,1fr);
   }
 }
+
+
+/* Match the design-board evidence legend: tall patterned rails, never square chips. */
+.atlas-round .atlas-evidence-pattern {
+  display:block;
+  flex:0 0 10px;
+  width:10px!important;
+  min-width:10px;
+  height:44px!important;
+  min-height:44px;
+  border-radius:0!important;
+  align-self:center;
+}
+.atlas-round .atlas-connections-legend .atlas-evidence-pattern {
+  flex:0 0 10px;
+  width:10px!important;
+  height:44px!important;
+  min-height:44px;
+}
+.atlas-round .atlas-evidence-pattern.is-supported {
+  background-size:10px 10px;
+}
+.atlas-round .atlas-evidence-pattern.is-corroborated {
+  background-size:32px 24px;
+}
+.atlas-round .atlas-evidence-pattern.is-review {
+  background-size:auto;
+}
+.atlas-round .atlas-card-claims>ul>li {
+  align-items:center;
+}
+.atlas-round .atlas-card-claims>ul>li>.atlas-evidence-pattern {
+  align-self:center;
+}
