@@ -61,3 +61,11 @@ The Replit audit is useful for source provenance, route inventory, and safe-prev
 1. Run the PR CI build and frontend contract tests; fix any regressions introduced by this branch.
 2. Capture app screenshots at desktop 1440x1000 and mobile 402x874 with a consistent mock/API-down state.
 3. Compare all six primary pages with matching design-board specimens and record concrete deltas before making further page-specific changes.
+
+### Follow-up: gray disabled launch controls
+
+The board's disabled launch state uses a quiet raised-gray treatment for the objective field, Launch button, depth selector, and target-count control. The source had a white objective field and the global red CTA treatment could override the disabled state. Added a scoped current-light rule so disabled controls use the board's gray surface and restrained border, while enabled launch styling remains unchanged. The target-count buttons retain white inset surfaces and explicit touch dimensions.
+
+### State parity note
+
+The supplied app screenshot says “Route data unavailable” and “API down”; the board specimen says “No routes yet”. Those are not equivalent states. In the source dashboard, the local mock flag suppresses the API-unavailable branch, so a genuine `?mock=1` capture should render the no-routes state. Replit should verify that its captured app URL actually retains `?mock=1` before treating the content difference as a design discrepancy.
