@@ -1982,9 +1982,9 @@ html.light main,
 .atlas-round-shell .atlas-round-main { background:var(--round-paper)!important; }
 .atlas-round-sidebar .atlas-round-navlink { color:var(--round-ink-2); }
 .atlas-round-sidebar .atlas-round-navlink.is-active {
-  background:#FFFFFF;
+  background:transparent;
   color:var(--round-ink);
-  box-shadow:inset 3px 0 0 var(--round-red);
+  box-shadow:none;
 }
 
 /* Home console: the desktop reference places the objective field and CTA
