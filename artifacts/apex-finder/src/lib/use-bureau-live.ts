@@ -7,6 +7,7 @@
  * BureauOpsStage from becoming a second, independently interpreted live feed.
  */
 import { useEffect, useMemo, useState } from "react";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 export type BureauDeskEvent = {
   timestamp?: string;
