@@ -8,6 +8,16 @@ const workspaceStatusSource = readFileSync(new URL("../components/workspace-stat
 const apiKeyHealthSource = readFileSync(new URL("../components/api-key-health.tsx", import.meta.url), "utf8");
 const systemStatusPageSource = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const launchAtlasButtonSource = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const secondaryRouteSources = [
+  "graph",
+  "jobs",
+  "research",
+  "manual",
+  "improvements",
+  "data-sources",
+  "duplicates",
+  "osint-tools",
+].map((page) => readFileSync(new URL(`../pages/${page}.tsx`, import.meta.url), "utf8"));
 
 function lastRule(selector: string): string {
   let cursor = 0;
@@ -143,6 +153,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).not.toMatch(/font-size:\s*(?:8|9|10)px|font:\s*\d+\s*(?:8|9|10)px/);
     expect(workspaceStatusSource).not.toMatch(/text-\[10px\]|uppercase|tracking-|font-bold|font-semibold|shadow-\[0_0_8px|animate-pulse/);
     expect(launchAtlasButtonSource).not.toContain("text-[10px]");
+    expect(launchAtlasButtonSource).not.toMatch(/rounded-lg|gap-2\.5|gap-1\.5/);
     expect(launchAtlasButtonSource).not.toContain("text-rose-300");
   });
 
@@ -164,6 +175,24 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(systemStatusPageSource).not.toMatch(/bg-gradient|blur-3xl|shadow-\[0_0_8px|animate-pulse|uppercase|tracking-|font-bold|font-semibold|text-\[10px\]/);
     expect(workspaceStatusSource).not.toMatch(/shadow-\[0_0_8px|animate-pulse|uppercase|tracking-|font-bold|font-semibold|text-\[10px\]/);
     expect(launchAtlasButtonSource).not.toContain("text-[10px]");
+  });
+
+  it("normalizes secondary routes to the board palette, type scale and spacing grid", () => {
+    expect(boardCss).toContain('.atlas-round [class*="text-[10px]"]');
+    expect(boardCss).toContain("font-size:11px!important;");
+    expect(boardCss).toContain('.atlas-round [class*="uppercase"] { text-transform:none!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="tracking-"] { letter-spacing:0!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="font-bold"],');
+    expect(boardCss).toContain('.atlas-round [class*="bg-gradient-to-"]');
+    expect(boardCss).toContain("background-image:none!important;");
+    expect(boardCss).toContain('.atlas-round [class*="shadow-"] { box-shadow:none!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="animate-pulse"] { animation:none!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="gap-2.5"] { gap:12px!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="py-2.5"] { padding-top:12px!important; padding-bottom:12px!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="rounded-lg"] { border-radius:12px!important; }');
+    for (const source of secondaryRouteSources) {
+      expect(source).not.toMatch(/text-\[(?:10|9|8)px\]|uppercase|tracking-\[|tracking-wider|tracking-wide|font-bold|font-semibold|bg-gradient-to-|blur-3xl|shadow-2xl|shadow-xl|shadow-lg|animate-pulse|#9CFF1A|#b8ff4d|#d4ff8a/);
+    }
   });
 
   it("keeps the Discover rail inside the phone viewport after final desktop sizing", () => {
