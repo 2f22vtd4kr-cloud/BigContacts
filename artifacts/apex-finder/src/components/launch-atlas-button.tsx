@@ -4,6 +4,7 @@ import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
 type SourceReadiness = "ready" | "unavailable" | "unknown";
@@ -54,6 +55,7 @@ export function LaunchAtlasButton({
   sourceStatuses?: HomeSourceReadiness;
 }) {
   const [, setLocation] = useLocation();
+  const demoPreview = isMockMode();
   const [busy, setBusy] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -64,6 +66,11 @@ export function LaunchAtlasButton({
   const [objectiveLimit, setObjectiveLimit] = useState<number | null>(null);
 
   useEffect(() => {
+    if (demoPreview) {
+      setObjectiveLimit(1200);
+      setStatus(null);
+      return;
+    }
     let active = true;
     const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
     void fetch(`${base}/api/healthz`, { credentials: "same-origin", cache: "no-store" })
@@ -79,7 +86,7 @@ export function LaunchAtlasButton({
         if (active) setStatus("Atlas launch configuration is unavailable. Retry when the API is back.");
       });
     return () => { active = false; };
-  }, []);
+  }, [demoPreview]);
   const { run, refresh } = useAtlasRun(8_000);
 
   useEffect(() => {
@@ -90,6 +97,7 @@ export function LaunchAtlasButton({
   const inFlight = run.active || busy;
 
   const handleLaunch = async () => {
+    if (demoPreview) return;
     if (inFlight) {
       if (navigateToReactor) setLocation("/reactor");
       return;
@@ -197,7 +205,7 @@ export function LaunchAtlasButton({
             disabled={busy || stopping || apiUnavailable}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
-          <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
+          {variant !== "primary" && <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>}
           <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / {objectiveLimit?.toLocaleString() ?? "—"}</span>
         </label>
       )}
@@ -207,25 +215,26 @@ export function LaunchAtlasButton({
             <div className="atlas-launch-depth" role="group" aria-label="Research depth">
               <span>Depth</span>
               {(["fast", "standard", "deep"] as const).map((depth) => (
-                <button key={depth} type="button" aria-pressed={launchDepth === depth} onClick={() => setLaunchDepth(depth)} disabled={apiUnavailable} data-testid={"button-depth-" + depth}>
+                <button key={depth} type="button" aria-pressed={launchDepth === depth} onClick={() => setLaunchDepth(depth)} disabled={apiUnavailable || demoPreview} data-testid={"button-depth-" + depth}>
                   {depth === "fast" ? "Fast" : depth === "standard" ? "Standard" : "Deep"}
                 </button>
               ))}
             </div>
             <div className="atlas-launch-target-count" role="group" aria-label="Maximum people to investigate">
               <span>Up to</span>
-              <button type="button" aria-label="Decrease people limit" onClick={() => setLaunchTargetCount((n) => Math.max(1, n - 1))} disabled={apiUnavailable || launchTargetCount <= 1}><Minus aria-hidden="true" /></button>
+              <button type="button" aria-label="Decrease people limit" onClick={() => setLaunchTargetCount((n) => Math.max(1, n - 1))} disabled={apiUnavailable || demoPreview || launchTargetCount <= 1}><Minus aria-hidden="true" /></button>
               <output aria-live="polite">{launchTargetCount}</output>
-              <button type="button" aria-label="Increase people limit" onClick={() => setLaunchTargetCount((n) => Math.min(25, n + 1))} disabled={apiUnavailable || launchTargetCount >= 25}><Plus aria-hidden="true" /></button>
+              <button type="button" aria-label="Increase people limit" onClick={() => setLaunchTargetCount((n) => Math.min(25, n + 1))} disabled={apiUnavailable || demoPreview || launchTargetCount >= 25}><Plus aria-hidden="true" /></button>
               <span>people</span>
             </div>
           </div>
         )}
-        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || objectiveLimit === null || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <button type="button" onClick={handleLaunch} disabled={demoPreview || busy || stopping || apiUnavailable || objectiveLimit === null || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
         </button>
         {variant !== "header" && controls}
       </div>
+      {variant === "primary" && <p className="atlas-home-launch-explainer">Atlas chooses its own sources and next steps from the evidence. You can watch or stop a run in Reactor.</p>}
       {status && <p className={cn("w-full text-[10px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-rose-300" : "text-muted-foreground")} role="status">{status}</p>}
     </div>
   );
