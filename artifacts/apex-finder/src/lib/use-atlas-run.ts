@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { classifyApexError, emitApexError } from "@/lib/apex-errors";
 import { readApiJson } from "@/lib/api-json";
 import { parseAtlasRunSnapshot, type AtlasRunSnapshot } from "@/lib/atlas-run-status-contract";
+import { isMockMode } from "@/lib/dev-mock-data";
 export type { AtlasRunSnapshot } from "@/lib/atlas-run-status-contract";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -16,6 +17,11 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
   const currentRequestController = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
+    if (isMockMode()) {
+      setRun({ active: false });
+      setReady(true);
+      return;
+    }
     const requestId = ++requestGeneration.current;
     currentRequestController.current?.abort();
     const requestController = new AbortController();
@@ -46,6 +52,10 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
   }, []);
 
   useEffect(() => {
+    if (isMockMode()) {
+      setReady(true);
+      return;
+    }
     const controller = new AbortController();
     void refresh(controller.signal);
     const tickMs = run.active ? pollMs : Math.max(pollMs * 4, 20_000);
