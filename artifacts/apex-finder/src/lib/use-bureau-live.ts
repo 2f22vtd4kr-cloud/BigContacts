@@ -66,7 +66,7 @@ export function useBureauLiveDesk(
   eventLog: BureauDeskEvent[] | undefined,
   opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean; jobId?: string | null },
 ) {
-  const enabled = opts?.enabled !== false;
+  const enabled = opts?.enabled !== false && !isMockMode();
   const atlasLive = Boolean(opts?.atlasLive);
   const jobId = opts?.jobId ?? null;
   const pollMs = opts?.pollMs ?? 8_000;
