@@ -64,7 +64,7 @@ export default function Dashboard() {
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const objectiveMaxChars = (apiHealthQuery.data as { launchLimits?: { discoveryObjectiveMaxChars?: unknown } } | undefined)?.launchLimits?.discoveryObjectiveMaxChars;
   const hasAtlasHealth = typeof objectiveMaxChars === "number" && Number.isSafeInteger(objectiveMaxChars) && objectiveMaxChars > 0;
-  const apiUnavailable = !mock && apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth);
+  const apiUnavailable = mock || (apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth));
   const sourceAvailabilityQuery = useQuery({
     queryKey: ["dashboard", "source-availability"],
     queryFn: async (): Promise<HomeSourceReadiness> => {
