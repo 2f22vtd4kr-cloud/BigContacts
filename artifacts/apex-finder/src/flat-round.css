@@ -1113,7 +1113,7 @@ body:has(.atlas-round-shell) {
 .atlas-error-notice-why { margin: 8px 0 0; color:var(--round-ink-2); font:400 11px/1.5 "Geist",sans-serif; }
 .atlas-error-notice-why strong { color:var(--round-ink); font-weight:500; }
 .atlas-error-notice-next { margin-top: 12px; }
-.atlas-error-notice-label { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:.06em; text-transform:none; }
+.atlas-error-notice-label { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:0; text-transform:none; }
 .atlas-error-notice-next ul { display:grid; gap: 4px; margin: 4px 0 0; padding: 0; color:var(--round-ink-2); font:400 11px/1.45 "Geist",sans-serif; list-style:none; }
 .atlas-error-notice-next li { position:relative; padding-left: 12px; }
 .atlas-error-notice-next li::before { position:absolute; top:.52em; left:1px; width:4px; height:4px; border-radius:50%; background:var(--round-ink-3); content:""; }
