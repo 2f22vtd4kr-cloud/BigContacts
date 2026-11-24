@@ -135,3 +135,16 @@ The changes are frontend-only and scoped to the current light shell. The legacy 
 Additional focused checks after the final CSS adjustment:
 - Executed the real TypeScript classifier under Node 24: `API keys not set`, `SERPER_API_KEY is not configured`, and `provider credential missing` each returned `MISSING_CREDENTIAL`.
 - In the same browser tab, dismissed the API-down notice, reloaded the app, and confirmed the same error code did not reopen during that session.
+
+## Follow-up regression found while resuming work
+
+The first user screenshot comparison exposed a state mismatch that the previous browser note did not cover: the workspace header could report API-down while the Home decorative frame remained red/blue in the local `?mock=1` preview. The cause was the Home page's `apiUnavailable` expression explicitly excluding mock mode, even though mock mode intentionally has no API.
+
+- Corrected Home's existing visual-state derivation so `mock` is treated as API unavailable; no request or backend behavior is added.
+- The existing `.is-api-down` CSS now activates the neutral grey checker and wave for the safe mock preview, matching the board's API-down specimen.
+- Added a regression assertion to `scripts/check-apex-user-error-boundary.mjs` so the mock/API-down state relationship cannot silently regress.
+- Confirmed the shared frame selectors target the actual Discover, Ledger, and Connections console class names; the common final override sets the rectangular checker to `24 × 16px` and wave repeat to `48 × 24px`.
+- Confirmed the current light shell's final sidebar overrides keep the sidebar full-height and remove the red active stripe/fill; active destination text remains bold.
+- These changes remain isolated to the current light frontend and its test/audit. The legacy dark-green layout and palette remain untouched.
+
+**Verification status for this additional correction:** GitHub file updates committed to the existing PR branch. The new source-level regression assertion has been added; rerunning the complete build and browser screenshot check is still required after this follow-up.
