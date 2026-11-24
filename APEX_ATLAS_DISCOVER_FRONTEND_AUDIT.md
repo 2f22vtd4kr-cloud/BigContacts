@@ -190,3 +190,27 @@ No route, destination, search action, backend call, or status mapping was change
 - Use the direct Vite invocation described in the handoff, not the package `dev` script that runs source-boundary checks.
 - Expect API-backed status/source requests to show truthful unavailable states and 502s while the API is stopped.
 - Verify desktop at 1280×900 and mobile at 390×844. Do not submit the search form.
+
+
+### Change 2a — Remove the final effective duplicate Discover grid rule
+
+A post-write source check found that the later “Correct the Discover board composition” block still contained its own 1.15fr/.85fr grid declaration. That declaration would have overridden the 500px desktop grid despite the earlier change. It has now been removed.
+
+The later block now begins:
+
+```css
+/* Discover grid proportions are defined once in the page layout rules above. */
+.atlas-round .atlas-board-discover .atlas-discover-search .atlas-discover-search-console {
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+  min-height:420px;
+  padding:8px;
+  overflow:hidden;
+  border:0;
+  border-radius:20px;
+  background:transparent;
+}
+```
+
+Verification of the source after this correction confirms there is no remaining `1.15fr/.85fr` Discover grid declaration. The single desktop grid rule is the 500px / 320px-minimum / 64px-gap rule recorded in Change 2.
