@@ -329,3 +329,14 @@ const onRejection=(e:PromiseRejectionEvent)=>showError(classifyApexError(e.reaso
 ```
 
 This is notification presentation only; API requests, retry behavior, error classification, and backend behavior are unchanged.
+
+### Patch 5 — correct the regular-expression escaping in the connectivity filter
+
+A source-level review caught an escaping error in Patch 4 before verification: the two parenthesis escapes must each be a single backslash in the TypeScript regular-expression literals. Corrected the file to use the exact expressions below:
+
+```tsx
+/Research API is not reachable \(got an HTML page instead of JSON\)/i
+/^API returned non-JSON \(\d{3}\)/i
+```
+
+This is a syntax correction to the frontend-only notification filter; no behavior outside the intended Reactor connectivity messages changes.
