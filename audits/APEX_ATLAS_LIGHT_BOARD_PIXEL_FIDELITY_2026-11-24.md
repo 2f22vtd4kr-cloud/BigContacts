@@ -116,3 +116,17 @@ The supplied mobile comparison exposed a mismatch missed by the earlier pass: th
 - Missing credentials now recognize “keys not set”, “not configured”, “not provided”, and equivalent wording, with safe instructions to use System Status and deployment secrets.
 
 The changes are frontend-only and scoped to the current light shell. The legacy dark-green UI, backend, database, generated client, workers, Bureau, and research behaviour remain untouched. Build/tests/browser recapture are pending on this branch.
+
+
+### Browser verification on the follow-up branch
+
+- Installed and ran the branch in a Vercel Chromium sandbox with the API intentionally absent; no backend, Bureau, worker, or research process was started.
+- Captured the Home route at **402 × 874** and **1440 × 1000** using Playwright Chromium.
+- Visually confirmed the mobile API-down console now uses the neutral grey checker/wave frame rather than the red/blue active frame.
+- Visually confirmed the light header has no separate bottom divider, the desktop sidebar starts expanded, and the active navigation label is bold without a red selection stripe or filled highlight.
+- The global notice appeared once for the intentionally unavailable local API. Dismissing it suppressed subsequent emissions of the same classified error code for the remainder of that browser session.
+- The screenshot preview also exposed the expected inline API-unavailable notice; the generic 404 toast was a consequence of deliberately running the frontend without its API and is not a provider-key diagnosis.
+
+**Verification:** `pnpm --dir artifacts/apex-finder build` passed, including all frontend contract gates; the Apex user-error boundary passed **14/14** checks, including the new credential-wording and session-dismissal checks. The visual captures are local sandbox evidence, not committed screenshot assets.
+
+**Still not claimed:** this pass is not a complete pixel-by-pixel review of every page and state. It fixes the specific Home API-down comparison and shared frame pattern geometry identified in the supplied screenshots. The API-key classification change improves diagnosis and guidance; it does not provision or repair deployment secrets.
