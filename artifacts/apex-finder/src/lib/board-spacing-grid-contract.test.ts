@@ -116,7 +116,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("uses API-state-aware Home framing with Reactor-aligned wave placement", () => {
-    expect(dashboardSource).toContain('data-api-state={apiUnavailable ? "down" : "ready"}');
+    expect(dashboardSource).toContain('data-api-state={apiUnavailable || mock ? "down" : "ready"}');
     expect(boardCss).toContain(".atlas-round .atlas-home-board-console::after { display:none; }");
     expect(boardCss).toContain("background-size:64px 24px");
     expect(boardCss).toContain('data-api-state="down"');
