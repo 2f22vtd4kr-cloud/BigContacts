@@ -2254,8 +2254,17 @@ html.light main,
   .atlas-round-shell .atlas-round-sidebar {
     grid-column:auto;
     grid-row:auto;
+    position:fixed;
+    z-index:100;
     top:60px;
+    bottom:0;
+    left:0;
+    width:min(84vw,300px);
+    max-width:calc(100vw - 48px);
     height:calc(100dvh - 60px);
+    overflow-y:auto;
+    transform:translateX(-105%);
+    visibility:hidden;
   }
   .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span {
     display:inline;
