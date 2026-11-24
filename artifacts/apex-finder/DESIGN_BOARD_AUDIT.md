@@ -94,3 +94,21 @@ This pass follows Unslop by Damir Sokolovsky, licensed CC BY 4.0: https://github
 ```
 - Exact local regex recheck after this edit: zero spacing declarations outside 4px increments; zero unsupported border radii.
 - The 11px minimum metadata correction remains in place.
+
+
+## Follow-up correction — remove superseded duplicate rule
+- Removed the obsolete trailing `.atlas-ledger-contact-outcome` declaration that followed the replacement Ledger CSS block. The full rule now exists once, next to the outcome-specific data selectors in the new Ledger block.
+```css
+.atlas-round .atlas-ledger-contact-outcome {
+  display:inline-flex;
+  max-width:190px;
+  padding:4px 8px;
+  border:1px solid var(--round-line);
+  border-radius:6px;
+  color:var(--round-ink-2);
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+  white-space:normal;
+}
+```
+- This was a CSS-only deduplication; no visual behavior or data logic changed.
+- Previous run `45329026111` passed: responsive, Reactor Live, Home UI and frontend polish contracts; frontend build; board spacing/radius contract; Reactor page job-poll tests (19 tests total).

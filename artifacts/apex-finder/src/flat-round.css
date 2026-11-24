@@ -389,9 +389,6 @@
   .atlas-round .atlas-ledger-view-all { margin-top:16px; }
 }
 
-
-.atlas-round .atlas-ledger-contact-outcome { display:inline-flex; max-width:190px; padding:4px 8px; border:1px solid var(--round-line); border-radius:6px; color:var(--round-ink-2); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; white-space:normal; }
-
 .atlas-round .atlas-home-route-finder { display:grid; gap:12px; padding:16px 0; border-top:1px solid var(--round-line); }
 .atlas-round .atlas-home-route-finder > label { display:grid; gap:8px; color:var(--round-ink-2); font:400 11px "Geist Mono",ui-monospace,monospace; }
 .atlas-round .atlas-home-route-finder select { width:100%; min-width:0; padding:8px 12px; border:1px solid var(--round-line); border-radius:6px; background:var(--round-card); color:var(--round-ink); font:400 12px "Geist",sans-serif; }
