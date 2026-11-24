@@ -101,7 +101,7 @@ function GraphViewerInner() {
   const { data: graphDataRaw, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
     query: { enabled: targetId > 0 && !isMockMode(), queryKey: getGetEntityGraphQueryKey(targetId) },
   });
-  const { data: allEntitiesRaw } = useListEntities({ limit: 200 });
+  const { data: allEntitiesRaw } = useListEntities({ limit: 200 }, { query: { enabled: !isMockMode(), queryKey: getListEntitiesQueryKey({ limit: 200 }) } });
 
   // On initial load with no ?entity= param, pick a hub — or any entity from the list
   useEffect(() => {
