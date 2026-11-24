@@ -281,10 +281,10 @@ async function main() {
             } : null,
           };
         }, boardPage.label);
-        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("conic-gradient") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
           throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
         }
-        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
+        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("conic-gradient") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
           throw new Error(`Ledger console frame or register metric hierarchy failed: ${JSON.stringify(boardDiagnostics.ledger)}`);
         }
         if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed" || boardDiagnostics.reactor?.lastStepDisplay !== "flex" || boardDiagnostics.reactor?.lastStepDirection !== "column")) {
