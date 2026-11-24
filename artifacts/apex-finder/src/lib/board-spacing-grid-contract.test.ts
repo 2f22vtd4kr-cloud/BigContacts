@@ -91,7 +91,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
 
   it("tiles one continuous 64-by-24 wave field across every framed console", () => {
     const continuousWave = "M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012";
-    expect(boardCss.split(continuousWave).length - 1).toBe(3);
+    expect(boardCss.split(continuousWave).length - 1).toBe(4);
     expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
     expect(boardCss).toContain("background-size:64px 24px!important;");
     expect(boardCss).toContain("stroke='%23E6E6E2'");
@@ -218,6 +218,11 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down")).toContain("background-color:#BDBDB8!important;");
     expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down")).toContain("background-size:64px 24px!important;");
     expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down::before")).toContain("background-size:22px 14px!important;");
-    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-connections-console");
+    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-home-board-console,");
+    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-discover-search-console,");
+    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-ledger-console,");
+    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-connections-console {");
+    expect(lastRule(".atlas-round .atlas-reactor-run-console.is-api-down")).toContain("background-size:64px 24px;");
+    expect(lastRule(".atlas-round .atlas-reactor-run-console.is-api-down::before")).toContain("background-size:22px 14px;");
   });
 });
