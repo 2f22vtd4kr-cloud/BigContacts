@@ -654,3 +654,13 @@ const routeQuery = useGetConnectionPath(pathParams, {
   },
 });
 ```
+### Change 6 — never present unknown counts as zero
+- Mismatch: During API loading or failure, filter totals and summary figures must not imply a confirmed empty register.
+- File changed: `artifacts/apex-finder/src/pages/board-connections.tsx` (implemented with Change 3 because the count display is part of the register markup).
+- Exact implementation: the page derives one formatter from the current query state:
+```tsx
+const displayCount = (value: number) => isLoading || isError ? "—" : value.toLocaleString();
+```
+  All three filter chips and all three summary figures use `displayCount`. A successful response containing no records still displays the real value `0`; loading and error states display an em dash. The register header and right-rail status separately say Loading or Unavailable.
+- Safety: values remain computed from the same `useListRelationships` response; no synthetic fallback or zero-valued placeholder is introduced.
+- Verification: source assertions confirmed the formatter is present and used in the page. Runtime loading/error state screenshots remain pending.
