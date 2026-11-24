@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
+import { getListEntitiesQueryKey, useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
@@ -700,7 +700,19 @@ export default function EntityLedger() {
     contactOutcome: (contactRichness === "direct" || contactRichness === "verified")
       ? contactRichness : undefined,
     minContactConfidence: minConfidence > 0 ? minConfidence : undefined,
-  } as Parameters<typeof useListEntities>[0]);
+  } as Parameters<typeof useListEntities>[0], {
+    query: { enabled: !isMockMode(), queryKey: getListEntitiesQueryKey({
+      search: searchTerm.length > 2 ? searchTerm : undefined,
+      type: typeFilter ?? undefined,
+      limit: isSpecialFilter ? 500 : 50,
+      offset: isSpecialFilter ? 0 : page * 50,
+      starred: viewMode === "starred" ? true : undefined,
+      hidden: viewMode === "hidden" ? true : undefined,
+      contactable: contactRichness === "any" ? true : undefined,
+      contactOutcome: (contactRichness === "direct" || contactRichness === "verified") ? contactRichness : undefined,
+      minContactConfidence: minConfidence > 0 ? minConfidence : undefined,
+    }) },
+  });
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
