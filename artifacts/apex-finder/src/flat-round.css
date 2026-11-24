@@ -1984,7 +1984,8 @@ html.light main,
 .atlas-round-sidebar .atlas-round-navlink.is-active {
   background:#FFFFFF;
   color:var(--round-ink);
-  box-shadow:none;\n  font-weight:700;
+  box-shadow:none;
+  font-weight:700;
 }
 
 /* Home console: the desktop reference places the objective field and CTA
