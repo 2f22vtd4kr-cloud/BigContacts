@@ -121,9 +121,7 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)");
     expect(boardCss).toContain("background-size:32px 24px");
   });
-});
-
-  it("uses the shared long-wave console pattern and gray offline frame on all light pages", () => {
+}  it("uses the shared long-wave console pattern and gray offline frame on all light pages", () => {
     expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
     expect(boardCss).toContain("background-size:64px 24px!important;");
     expect(boardCss).toContain('.atlas-round:has(.atlas-round-status[data-status="offline"])');
@@ -142,6 +140,8 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(error.code).toBe("MISSING_CREDENTIAL");
     expect(error.title).toBe("Provider API keys are not configured");
     expect(error.retryable).toBe(false);
-    expect(errorNoticeSource).toContain("sessionStorage");
-    expect(errorNoticeSource).toContain("dismissedKeys.current");
+    expect(errorNoticeSource).toContain("sessionStorage.getItem");
+    expect(errorNoticeSource).toContain("dismissedKeys.current.has(key)");
   });
+
+});
