@@ -222,7 +222,7 @@ The first CI rerun confirmed the responsive frontend contract had hard-coded the
 - Workspace status popover now uses paper/raised surfaces, restrained green/gold/red state colours, sentence-case labels, and no neon/glow/pulse treatment.
 - System status now uses the board palette and type scale, identifies canonical provider-secret names, distinguishes active keys from rate-limited keys, and avoids describing configured model-role credentials as missing search-provider keys.
 - API-key health distinguishes `No keys` from `API offline`; the public health bit remains coarse and the authenticated status endpoint remains the detailed source.
-- The API-down shell uses a single 64×24px continuous wave tile and 22×14px neutral checker cells across Home, Discover, Ledger, and Connections. The header and page share one paper surface with no divider or shadow. The sidebar reaches the viewport bottom; the selected item has no red stripe or filled highlight.
+- The API-down shell uses a single 64×24px continuous wave tile and 22×14px neutral checker cells across Home, Discover, Ledger, Connections, and Reactor. The header and page share one paper surface with no divider or shadow. The sidebar reaches the viewport bottom; the selected item has no red stripe or filled highlight.
 
 ### Automated contract coverage
 
