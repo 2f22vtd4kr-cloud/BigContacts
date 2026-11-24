@@ -13,7 +13,7 @@ const reactorStore = read("artifacts/apex-finder/src/lib/reactor-live-store.ts")
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
 const boardCss = read("artifacts/apex-finder/src/flat-round.css");
 const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
-const activeNavRule = boardCss.slice(boardCss.lastIndexOf(".atlas-round-sidebar .atlas-round-navlink.is-active {"));
+const activeNavRule = [...boardCss.matchAll(/\.atlas-round-sidebar \.atlas-round-navlink\.is-active\s*\{([^}]*)\}/g)].at(-1)?.[1] ?? "";
 
 const checks = [
   ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
