@@ -2486,3 +2486,18 @@ html.light main,
   .atlas-round-shell .atlas-round-sidebar-brand .atlas-round-brand-mark { width:22px; height:24.2px; }
   .atlas-round-shell .atlas-round-sidebar-brand strong { font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
 }
+
+
+/* Keep the full-width board layouts stacked at tablet widths after the final page-specific rules. */
+@media (max-width:1000px) and (min-width:761px) {
+  .atlas-round .atlas-discover-layout,
+  .atlas-round .atlas-ledger-layout,
+  .atlas-round .atlas-connections-layout,
+  .atlas-round .atlas-reactor-board-layout {
+    grid-template-columns:minmax(0,1fr);
+    gap:28px;
+  }
+  .atlas-round .atlas-board-profile [class*="grid-cols-2"] {
+    grid-template-columns:minmax(0,1fr);
+  }
+}
