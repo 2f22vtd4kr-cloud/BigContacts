@@ -1362,3 +1362,43 @@ body:has(.atlas-round-shell) {
   .atlas-round .atlas-board-connections .atlas-connection-record { flex-direction:column; gap:10px; padding:12px; }
   .atlas-round .atlas-board-connections .atlas-connection-record-node { max-width:calc(50% - 18px); }
 }
+
+
+/* Connections path results: render only returned nodes as a horizontal, wrapping chain. */
+.atlas-round .atlas-board-connections .atlas-home-route-nodes {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-nodes li {
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:8px;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node {
+  display:grid;
+  min-width:0;
+  gap:2px;
+  padding:5px 10px;
+  border:1px solid #D6D6D0;
+  border-radius:6px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node > span {
+  color:var(--round-ink);
+  font:400 13px/1.35 "Geist",sans-serif;
+  overflow-wrap:anywhere;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node small {
+  color:var(--round-ink-3);
+  font:400 10px/1.3 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node-arrow {
+  color:var(--round-ink-3);
+  font:400 16px/1 "Geist Mono",ui-monospace,monospace;
+}
