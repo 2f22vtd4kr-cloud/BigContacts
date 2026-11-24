@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { classifyApexError } from "./apex-errors";
 
 const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
@@ -121,3 +122,26 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-size:32px 24px");
   });
 });
+
+  it("uses the shared long-wave console pattern and gray offline frame on all light pages", () => {
+    expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
+    expect(boardCss).toContain("background-size:64px 24px!important;");
+    expect(boardCss).toContain('.atlas-round:has(.atlas-round-status[data-status="offline"])');
+    expect(boardCss).toContain("background-color:#BDBDB8!important;");
+  });
+
+  it("keeps the sidebar full-height and marks the active destination with bold text only", () => {
+    expect(boardCss).toContain("height:calc(100dvh - 68px);");
+    expect(boardCss).toContain("box-shadow:none!important;");
+    expect(boardCss).toContain("font-weight:700;");
+    expect(boardCss).not.toContain("box-shadow:inset 3px 0 0 var(--round-red);");
+  });
+
+  it("classifies API keys reported as not set and suppresses dismissed notices for the session", () => {
+    const error = classifyApexError("API keys are not set");
+    expect(error.code).toBe("MISSING_CREDENTIAL");
+    expect(error.title).toBe("Provider API keys are not configured");
+    expect(error.retryable).toBe(false);
+    expect(errorNoticeSource).toContain("sessionStorage");
+    expect(errorNoticeSource).toContain("dismissedKeys.current");
+  });
