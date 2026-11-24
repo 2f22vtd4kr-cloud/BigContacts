@@ -117,7 +117,7 @@ describe("Flat Round four-pixel spacing grid", () => {
   it("contains the Home route empty state and restores the split patterned console frame", () => {
     expect(boardCss).toContain(".atlas-round .atlas-home-route-card");
     expect(boardCss).toContain("border-radius:12px");
-    expect(boardCss).toContain("background-image:repeating-conic-gradient(#EDB92B 0% 25%,#C8321E 0% 50%)");
+    expect(boardCss).toContain("background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)");
     expect(boardCss).toContain("background-size:32px 24px");
   });
 });
