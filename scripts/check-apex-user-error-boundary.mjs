@@ -24,6 +24,8 @@ const checks = [
   ["Atlas polling hook has exactly one useCallback closure", !atlasRun.includes("}, []);\n  }, []);")],
   ["Reactor status polling classifies HTTP failures and preserves its last snapshot", reactorStore.indexOf("await readApiJson(activeResponse)") >= 0 && reactorStore.indexOf("if (!activeResponse.ok)") > reactorStore.indexOf("await readApiJson(activeResponse)") && !reactorStore.includes("emit(EMPTY)")],
   ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
+  ["provider-key errors recognize API keys not set and equivalent deployment wording", errors.includes("not\\s+set") && errors.includes("not\\s+configured") && errors.includes("MISSING_CREDENTIAL")],
+  ["dismissed error notices stay suppressed for the browser session", notice.includes("DISMISSED_ERROR_SESSION_KEY") && notice.includes("sessionStorage.setItem") && notice.includes("dismissedCodes.current.has(next.code)")],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
