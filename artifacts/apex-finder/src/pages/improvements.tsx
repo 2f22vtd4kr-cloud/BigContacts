@@ -64,24 +64,24 @@ type CleanupState = "idle" | "starting" | "running" | "done" | "failed";
 // ─── Persona config ───────────────────────────────────────────────────────────
 
 const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; color: string; bg: string }> = {
-  data_engineer:               { label: "Data Engineer",               Icon: Database,    color: "#2757C6", bg: "rgba(59,130,246,0.1)"   },
-  data_analyst:                { label: "Data Analyst",                Icon: TrendingUp,  color: "#1F8A4D", bg: "rgba(16,185,129,0.1)"   },
-  intel_systems_analyst:       { label: "Intel Systems Analyst",       Icon: Network,     color: "#2757C6", bg: "rgba(168,85,247,0.1)"   },
-  business_engineer:           { label: "Business Engineer",           Icon: Briefcase,   color: "#EDB92B", bg: "rgba(245,158,11,0.1)"   },
-  ux_designer:                 { label: "UX Designer",                 Icon: Palette,     color: "#C8321E", bg: "rgba(236,72,153,0.1)"   },
-  architect:                   { label: "Architect",                   Icon: Layers,      color: "#2757C6", bg: "rgba(6,182,212,0.1)"    },
-  data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#C8321E", bg: "rgba(239,68,68,0.1)"    },
-  hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#1F8A4D", bg: "rgba(52,245,160,0.1)"   },
-  user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#C8321E", bg: "rgba(244,63,94,0.1)"    },
-  development_team:            { label: "Development Team",            Icon: Code2,        color: "#1F8A4D", bg: "rgba(20,184,166,0.1)"   },
-  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EDB92B", bg: "rgba(156,255,26,0.1)"    },
+  data_engineer:               { label: "Data Engineer",               Icon: Database,    color: "#2757C6", bg: "rgba(39,87,198,0.1)"   },
+  data_analyst:                { label: "Data Analyst",                Icon: TrendingUp,  color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  intel_systems_analyst:       { label: "Intel Systems Analyst",       Icon: Network,     color: "#2757C6", bg: "rgba(39,87,198,0.1)"   },
+  business_engineer:           { label: "Business Engineer",           Icon: Briefcase,   color: "#EDB92B", bg: "rgba(237,185,43,0.1)"   },
+  ux_designer:                 { label: "UX Designer",                 Icon: Palette,     color: "#C8321E", bg: "rgba(200,50,30,0.1)"   },
+  architect:                   { label: "Architect",                   Icon: Layers,      color: "#2757C6", bg: "rgba(39,87,198,0.1)"    },
+  data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#C8321E", bg: "rgba(200,50,30,0.1)"    },
+  hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#C8321E", bg: "rgba(200,50,30,0.1)"    },
+  development_team:            { label: "Development Team",            Icon: Code2,        color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EDB92B", bg: "rgba(31,138,77,0.1)"    },
 };
 
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
   high:   { label: "Urgent", color: "#C8321E", bg: "rgba(239,68,68,0.15)"  },
-  medium: { label: "Medium",    color: "#EDB92B", bg: "rgba(245,158,11,0.15)" },
+  medium: { label: "Medium",    color: "#EDB92B", bg: "rgba(237,185,43,0.1)" },
   low:    { label: "Low",    color: "#74747A", bg: "rgba(107,114,128,0.15)" },
 };
 
