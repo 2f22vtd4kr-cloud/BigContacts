@@ -22,7 +22,7 @@ const primaryNav = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isCardPage = location.startsWith("/profile/");
   const active = (href: string) => href === "/" ? location === "/" : (href === "/profiles" && isCardPage) || location === href || location.startsWith(href + "/");
