@@ -85,3 +85,23 @@ A follow-up source review found the existing alert assertion still matched the p
 The touch-target assertions use literal occurrence counts (three `min-h-[44px]` and three `min-w-[44px]` declarations) to avoid regex escaping ambiguity in the test source.
 
 **Assertion robustness follow-up:** `cd4e66016e6ee8e97a19f4653d8cc01e14a89aa3`.
+
+
+### 6. Full browser visual QA across the board pages
+
+A browser-capable Vercel desktop was provisioned and the PR branch was checked out locally at `ef5aaccdfd81166b8e72fe94fb9ab79cf74a24ae`. The public design board was opened in Chromium and inspected at its live page sections. The local Apex frontend was run from `artifacts/apex-finder` and captured at desktop (1440px) and phone (390px) widths for Overview, Ledger, Discover, Reactor, Connections and the Card detail route.
+
+For filled-state comparison, a Playwright-only request interceptor supplied fictional records in memory for the duration of each browser page. It did not write to local backend services, a database, the Bureau, or the repository. A visible `LOCAL VISUAL FIXTURES · NOT LIVE DATA` marker was added to the inspection captures. The sample fixture uses clearly fictional board-style names and relationships. It does not create user-owned contacts or assert real research provenance.
+
+**Responsive issue found and corrected:** the final desktop Discover sizing rule (`minmax(0,500px) minmax(320px,1fr)`) appeared after the earlier phone media queries and overrode the one-column mobile layout. With populated saved-search cards, the 390px Discover page expanded to 400px. Added a final phone breakpoint restoring a single minmax(0,1fr) column and constraining the rail/panels to the viewport. The same contract is asserted in `board-spacing-grid-contract.test.ts`.
+
+**Post-fix browser result:** all six routes returned HTTP 200 at both widths; no uncaught page errors were observed; document body width matched the viewport for all twelve captures. The Reactor logbook category controls retain their intentional horizontal scroller on phone and do not expand the document. Card mobile retains the shared bottom dock and safe-area reservation.
+
+**Remaining reference/data differences (not papered over):**
+- Overview's sample `Strongest routes` cards in the design board represent contact-mediated routes. The current app/API projection returned no personal contact routes in this isolated preview. Connections is intentionally an entity/asset relationship register, not a user-owned contacts feature. No contacts or contact routes were fabricated to force a match.
+- The local Card fixture populates the subject and related entity tabs, but does not include the board's full claim-level evidence bundle. Those sections remain honest empty states.
+- Reactor's offline mock state supplies a demo objective and phase telemetry, but it is not a real active Bureau run and cannot reproduce the board's complete 9-step live logbook.
+
+**Verification:** frontend build boundary checks passed (Atlas launch contract, source boundary, user-error boundary 12/12, operator-auth boundary 12/12, generated Reactor TSX syntax, profile route contract 8/8); Vite production build passed. Workspace typecheck was still running at the time of this audit update. The standalone Vitest runner is not installed in this local dependency environment, so the updated Vitest contract file was source-reviewed but not executed locally.
+
+No backend, database, schema, API client, worker, Bureau, launch or research behavior was modified. The visual fixtures and screenshots are local inspection artifacts only.
