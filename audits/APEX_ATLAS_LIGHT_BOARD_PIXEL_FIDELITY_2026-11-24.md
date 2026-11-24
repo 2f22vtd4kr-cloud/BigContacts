@@ -148,3 +148,16 @@ The first user screenshot comparison exposed a state mismatch that the previous 
 - These changes remain isolated to the current light frontend and its test/audit. The legacy dark-green layout and palette remain untouched.
 
 **Verification status for this additional correction:** GitHub file updates committed to the existing PR branch. The new source-level regression assertion has been added; rerunning the complete build and browser screenshot check is still required after this follow-up.
+
+## Second follow-up — frame wave origin aligned with Reactor
+
+The user correctly pointed out that merely lengthening the checker/wave tiles did not fix the placement. The Home, Discover, Ledger, and Connections frames still used split left/right pseudo-element layers, while Reactor uses one continuous wave field with a checker overlay on the left. That seam restarted the wave phase and made the frame visibly different.
+
+- Changed the four current light-shell console frames to use the same layering model as Reactor: one continuous wave background across the entire frame, plus a left-side checker overlay.
+- Extended the wave tile to **64 × 24px** and set the checker rhythm to **22 × 14px** rectangular cells (not square tiles).
+- Home's API-down state keeps the same geometry but switches the wave and checker to neutral greys.
+- This supersedes the earlier 48 × 24 / 24 × 16 split-layer adjustment recorded above; that earlier adjustment was insufficient and should not be treated as the final pattern.
+- Added a source-level regression check covering the shared frame geometry and tile dimensions.
+- The API-down state is now true for ?mock=1, because mock mode intentionally disables the API. The local preview therefore reproduces the board's grey API-down Home frame rather than showing a false ready-state red/blue frame.
+
+**Remaining verification:** CI checks were still running after these commits. A fresh Chromium capture at 390px and 402px phone widths plus 1440px desktop is required before this follow-up is visually signed off.
