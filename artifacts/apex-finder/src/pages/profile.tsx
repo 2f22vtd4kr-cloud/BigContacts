@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "wouter";
 import {
   useGetEntity,
@@ -322,7 +322,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   const mockEntity = isMockMode()
     ? (MOCK_ENTITIES.find((e) => e.id === entityId) ?? MOCK_ENTITIES[0])
     : null;
-  const entity = mockEntity
+  const entity = useMemo(() => mockEntity
     ? ({
         ...mockEntity,
         metadata: null,
@@ -330,7 +330,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
         contactEmail: mockEntity.email,
         contactPhone: mockEntity.phone,
       } as any)
-    : entityFromApi;
+    : entityFromApi, [mockEntity, entityFromApi]);
 
   const { data: assets = []       } = useListAssets({ entityId });
   const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
@@ -738,7 +738,7 @@ if (boardMode) {
     const personInitials = String(e.name ?? "Apex").trim().split(/\s+/).slice(0, 2).map((part: string) => part[0] ?? "").join("").toUpperCase();
     const wealthLabel = displayableEstimatedNetWorth ? String(displayableEstimatedNetWorth) : "Not recorded";
     return (
-      <div className="atlas-card-board">
+      <div className={`atlas-card-board${isCompanyCard ? " is-company-card" : ""}`}>
         <main className="atlas-card-main">
           <header className="atlas-card-subject">
             <div className="atlas-card-avatar" aria-hidden="true">{personInitials || "—"}</div>
