@@ -5,6 +5,8 @@ const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "ut
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
 const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.tsx", import.meta.url), "utf8");
 const workspaceStatusSource = readFileSync(new URL("../components/workspace-status.tsx", import.meta.url), "utf8");
+const apiKeyHealthSource = readFileSync(new URL("../components/api-key-health.tsx", import.meta.url), "utf8");
+const systemStatusPageSource = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const launchAtlasButtonSource = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
 
 function lastRule(selector: string): string {
@@ -22,7 +24,7 @@ function lastRule(selector: string): string {
   return body;
 }
 
-describe("Flat Round four-pixel spacing grid", () => {
+describe("Apex Atlas design-board and unslop contract", () => {
   it("keeps padding, margin and gaps on four-pixel increments", () => {
     const declarations = [...boardCss.matchAll(
       /(?:^|[;{]\s*)(padding(?:-(?:top|right|bottom|left|inline|block))?|margin(?:-(?:top|right|bottom|left|inline|block))?|gap|row-gap|column-gap)\s*:\s*([^;}]+)/g,
@@ -142,6 +144,26 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(workspaceStatusSource).not.toMatch(/text-\[10px\]|uppercase|tracking-|font-bold|font-semibold|shadow-\[0_0_8px|animate-pulse/);
     expect(launchAtlasButtonSource).not.toContain("text-[10px]");
     expect(launchAtlasButtonSource).not.toContain("text-rose-300");
+  });
+
+  it("distinguishes missing keys, configured roles, and an unreachable API", () => {
+    expect(apiKeyHealthSource).toContain('setLabel("No keys")');
+    expect(apiKeyHealthSource).toContain('setLabel("Keys configured")');
+    expect(apiKeyHealthSource).toContain('setLabel("API offline")');
+    expect(apiKeyHealthSource).toContain('health?.researchKeysConfigured === false');
+    expect(systemStatusPageSource).toContain("GROQ_BOSS_API_KEY");
+    expect(systemStatusPageSource).toContain("GROQ_RIGHT_HAND_API_KEY");
+    expect(systemStatusPageSource).toContain("GROQ_INVESTIGATOR_API_KEY");
+    expect(systemStatusPageSource).toContain("No active search-provider pool keys");
+    expect(systemStatusPageSource).toContain("totalCooling");
+    expect(systemStatusPageSource).toContain("generic GROQ_API_KEY is not a substitute");
+  });
+
+  it("keeps operational status surfaces within the board's quiet visual language", () => {
+    expect(apiKeyHealthSource).not.toMatch(/uppercase|tracking-|text-\[10px\]|#9CFF1A|text-rose|font-bold/);
+    expect(systemStatusPageSource).not.toMatch(/bg-gradient|blur-3xl|shadow-\[0_0_8px|animate-pulse|uppercase|tracking-|font-bold|font-semibold|text-\[10px\]/);
+    expect(workspaceStatusSource).not.toMatch(/shadow-\[0_0_8px|animate-pulse|uppercase|tracking-|font-bold|font-semibold|text-\[10px\]/);
+    expect(launchAtlasButtonSource).not.toContain("text-[10px]");
   });
 
   it("keeps the Discover rail inside the phone viewport after final desktop sizing", () => {
