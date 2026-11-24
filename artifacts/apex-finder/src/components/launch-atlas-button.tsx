@@ -6,6 +6,12 @@ import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeli
 import { useAtlasRun } from "@/lib/use-atlas-run";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
+type SourceReadiness = "ready" | "unavailable" | "unknown";
+export type HomeSourceReadiness = { webSearch: SourceReadiness; registries: SourceReadiness; footprint: SourceReadiness };
+function sourceLabel(label: string, readiness: SourceReadiness, apiUnavailable: boolean) {
+  if (apiUnavailable || readiness === "ready") return label;
+  return readiness === "unavailable" ? `${label} unavailable` : `${label} status unreported`;
+}
 
 const VARIANT_CLASS: Record<Variant, string> = {
   // Keep the home-page primary CTA on the same 48px visual rail as Reactor/Discover.
@@ -35,6 +41,7 @@ export function LaunchAtlasButton({
   onLaunched,
   apiUnavailable = false,
   onRetryApi,
+  sourceStatuses = { webSearch: "unknown", registries: "unknown", footprint: "unknown" },
 }: {
   variant?: Variant;
   className?: string;
@@ -44,6 +51,7 @@ export function LaunchAtlasButton({
   onLaunched?: (result: Awaited<ReturnType<typeof launchAtlasPipeline>>) => void;
   apiUnavailable?: boolean;
   onRetryApi?: () => void;
+  sourceStatuses?: HomeSourceReadiness;
 }) {
   const [, setLocation] = useLocation();
   const [busy, setBusy] = useState(false);
@@ -163,15 +171,16 @@ export function LaunchAtlasButton({
     <div className={cn("flex gap-2 sm:gap-2.5", variant === "primary" && "atlas-launch-primary-root", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
       {variant !== "header" && apiUnavailable && (
         <div className="atlas-home-api-down" role="alert" data-testid="atlas-home-api-down">
+          <span className="atlas-home-api-down-mark" aria-hidden="true" />
           <div><strong>Atlas can’t reach the research API</strong><span>Runs are paused until it is back</span></div>
           <button type="button" onClick={onRetryApi} disabled={!onRetryApi}>Retry</button>
         </div>
       )}
       {variant === "primary" && (
-        <div className="atlas-home-source-status" aria-label="Available source kinds">
-          <span>Web search</span>
-          <span>Registries</span>
-          <span className="is-unavailable">Footprint tools unavailable</span>
+        <div className="atlas-home-source-status" aria-label="Research source availability">
+          <span className={`is-${sourceStatuses.webSearch}`}>{sourceLabel("Web search", sourceStatuses.webSearch, apiUnavailable)}</span>
+          <span className={`is-${sourceStatuses.registries}`}>{sourceLabel("Registries", sourceStatuses.registries, apiUnavailable)}</span>
+          <span className={`is-${sourceStatuses.footprint}`}>{sourceLabel("Footprint tools", sourceStatuses.footprint, apiUnavailable)}</span>
         </div>
       )}
       {variant !== "header" && !inFlight && (
