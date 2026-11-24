@@ -189,6 +189,9 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain('.atlas-round [class*="uppercase"] { text-transform:none!important; }');
     expect(boardCss).toContain('.atlas-round [class*="tracking-"] { letter-spacing:0!important; }');
     expect(boardCss).toContain('.atlas-round [class*="font-bold"],');
+    expect(boardCss).toContain('.atlas-round [class*="text-primary"] { color:var(--round-green)!important; }');
+    expect(boardCss).toContain('.atlas-round [class*="text-secondary"] { color:var(--round-ink-2)!important; }');
+    expect(boardCss).toContain('.atlas-round [class~="bg-primary"] { background-color:var(--round-green)!important; color:#FFFFFF!important; }');
     expect(boardCss).toContain('.atlas-round [class*="bg-gradient-to-"]');
     expect(boardCss).toContain("background-image:none!important;");
     expect(boardCss).toContain('.atlas-round [class*="shadow-"] { box-shadow:none!important; }');
