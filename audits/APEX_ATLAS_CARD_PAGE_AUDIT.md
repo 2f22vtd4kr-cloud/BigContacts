@@ -224,3 +224,14 @@ if (boardMode) {
 
 **Verification:** GitHub content update succeeded. Runtime/build verification has not yet been run.
 
+
+### 2. Card-only shell header and board shield mark
+
+**File:** `artifacts/apex-finder/src/components/layout-round.tsx`
+
+- Replaced the outlined shield with the clipped 20×22 four-quadrant red/gold board mark; a unique React `useId()` clip path avoids duplicate SVG IDs.
+- Added a Card-route-only header with the existing five primary destinations and truthful `WorkspaceStatus`.
+- Card routes mark Ledger as active and use the Card title. The Card route no longer renders the legacy sidebar or phone hamburger; all non-Card routes retain their existing shell.
+- No navigation destination or route was added.
+
+**Verification:** GitHub content update succeeded. Runtime screenshot verification remains pending.
