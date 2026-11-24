@@ -4,6 +4,7 @@ import { Loader2, Minus, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
 type SourceReadiness = "ready" | "unavailable" | "unknown";
@@ -90,6 +91,7 @@ export function LaunchAtlasButton({
   const inFlight = run.active || busy;
 
   const handleLaunch = async () => {
+    if (demoPreview) return;
     if (inFlight) {
       if (navigateToReactor) setLocation("/reactor");
       return;
@@ -221,7 +223,7 @@ export function LaunchAtlasButton({
             </div>
           </div>
         )}
-        <button type="button" onClick={handleLaunch} disabled={busy || stopping || apiUnavailable || objectiveLimit === null || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <button type="button" onClick={handleLaunch} title={demoPreview ? "Demo preview only; research actions are disabled." : undefined} disabled={demoPreview || busy || stopping || apiUnavailable || objectiveLimit === null || (variant === "primary" && !launchObjective.trim())} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-[background-color,border-color,opacity,transform] duration-160 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/50 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
           <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
         </button>
         {variant !== "header" && controls}
