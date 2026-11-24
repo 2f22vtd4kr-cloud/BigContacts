@@ -11,6 +11,7 @@ const main = read("artifacts/apex-finder/src/main.tsx");
 const atlasRun = read("artifacts/apex-finder/src/lib/use-atlas-run.ts");
 const reactorStore = read("artifacts/apex-finder/src/lib/reactor-live-store.ts");
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
+const boardCss = read("artifacts/apex-finder/src/flat-round.css");
 
 const checks = [
   ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
@@ -27,6 +28,7 @@ const checks = [
   ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
   ["provider-key errors recognize API keys not set and equivalent deployment wording", errors.includes("not\\s+set") && errors.includes("not\\s+configured") && errors.includes("MISSING_CREDENTIAL")],
   ["local mock preview uses the same API-down visual state as the offline API", dashboard.includes("const apiUnavailable = mock || (apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth));")],
+  ["Home, Discover, Ledger and Connections frames share Reactor continuous-wave placement", boardCss.includes(".atlas-round .atlas-home-board-console::after,") && boardCss.includes("display:none!important") && boardCss.includes("background-size:64px 24px!important") && boardCss.includes("background-size:22px 14px!important")],
   ["dismissed error notices stay suppressed for the browser session", notice.includes("DISMISSED_ERROR_SESSION_KEY") && notice.includes("sessionStorage.setItem") && notice.includes("dismissedCodes.current.has(next.code)")],
 ];
 
