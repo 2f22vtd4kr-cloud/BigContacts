@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type Row = {
   id: number;
@@ -25,6 +26,7 @@ type Snapshot = {
 };
 
 export function ScoreboardStrip({ className, refreshKey }: { className?: string; refreshKey?: number | string }) {
+  if (isMockMode()) return null;
   const [data, setData] = useState<Snapshot | null>(null);
   const [integrity, setIntegrity] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
