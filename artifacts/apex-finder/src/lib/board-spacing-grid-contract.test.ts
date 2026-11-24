@@ -162,6 +162,10 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(apiKeyHealthSource).toContain('setLabel("Keys configured")');
     expect(apiKeyHealthSource).toContain('setLabel("API offline")');
     expect(apiKeyHealthSource).toContain('health?.researchKeysConfigured === false');
+    expect(workspaceStatusSource).toContain("noKeysConfigured");
+    expect(workspaceStatusSource).toContain("noActiveProviderCapacity");
+    expect(workspaceStatusSource).toContain("No search-provider keys configured");
+    expect(workspaceStatusSource).toContain("No keys configured");
     expect(systemStatusPageSource).toContain("GROQ_BOSS_API_KEY");
     expect(systemStatusPageSource).toContain("GROQ_RIGHT_HAND_API_KEY");
     expect(systemStatusPageSource).toContain("GROQ_INVESTIGATOR_API_KEY");
