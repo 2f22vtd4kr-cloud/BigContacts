@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, ChevronDown, ExternalLink, Loader2, Radio, Shi
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { fetchSystemStatus, summarizeApiKeys, type SystemStatus } from "@/lib/system-status";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_INTERVAL_MS = 45_000;
@@ -106,6 +107,7 @@ function phaseLabel(atlas: AtlasStatus | null): string {
 }
 
 export function WorkspaceStatus({ compact = false, className }: { compact?: boolean; className?: string }) {
+  const demoPreview = isMockMode();
   const [atlas, setAtlas] = useState<AtlasStatus | null>(null);
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,11 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (demoPreview) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     const controller = new AbortController();
     const refresh = async () => {
@@ -150,7 +157,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
       controller.abort();
       window.clearInterval(interval);
     };
-  }, []);
+  }, [demoPreview]);
 
   useEffect(() => {
     if (!open) return;
@@ -201,7 +208,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
     summary.configured > 0 && summary.active === 0 && summary.rateLimited >= summary.configured,
   );
   const providerDegraded = allKeysCooling || noAiCapacity;
-  const state: WorkspaceState = loading && !atlas && !system
+  const state: WorkspaceState = demoPreview ? "offline" : loading && !atlas && !system
     ? "loading"
     : error && !atlas && !system
       ? "offline"
@@ -215,7 +222,9 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
           : !servicesHealthy || providerDegraded
             ? "degraded"
             : "ready";
-  const copy = STATE_COPY[state];
+  const copy = demoPreview
+    ? { ...STATE_COPY.offline, detail: "Demo preview only; live service status is not checked." }
+    : STATE_COPY[state];
   const Icon = state === "researching" || state === "researching-degraded"
     ? Radio
     : state === "degraded"
