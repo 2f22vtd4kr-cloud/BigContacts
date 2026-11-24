@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { RefreshCw, Search } from "lucide-react";
 import { ConnectionPathFinder } from "@/components/connection-path-finder";
 import { isMockMode } from "@/lib/dev-mock-data";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type RelationshipFilter = "all" | "entity" | "asset";
 
