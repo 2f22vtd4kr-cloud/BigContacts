@@ -25,7 +25,7 @@ export function ApexErrorNotice() {
       const onReactor=window.location.pathname==="/reactor"||window.location.pathname.startsWith("/reactor/");
       const isInlineReactorApiError=next.title==="The Apex research service is unavailable"
         ||/Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message)
-        ||/^API returned non-JSON \(\\d{3}\)/i.test(next.message);
+        ||/^API returned non-JSON \(\d{3}\)/i.test(next.message);
       if(onReactor&&isInlineReactorApiError) return;
       setError(next);
     };
