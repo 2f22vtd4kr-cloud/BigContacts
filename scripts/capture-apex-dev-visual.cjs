@@ -250,7 +250,7 @@ async function main() {
           const discoverInput = document.querySelector(".atlas-discover-query-field input");
           const ledgerFrame = document.querySelector(".atlas-ledger-console");
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
-          const reactorGrid = document.querySelector(".atlas-board-reactor .atlas-board-page-grid");
+          const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
           const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
           const reactorLastStep = document.querySelector(".atlas-reactor-last-step");
           return {
