@@ -176,3 +176,13 @@ A source-level review caught and corrected a double-escaping issue before verifi
 - Rendered desktop and 390px mobile screenshot comparison is **not verified** in this environment. Do not describe the work as visually signed off until the deployed preview is inspected against the board.
 - Run the repository frontend build/typecheck, Reactor no-fabrication contract, responsive contract, and relevant CI on the exact final branch head before merge.
 - Keep this branch separate from `main`; do not mark the parent design-board PR ready or merge based only on these source changes.
+
+### Patch 6 — correct the HTTP status-code matcher escaping
+
+A second literal-escaping review found that the status-code expression must use the single-backslash digit class `\d{3}`, not a literal backslash followed by “d”. The committed source now uses exactly:
+
+```tsx
+/^API returned non-JSON \(\d{3}\)/i
+```
+
+This ensures only a three-digit HTTP status response is matched.
