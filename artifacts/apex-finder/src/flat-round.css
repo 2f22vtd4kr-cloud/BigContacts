@@ -8,7 +8,7 @@
   font-family: "Geist", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
 }
 .atlas-round *, .atlas-round *::before, .atlas-round *::after { box-sizing: border-box; }
-.atlas-round-header { position:relative; min-height:68px; position:sticky; top:0; z-index:80; display:flex; align-items:center; gap: 28px; padding: 0 clamp(16px,3vw,44px); padding-left: max(16px,env(safe-area-inset-left)); padding-right: max(16px,env(safe-area-inset-right)); padding-top: env(safe-area-inset-top); background:rgba(250,250,248,.96); border-bottom:1px solid var(--round-line); backdrop-filter:blur(12px); }
+.atlas-round-header { position:relative; min-height:68px; position:sticky; top:0; z-index:80; display:flex; align-items:center; gap: 28px; padding: 0 clamp(16px,3vw,44px); padding-left: max(16px,env(safe-area-inset-left)); padding-right: max(16px,env(safe-area-inset-right)); padding-top: env(safe-area-inset-top); background:#FAFAF8; border-bottom:0; backdrop-filter:none; }
 .atlas-round-brand { display:flex; align-items:center; gap: 12px; flex-shrink:0; }
 .atlas-round-mark { width:32px; height:32px; display:grid; place-items:center; border:1px solid var(--round-ink); border-radius:50%; color:var(--round-ink); }
 .atlas-round-mark svg { width:17px; height:17px; }
@@ -1753,15 +1753,15 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-home-route-empty > p { margin:0; max-width:none; }
 .atlas-round .atlas-home-route-legend {
   display:grid;
-  gap:14px;
+  gap:16px;
   margin:0 16px;
-  padding:16px 0 18px;
+  padding:16px 0 16px;
   border-top:1px solid var(--round-line);
 }
 .atlas-round .atlas-home-route-legend > div {
   grid-template-columns:12px minmax(0,1fr);
-  column-gap:10px;
-  row-gap:3px;
+  column-gap:12px;
+  row-gap:4px;
 }
 .atlas-round .atlas-home-route-legend > div > span:last-child { grid-column:2; }
 .atlas-round .atlas-home-route-legend strong { font:500 12px/1.35 "Geist",sans-serif; }
@@ -1837,7 +1837,7 @@ body:has(.atlas-round-shell) {
   background:var(--round-paper);
   transition:width 180ms ease;
 }
-.atlas-round-sidebar-nav { display:grid; gap:6px; }
+.atlas-round-sidebar-nav { display:grid; gap:8px; }
 .atlas-round-sidebar .atlas-round-navlink {
   display:flex;
   min-width:0;
@@ -1846,22 +1846,22 @@ body:has(.atlas-round-shell) {
   justify-content:flex-start;
   gap:12px;
   padding:0 12px;
-  border-radius:8px;
+  border-radius:6px;
   color:var(--round-ink-2);
   text-decoration:none;
   font:500 13px/1.2 "Geist",sans-serif;
 }
 .atlas-round-sidebar .atlas-round-navlink svg { width:18px; height:18px; flex:0 0 18px; }
 .atlas-round-sidebar .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
-.atlas-round-sidebar .atlas-round-navlink.is-active { background:#fff; color:var(--round-ink); box-shadow:inset 3px 0 0 var(--round-red); }
-.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar { padding-inline:10px; }
+.atlas-round-sidebar .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); box-shadow:none; font-weight:700; }
+.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar { padding-inline:12px; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink { justify-content:center; padding-inline:0; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span { display:none; }
 .atlas-round-shell .atlas-round-main { grid-column:2; grid-row:2; min-width:0; }
 .atlas-round-shell .atlas-round-nav-backdrop { display:none; }
 @media (max-width:760px) {
   .atlas-round-shell { display:block; min-height:100dvh; }
-  .atlas-round-shell > .atlas-round-header { min-height:60px; height:60px; gap:10px; padding-inline:14px; }
+  .atlas-round-shell > .atlas-round-header { min-height:60px; height:60px; gap:12px; padding-inline:16px; }
   .atlas-round-shell .atlas-round-sidebar-toggle { order:3; margin-left:4px; }
   .atlas-round-shell .atlas-round-header-status { margin-left:auto; }
   .atlas-round-shell .atlas-round-sidebar {
@@ -1936,7 +1936,7 @@ body:has(.atlas-round-shell) {
   min-width:36px;
   min-height:36px;
   border:1px solid #E4E4DF;
-  border-radius:8px;
+  border-radius:6px;
   background:#fff;
   color:var(--round-ink);
 }
@@ -1968,7 +1968,7 @@ html.light main,
   display:flex;
   width:68px;
   min-width:68px;
-  padding-inline:10px;
+  padding-inline:12px;
   overflow-x:hidden;
 }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink {
@@ -1984,7 +1984,7 @@ html.light main,
 .atlas-round-sidebar .atlas-round-navlink.is-active {
   background:#FFFFFF;
   color:var(--round-ink);
-  box-shadow:inset 3px 0 0 var(--round-red);
+  box-shadow:none;\n  font-weight:700;
 }
 
 /* Home console: the desktop reference places the objective field and CTA
@@ -2003,7 +2003,7 @@ html.light main,
 .atlas-round .atlas-home-board-console .atlas-home-source-status {
   grid-area:sources;
   margin:0;
-  padding:0 0 10px;
+  padding:0 0 12px;
 }
 .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label {
   grid-area:objective;
@@ -2044,7 +2044,7 @@ html.light main,
 .atlas-round .atlas-home-board-console .atlas-launch-depth,
 .atlas-round .atlas-home-board-console .atlas-launch-target-count {
   min-height:40px;
-  padding:3px 8px;
+  padding:4px 8px;
   border:1px solid #E4E4DF;
   border-radius:10px;
   background:#F3F3F0;
@@ -2053,7 +2053,7 @@ html.light main,
   min-height:32px;
   padding:0 12px;
   border:1px solid transparent;
-  border-radius:8px;
+  border-radius:6px;
   background:transparent;
   color:#55555A;
 }
@@ -2069,7 +2069,7 @@ html.light main,
   min-width:32px;
   min-height:32px;
   border:1px solid #E4E4DF;
-  border-radius:8px;
+  border-radius:6px;
   background:#FFFFFF;
 }
 .atlas-round .atlas-home-board-console .atlas-launch-primary-root > .atlas-launch-cta,
@@ -2109,7 +2109,7 @@ html.light main,
   .atlas-round .atlas-home-board-console .atlas-launch-settings {
     align-items:flex-start;
     flex-direction:column;
-    gap:10px;
+    gap:12px;
   }
   .atlas-round .atlas-home-board-console .atlas-launch-depth,
   .atlas-round .atlas-home-board-console .atlas-launch-target-count {
@@ -2141,7 +2141,7 @@ html.light main,
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
   width:46px;
   min-width:46px;
-  padding-inline:1px;
+  padding-inline:4px;
 }
 @media (max-width:760px) {
   .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
