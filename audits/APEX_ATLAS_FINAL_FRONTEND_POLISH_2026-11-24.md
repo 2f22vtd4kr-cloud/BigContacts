@@ -75,3 +75,9 @@ Part of unslop by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), CC BY 
 
 
 **Touch-target correction commit:** `092fe03dc8d9d9c2db52100340587f5f707d4407`.
+
+### 5. Regression-test alignment
+
+A follow-up source review found the existing alert assertion still matched the pre-responsive exact class string. Updated the contract test to assert the complete responsive class and require all three actionable controls (Retry, System Status and Dismiss) to declare 44px minimum width and height. This keeps the test aligned with the actual component contract rather than weakening it to a broad substring check.
+
+**Regression-test correction commit:** `3e9663c1adb0d71aad67efbee2e510dbbcd23541`.
