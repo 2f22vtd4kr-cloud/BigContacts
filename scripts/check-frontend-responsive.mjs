@@ -47,9 +47,9 @@ const checks = [
   ["legacy mobile drawer closes on Escape and restores focus", /key === "Escape"/.test(layout) && /mobileMenuButtonRef\.current\?\.focus/.test(layout)],
   ["legacy skip link reaches the main landmark", /href="#main-content"/.test(layout) && /id="main-content"/.test(layout)],
   ["legacy collapsed desktop nav releases the content column", /desktopNavOpen \? "lg:pl-\[250px\]" : "lg:pl-0"/.test(layout) && /desktopNavOpen \? "lg:pl-\[274px\]" : "lg:pl-6"/.test(layout)],
-  ["legacy shell remains separately available and switchable", fs.existsSync(files.legacyLayout) && /onSwitchToRound/.test(read(files.legacyLayout))],
+  ["legacy sidebar is the default and Flat Round remains an explicit URL override", fs.existsSync(files.legacyLayout) && /return "legacy"/.test(read(files.layout)) && /requested === "round"/.test(read(files.layout))],
 
-  ["Flat Round is the default and legacy is a live rollback", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /switchMode\("legacy"\)/.test(read(files.layout)) && /switchMode\("round"\)/.test(read(files.layout))],
+  ["legacy sidebar is the default while Flat Round remains available by explicit URL", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /return "legacy"/.test(read(files.layout)) && /requested === "round"/.test(read(files.layout))],
   ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
   ["Flat Round shell uses horizontal desktop navigation and a mobile tabbar", /atlas-round-primary/.test(roundLayout) && /atlas-round-mobile-tabbar/.test(roundLayout) && /primaryNav.map/.test(roundLayout) && /aria-label="Primary navigation"/.test(roundLayout) && !/utilityNav|atlas-round-more-menu|Crosshair/.test(roundLayout)],
   ["sidebar preserves non-board utility routes without exposing them as navigation", /path="\/network\/graph"/.test(read(path.join(appRoot, "router.tsx"))) && /path="\/reactor\/topology"/.test(read(path.join(appRoot, "router.tsx"))) && !/utilityNav/.test(roundLayout)],
