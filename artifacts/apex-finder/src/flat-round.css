@@ -2178,3 +2178,80 @@ html.light main,
   color:#74747A!important;
   opacity:1;
 }
+
+
+/* Final light-board alignment follow-through: one continuous shell surface,
+   full-height navigation rail, restrained active label, and shared frame motif. */
+.atlas-round-shell > .atlas-round-header {
+  background:var(--round-paper)!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.atlas-round-shell .atlas-round-sidebar {
+  align-self:stretch;
+  height:calc(100dvh - 68px);
+  min-height:calc(100dvh - 68px);
+  top:68px;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active {
+  background:transparent!important;
+  color:var(--round-ink)!important;
+  box-shadow:none!important;
+  font-weight:500;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active span {
+  color:var(--round-ink);
+  font-weight:700;
+}
+
+/* Use the same longer, smooth wave cadence on every light console frame.
+   One 64px tile contains one full wave so the motif reads as a wave, not dashes. */
+.atlas-round .atlas-home-board-console::after,
+.atlas-round .atlas-discover-search-console::after,
+.atlas-round .atlas-ledger-board-console::after,
+.atlas-round .atlas-board-connections .atlas-connections-console::after,
+.atlas-round .atlas-reactor-run-console::after {
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 50%!important;
+  background-size:64px 24px!important;
+}
+
+/* API-down is a state, not a page-specific decoration: gray both rails
+   consistently on every console while preserving the same motif geometry. */
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-home-board-console::before,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-discover-search-console::before,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-ledger-board-console::before,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-board-connections .atlas-connections-console::before,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-reactor-run-console::before,
+.atlas-round .atlas-home-board-console:has(.atlas-home-api-down)::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:16px 16px!important;
+}
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-home-board-console::after,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-discover-search-console::after,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-ledger-board-console::after,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-board-connections .atlas-connections-console::after,
+.atlas-round:has(.atlas-round-status[data-status="offline"]) .atlas-reactor-run-console::after,
+.atlas-round .atlas-home-board-console:has(.atlas-home-api-down)::after {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23F1F1ED'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 50%!important;
+  background-size:64px 24px!important;
+}
+/* Reactor's explicit API-down class remains correct even before the header poll resolves. */
+.atlas-round .atlas-reactor-run-console.is-api-down::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:16px 16px!important;
+}
+.atlas-round .atlas-reactor-run-console.is-api-down::after {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23F1F1ED'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 50%!important;
+  background-size:64px 24px!important;
+}
