@@ -20,7 +20,7 @@ const VARIANT_CLASS: Record<Variant, string> = {
   primary: "atlas-launch-cta relative h-12 min-h-12 w-full px-8 text-[15px] font-medium rounded-lg",
   header: "atlas-launch-cta relative h-9 shrink-0 px-3 text-[12px] font-medium rounded-lg whitespace-nowrap",
   reactor: "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-medium rounded-lg",
-  ghost: "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
+  ghost: "atlas-outline-btn h-10 px-4 text-xs font-medium active:scale-[0.97]",
 };
 
 const VARIANT_RUNNING: Record<Variant, string> = {
@@ -203,9 +203,9 @@ export function LaunchAtlasButton({
             placeholder="Describe who you want to reach"
             rows={2}
             disabled={busy || stopping || apiUnavailable}
-            className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+            className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-3 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
-          {variant !== "primary" && <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>}
+          {variant !== "primary" && <span className="text-[11px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>}
           <span className="atlas-home-objective-count">{launchObjective.length.toLocaleString()} / {objectiveLimit?.toLocaleString() ?? "—"}</span>
         </label>
       )}
@@ -235,7 +235,7 @@ export function LaunchAtlasButton({
         {variant !== "header" && controls}
       </div>
       {variant === "primary" && <p className="atlas-home-launch-explainer">Atlas chooses its own sources and next steps from the evidence. You can watch or stop a run in Reactor.</p>}
-      {status && <p className={cn("w-full text-[10px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-rose-300" : "text-muted-foreground")} role="status">{status}</p>}
+      {status && <p className={cn("w-full text-[11px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-[#C8321E]" : "text-muted-foreground")} role="status">{status}</p>}
     </div>
   );
 }
