@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
+import { getGetDashboardStatsQueryKey, getGetHotLeadsQueryKey, useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
@@ -410,8 +410,8 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
 
 export default function Dashboard() {
   const mock = isMockMode();
-  const statsQuery = useGetDashboardStats();
-  const leadsQuery = useGetHotLeads({ limit: 8 });
+  const statsQuery = useGetDashboardStats({ query: { enabled: !mock, queryKey: getGetDashboardStatsQueryKey() } });
+  const leadsQuery = useGetHotLeads({ limit: 8 }, { query: { enabled: !mock, queryKey: getGetHotLeadsQueryKey({ limit: 8 }) } });
   const reviewLeadsQuery = useQuery({
     queryKey: ["dashboard", "research-leads"],
     queryFn: async () => {
