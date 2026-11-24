@@ -65,3 +65,31 @@ export function ApexAtlasMark({ className = "atlas-reactor-board-mark" }: { clas
 ```
 
 No backend or API behavior changed. Visual screenshot verification remains pending.
+
+### Patch 2 — place the shield in the Run console and add the frame state hook
+
+Updated `artifacts/apex-finder/src/pages/reactor.tsx`:
+- Imported `ApexAtlasMark`.
+- Added the existing API availability state as the console's `is-api-down` modifier. This is presentation-only and uses the already-authoritative `apiAvailable` value.
+- Wrapped existing console content in `.atlas-reactor-run-console-inner`.
+- Added the shield beside the existing “Run console” heading.
+- Preserved every existing metric, status, Retry control, launch/stop control, and topology link.
+
+Exact changed console opening:
+
+```tsx
+<aside className={"atlas-reactor-run-console" + (apiAvailable === false ? " is-api-down" : "")} aria-labelledby="atlas-reactor-run-console-title">
+  <div className="atlas-reactor-run-console-inner">
+  <div className="atlas-reactor-board-heading">
+    <div><h2 id="atlas-reactor-run-console-title" className="atlas-reactor-board-title"><ApexAtlasMark /><span>Run console</span></h2><p>Canonical run state</p></div>
+```
+
+Exact changed closing:
+
+```tsx
+<a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
+</div>
+</aside>
+```
+
+No run data or backend behavior was introduced. Screenshot verification remains pending.
