@@ -21,9 +21,24 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
   const active = (href: string) => href === "/" ? location === "/" : (href === "/profiles" && isCardPage) || location === href || location.startsWith(href + "/");
   const title = primaryNav.find((item) => active(item.href))?.name ?? (location.startsWith("/profile/") ? "Card" : "Apex Atlas");
   useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
-  const navItems = (mobile: boolean) => <>{primaryNav.map((item) => { const Icon = item.icon; return <Link key={item.href} href={item.href}
-    aria-current={active(item.href) ? "page" : undefined} aria-label={item.name} title={mobile ? item.name : undefined}
-    className={`${isCardPage ? "atlas-card-shell-navlink" : "atlas-round-navlink"} ${active(item.href) ? "is-active" : ""}`}>{!isCardPage && <Icon aria-hidden="true" />} <span>{item.name}</span></Link>; })}</>;
+  const navItems = (mobile: boolean) => <>{primaryNav.map((item) => {
+    const Icon = item.icon;
+    // The mobile dock always uses the shared icon-tab contract, including on Card routes.
+    const linkClass = mobile ? "atlas-round-navlink" : isCardPage ? "atlas-card-shell-navlink" : "atlas-round-navlink";
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active(item.href) ? "page" : undefined}
+        aria-label={item.name}
+        title={mobile ? item.name : undefined}
+        className={`${linkClass} ${active(item.href) ? "is-active" : ""}`}
+      >
+        {(!isCardPage || mobile) && <Icon aria-hidden="true" />}
+        <span>{item.name}</span>
+      </Link>
+    );
+  })}</>;
   return <div className="atlas-round atlas-round-shell min-h-[100dvh]">
     <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
     <header className={isCardPage ? "atlas-card-shell-header" : "atlas-round-header"}>
