@@ -181,3 +181,35 @@ const onRejection=(e:PromiseRejectionEvent)=>showError(classifyApexError(e.reaso
 ```
 
 This is notification presentation only; API requests, retry behavior, error classification, and backend behavior are unchanged.
+
+### Patch 1 — add the board shield mark for the Reactor console
+
+Added `artifacts/apex-finder/src/components/apex-atlas-mark.tsx`. It renders the four-quarter gules/or shield clipped to the board silhouette. `useId()` makes the clipPath identifier unique when the mark is rendered more than once. This component is intentionally scoped to the Reactor console; it does not change shared navigation or other tabs.
+
+Exact new file:
+
+```tsx
+import { useId } from "react";
+
+/** Board heraldic mark: four tinctures clipped to the Atlas shield silhouette. */
+export function ApexAtlasMark({ className = "atlas-reactor-board-mark" }: { className?: string }) {
+  const clipId = `atlas-shield-${useId().replace(/:/g, "")}`;
+  return (
+    <svg className={className} viewBox="0 0 20 22" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id={clipId}>
+          <path d="M0 0h20v12c0 5.5-4.2 8.6-10 10C4.2 20.6 0 17.5 0 12z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <rect width="10" height="11" fill="#C8321E" />
+        <rect x="10" width="10" height="11" fill="#EDB92B" />
+        <rect y="11" width="10" height="11" fill="#EDB92B" />
+        <rect x="10" y="11" width="10" height="11" fill="#C8321E" />
+      </g>
+    </svg>
+  );
+}
+```
+
+No backend or API behavior changed. Visual screenshot verification remains pending.
