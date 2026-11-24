@@ -62,6 +62,7 @@ export default function BoardProfilePage() {
   return (
     <BoardPageFrame
       className="atlas-board-profile"
+      breadcrumb={<><Link href="/profiles">Ledger</Link><span aria-hidden="true">/</span><span aria-current="page">Cards</span></>}
       title="One card, one subject"
       description="Every person or company Atlas has enough evidence to follow gets its own card. Every card is its own tab."
     >
@@ -78,6 +79,7 @@ export default function BoardProfilePage() {
               className={"atlas-profile-tab" + (active ? " is-active" : "")}
               aria-current={active ? "page" : undefined}
             >
+              <span className="atlas-profile-tab-mark is-unclassified" aria-hidden="true" />
               <strong>{entity.name || "Unnamed record"}</strong>
               <span>{kind}</span>
             </Link>
