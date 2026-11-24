@@ -460,7 +460,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   const [skyLoading, setSkyLoading]       = useState(false);
 
   useEffect(() => {
-    if (!entityId) return;
+    if (isMockMode() || !entityId) return;
     const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
     setOccrpLoading(true);
     fetch(`${base}/api/entities/${entityId}/occrp`)
@@ -602,7 +602,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
 
   /** Primary dig: free Atlas single-target contact research (not legacy MCTS-only path). */
   const handleRunResearch = async () => {
-    if (!entityId) return;
+    if (isMockMode() || !entityId) return;
     setIsEnriching(true);
     setEnrichError(null);
     setEnrichDone(false);
