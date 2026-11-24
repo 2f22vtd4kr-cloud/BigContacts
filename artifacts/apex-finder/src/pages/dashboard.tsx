@@ -1,4 +1,4 @@
-import { useGetDashboardStats } from "@workspace/api-client-react";
+import { getGetDashboardStatsQueryKey, useGetDashboardStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
 import { ChevronRight, CircleAlert } from "lucide-react";
@@ -30,7 +30,7 @@ function StatTile({
 
 export default function Dashboard() {
   const mock = isMockMode();
-  const statsQuery = useGetDashboardStats();
+  const statsQuery = useGetDashboardStats({ query: { enabled: !mock, queryKey: getGetDashboardStatsQueryKey() } });
   // Keep the canonical research-lead projection warm without rendering the retired Home feed.
   useQuery({
     queryKey: ["dashboard", "research-leads"],
@@ -105,7 +105,7 @@ export default function Dashboard() {
 
           <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console">
             <div className="atlas-home-console-inner">
-              <LaunchAtlasButton variant="primary" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
+              <LaunchAtlasButton variant="primary" label="Launch" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>
           </section>
 

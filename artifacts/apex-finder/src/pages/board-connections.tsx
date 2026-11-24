@@ -3,6 +3,7 @@ import { getListRelationshipsQueryKey, useListRelationships, type Relationship }
 import { Link } from "wouter";
 import { RefreshCw, Search } from "lucide-react";
 import { ConnectionPathFinder } from "@/components/connection-path-finder";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type RelationshipFilter = "all" | "entity" | "asset";
 
@@ -42,7 +43,7 @@ export default function BoardConnectionsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RelationshipFilter>("all");
   const { data, isLoading, isError, refetch } = useListRelationships(undefined, {
-    query: { queryKey: getListRelationshipsQueryKey(), staleTime: 10_000, refetchOnWindowFocus: true },
+    query: { queryKey: getListRelationshipsQueryKey(), enabled: !isMockMode(), staleTime: 10_000, refetchOnWindowFocus: true },
   });
 
   const relationships = useMemo(() => Array.isArray(data) ? data : [], [data]);

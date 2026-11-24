@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { useListEntities } from "@workspace/api-client-react";
+import { getListEntitiesQueryKey, useListEntities } from "@workspace/api-client-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import ApexProfile from "@/pages/profile";
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
 import { normalizeEntityType } from "@/lib/entity-taxonomy";
+import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 
 const RECENT_CARD_KEY = "apex-atlas-recent-cards-v1";
 
 export default function BoardProfilePage() {
   const [, params] = useRoute("/profile/:id");
   const activeId = Number(params?.id ?? 0);
-  const { data: rawEntities } = useListEntities({ limit: 500 });
+  const listParams = { limit: 500 };
+  const { data: rawEntities } = useListEntities(listParams, { query: { enabled: !isMockMode(), queryKey: getListEntitiesQueryKey(listParams) } });
   const [recentIds, setRecentIds] = useState<number[]>([]);
 
   const allEntities = useMemo(() => {
-    const raw = Array.isArray(rawEntities)
+    const raw = isMockMode() ? MOCK_ENTITIES : Array.isArray(rawEntities)
       ? rawEntities
       : Array.isArray((rawEntities as any)?.entities)
         ? (rawEntities as any).entities

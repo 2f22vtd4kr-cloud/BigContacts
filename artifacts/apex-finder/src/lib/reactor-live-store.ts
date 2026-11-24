@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { normalizeLiveActivities, parseCanonicalActiveJobProjection, type LiveActivity, type ReactorSpanLike } from "./reactor-live-model";
 import { readApiJson } from "./api-json";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type StoreSnapshot = {
   runStatus: string;
@@ -66,13 +67,14 @@ function stopPolling(): void {
 }
 
 function schedule(): void {
-  if (listeners.size === 0) return;
+  if (isMockMode() || listeners.size === 0) return;
   if (timer != null) window.clearTimeout(timer);
   const active = snapshot.runStatus === "running" || snapshot.runStatus === "paused" || snapshot.activities.some((activity) => activity.status === "active");
   timer = window.setTimeout(() => void pull(), active ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 }
 
 async function pull(): Promise<void> {
+  if (isMockMode()) { stopPolling(); return; }
   if (listeners.size === 0) return;
   const myGeneration = generation;
   // Keep ownership local to this pull. A stale pull's finally block must never

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useListEntities } from "@workspace/api-client-react";
+import { getListEntitiesQueryKey, useListEntities } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { BoardPageFrame } from "@/components/board-page-frame";
+import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { displayEntityType, entityEvidenceLabel, entityWorkSummary } from "@/lib/utils";
 import { normalizeEntityType } from "@/lib/entity-taxonomy";
 
@@ -10,6 +11,11 @@ type ContactOutcome = "direct_contact_verified" | "direct_contact_candidate" | "
 
 function contactOutcome(entity: any): ContactOutcome {
   const outcome = String(entity.contactOutcome ?? "").toLowerCase();
+  if (isMockMode()) {
+    if (outcome === "verified") return "direct_contact_verified";
+    if (outcome === "direct" || outcome === "partial") return "direct_contact_candidate";
+    if (outcome === "none") return "evidence_only";
+  }
   return ["direct_contact_verified", "direct_contact_candidate", "organization_contact", "social_only", "evidence_only"].includes(outcome)
     ? outcome as ContactOutcome : "unclassified";
 }
@@ -48,10 +54,13 @@ export default function BoardLedgerPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | ContactOutcome>("all");
   const [visibleCount, setVisibleCount] = useState(8);
-  const { data: rawEntities, isLoading, isError, refetch } = useListEntities({ limit: 500 });
+  const listParams = { limit: 500 };
+  const { data: rawEntities, isLoading, isError, refetch } = useListEntities(listParams, {
+    query: { enabled: !isMockMode(), queryKey: getListEntitiesQueryKey(listParams) },
+  });
 
   const entities = useMemo(() => {
-    const raw = Array.isArray(rawEntities) ? rawEntities
+    const raw = isMockMode() ? MOCK_ENTITIES : Array.isArray(rawEntities) ? rawEntities
       : Array.isArray((rawEntities as any)?.entities) ? (rawEntities as any).entities : [];
     // Preserve the API's reachability-first order; do not re-rank by wealth locally.
     return raw.filter((entity: any) => !entity.isHidden)
@@ -112,11 +121,12 @@ export default function BoardLedgerPage() {
                 </button>
               ))}
             </div>
-            <p className="atlas-ledger-console-note">Counts reflect records returned by the Atlas API. Contact outcomes are evidence states, not a ranking.</p>
+            <p className="atlas-ledger-console-note">{isMockMode() ? "Local preview fixtures only. Contact outcomes are example evidence states, not live records." : "Counts reflect records returned by the Atlas API. Contact outcomes are evidence states, not a ranking."}</p>
           </div>
         </section>
 
-        <section className="atlas-ledger-summary" aria-label="Register summary">
+        {isMockMode() && <p className="atlas-preview-fixture-note">LOCAL PREVIEW FIXTURES · NOT LIVE RECORDS</p>}
+      <section className="atlas-ledger-summary" aria-label="Register summary">
           <div><strong>{counts.all.toLocaleString("en-US")}</strong><span>People</span></div>
           <div><strong>{counts.direct_contact_verified.toLocaleString("en-US")}</strong><span>Direct verified</span></div>
           <div><strong>{counts.direct_contact_candidate.toLocaleString("en-US")}</strong><span>Direct candidates</span></div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, AlertTriangle, ChevronDown, ExternalLink, Loader2, Radio, ShieldCheck, XCircle } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { isMockMode } from "@/lib/dev-mock-data";
 import { fetchSystemStatus, summarizeApiKeys, type SystemStatus } from "@/lib/system-status";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -115,6 +116,11 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isMockMode()) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     const controller = new AbortController();
     const refresh = async () => {

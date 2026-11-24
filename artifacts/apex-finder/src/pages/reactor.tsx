@@ -2622,7 +2622,7 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
   const isMobile = useIsMobile();
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const checkApi = useCallback(async () => {
-    if (!boardMode) return;
+    if (!boardMode || isMockMode()) { setApiAvailable(false); return; }
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     try {
       const response = await fetch(base + "/api/healthz", { credentials: "include", cache: "no-store" });
@@ -2881,6 +2881,15 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
   }, [pollJobs]);
 
   const fetchData = useCallback(async (isBackground = false) => {
+    if (isMockMode()) {
+      setSessions([]);
+      setTotalEntities(0);
+      setHotCount(0);
+      setTotalAssets(0);
+      setLoadingData(false);
+      setSyncing(false);
+      return;
+    }
     if (isBackground) {
       setSyncing(true);
     }
@@ -2910,6 +2919,7 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
 
   // Auto-poll every 10 s so the reactor stays live after research completes
   useEffect(() => {
+    if (isMockMode()) return;
     const id = setInterval(() => fetchData(true), 20_000);
     return () => clearInterval(id);
   }, [fetchData]);

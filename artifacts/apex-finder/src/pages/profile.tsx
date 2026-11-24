@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "wouter";
 import {
+  getGetEntityQueryKey,
+  getListAssetsQueryKey,
+  getListRelationshipsQueryKey,
+  getListResearchSessionsQueryKey,
   useGetEntity,
   useListAssets,
   useListRelationships,
@@ -318,7 +322,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
     isError,
     isFetched,
     refetch: refetchEntity,
-  } = useGetEntity(entityId);
+  } = useGetEntity(entityId, { query: { enabled: !isMockMode(), queryKey: getGetEntityQueryKey(entityId) } });
   const mockEntity = isMockMode()
     ? (MOCK_ENTITIES.find((e) => e.id === entityId) ?? MOCK_ENTITIES[0])
     : null;
@@ -332,9 +336,12 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
       } as any)
     : entityFromApi, [mockEntity, entityFromApi]);
 
-  const { data: assets = []       } = useListAssets({ entityId });
-  const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
-  const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
+  const assetParams = { entityId };
+  const { data: assets = [] } = useListAssets(assetParams, { query: { enabled: !isMockMode(), queryKey: getListAssetsQueryKey(assetParams) } });
+  const relationshipParams = { entityId };
+  const { data: relationships = [], refetch: refetchRelationships } = useListRelationships(relationshipParams, { query: { enabled: !isMockMode(), queryKey: getListRelationshipsQueryKey(relationshipParams) } });
+  const sessionParams = { entityId, limit: 10 };
+  const { data: sessions = [], refetch: refetchSessions } = useListResearchSessions(sessionParams, { query: { enabled: !isMockMode(), queryKey: getListResearchSessionsQueryKey(sessionParams) } });
   const latestResearchSessionId = Number((sessions as any[])[0]?.id ?? 0);
   const researchEvidenceQuery = useListResearchEvidence(latestResearchSessionId, {
     query: { enabled: latestResearchSessionId > 0 && !mockEntity, staleTime: 10_000 },
@@ -384,7 +391,8 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
-    if (!entityId) return;
+    if (isMockMode()) { setContactEvidence([]); setContactEvidenceLoading(false); return; }
+    if (!entityId || isMockMode()) return;
     let cancelled = false;
     setContactEvidenceLoading(true);
     fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
@@ -410,6 +418,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   }, [entityId, baseUrl, contactEvidenceKey, entity]);
 
   const handleRejectContact = async (field: string, expectedValue: string) => {
+    if (isMockMode()) return;
     const step = rejectStep[field] ?? 0;
     if (step < 1) { setRejectStep(prev => ({ ...prev, [field]: 1 })); return; }
     if (step < 2) { setRejectStep(prev => ({ ...prev, [field]: 2 })); return; }
@@ -451,7 +460,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
   const [skyLoading, setSkyLoading]       = useState(false);
 
   useEffect(() => {
-    if (!entityId) return;
+    if (isMockMode() || !entityId) return;
     const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
     setOccrpLoading(true);
     fetch(`${base}/api/entities/${entityId}/occrp`)
@@ -593,7 +602,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
 
   /** Primary dig: free Atlas single-target contact research (not legacy MCTS-only path). */
   const handleRunResearch = async () => {
-    if (!entityId) return;
+    if (isMockMode() || !entityId) return;
     setIsEnriching(true);
     setEnrichError(null);
     setEnrichDone(false);
