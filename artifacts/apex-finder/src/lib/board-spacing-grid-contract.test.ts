@@ -4,6 +4,23 @@ import { describe, expect, it } from "vitest";
 const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
 const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.tsx", import.meta.url), "utf8");
+const workspaceStatusSource = readFileSync(new URL("../components/workspace-status.tsx", import.meta.url), "utf8");
+const launchAtlasButtonSource = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+
+function lastRule(selector: string): string {
+  let cursor = 0;
+  let body = "";
+  while (cursor < boardCss.length) {
+    const start = boardCss.indexOf(selector + " {", cursor);
+    if (start < 0) break;
+    const open = boardCss.indexOf("{", start);
+    const close = boardCss.indexOf("}", open);
+    if (close < 0) break;
+    body = boardCss.slice(open + 1, close);
+    cursor = close + 1;
+  }
+  return body;
+}
 
 describe("Flat Round four-pixel spacing grid", () => {
   it("keeps padding, margin and gaps on four-pixel increments", () => {
@@ -53,24 +70,23 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
   });
 
-  it("keeps checky cells and supported dots on exact repeating grids", () => {
-    expect(boardCss).toContain("width='24'%20height='24'%20viewBox='0%200%2024%2024'");
-    expect(boardCss).toContain("background-size: 24px 24px;");
+  it("keeps the grey checker repeat and supported dots on their documented grids", () => {
+    expect(boardCss).toContain("background-color:#BDBDB8!important;");
+    expect(boardCss).toContain("conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)");
+    expect(boardCss).toContain("background-size:22px 14px!important;");
     expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
     expect(boardCss).toContain("background-size: 12px 12px;");
     expect(boardCss).toContain("background-color: #1F8A4D;");
-    expect(boardCss).toContain("radial-gradient(circle, #FAFAF8 1.15px, transparent 1.3px)");
   });
 
-  it("tiles wave fields continuously across horizontal and vertical SVG edges", () => {
-    const continuousWaveRows = "M-16%2012%20C-8%208%20-8%208%200%2012%20S8%2016%2016%2012%20S24%208%2032%2012%20S40%2016%2048%2012";
-    expect(boardCss.split(continuousWaveRows).length - 1).toBe(4);
-    expect(boardCss).toContain("width='32'%20height='24'%20viewBox='0%200%2032%2024'");
-    expect(boardCss).toContain("background-size: 32px 24px;");
-    expect(boardCss).toContain("background-color: #2757C6;");
-    expect(boardCss).toContain("stroke='%23FAFAF8'");
-    expect(boardCss).toContain(".atlas-home-board-console::before { left:0; border-radius:20px 0 0 20px; }");
-    expect(boardCss).toContain(".atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }");
+  it("tiles one continuous 64-by-24 wave field across every framed console", () => {
+    const continuousWave = "M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012";
+    expect(boardCss.split(continuousWave).length - 1).toBe(3);
+    expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
+    expect(boardCss).toContain("background-size:64px 24px!important;");
+    expect(boardCss).toContain("stroke='%23E6E6E2'");
+    expect(boardCss).toContain(".atlas-round .atlas-home-board-console::after,");
+    expect(boardCss).toContain("display:none!important;");
   });
 
   it("keeps the full-height sidebar and text-only active navigation", () => {
@@ -78,14 +94,20 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
     expect(layoutSource).toContain('aria-label="Main navigation"');
     expect(boardCss).toContain("height:calc(100dvh - 68px);");
-    expect(boardCss).toContain(".atlas-round-sidebar .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); box-shadow:none; font-weight:700; }");
-    expect(boardCss).not.toContain("box-shadow:inset 3px 0 0 var(--round-red)");
+    const activeRule = lastRule(".atlas-round-sidebar .atlas-round-navlink.is-active");
+    expect(activeRule).toContain("background:transparent!important;");
+    expect(activeRule).toContain("box-shadow:none!important;");
+    expect(activeRule).toContain("font-weight:700!important;");
+    expect(activeRule).not.toContain("var(--round-red)");
     expect(boardCss).toContain(".atlas-round-shell .atlas-round-sidebar .atlas-round-navlink span { display:inline; }");
   });
 
   it("keeps the header and API-down shell on one uninterrupted paper surface", () => {
-    expect(boardCss).toContain("background:#FAFAF8; border-bottom:0; backdrop-filter:none;");
-    expect(boardCss).toContain("background-color:#FAFAF8!important;");
+    const headerRule = lastRule(".atlas-round-shell > .atlas-round-header");
+    expect(headerRule).toContain("background:var(--round-paper)!important;");
+    expect(headerRule).toContain("border-bottom:0!important;");
+    expect(headerRule).toContain("box-shadow:none!important;");
+    expect(boardCss).toContain("background-color:#BDBDB8!important;");
   });
 
   it("renders global errors using the board's paper alert surface", () => {
@@ -105,6 +127,24 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-color: #F8E8B7;");
   });
 
+  it("uses the exact board palette and keeps the status UI quiet and legible", () => {
+    expect(boardCss).toContain("--round-paper: #FAFAF8");
+    expect(boardCss).toContain("--round-card: #FFFFFF");
+    expect(boardCss).toContain("--round-raised: #F3F3F0");
+    expect(boardCss).toContain("--round-ink: #18181A");
+    expect(boardCss).toContain("--round-ink-2: #55555A");
+    expect(boardCss).toContain("--round-ink-3: #74747A");
+    expect(boardCss).toContain("--round-line: #E4E4DF");
+    expect(boardCss).toContain("--round-red: #C8321E");
+    expect(boardCss).toContain("--round-green: #1F8A4D");
+    expect(boardCss).toContain("--round-blue: #2757C6");
+    expect(boardCss).toContain("--round-gold: #EDB92B");
+    expect(boardCss).toContain("box-shadow:0 8px 24px rgba(24,24,26,.10)!important;");
+    expect(workspaceStatusSource).not.toMatch(/text-\[10px\]|uppercase|tracking-|font-bold|font-semibold|shadow-\[0_0_8px|animate-pulse/);
+    expect(launchAtlasButtonSource).not.toContain("text-[10px]");
+    expect(launchAtlasButtonSource).not.toContain("text-rose-300");
+  });
+
   it("keeps the Discover rail inside the phone viewport after final desktop sizing", () => {
     expect(boardCss).toContain("@media (max-width:760px) {\n  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }");
     expect(boardCss).toContain(".atlas-round .atlas-discover-rail,\n  .atlas-round .atlas-discover-panel { min-width:0; max-width:100%; }");
@@ -122,10 +162,12 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain(".atlas-round-mobile-tabbar { display:none; }");
   });
 
-  it("contains the Home route empty state and restores the split patterned console frame", () => {
+  it("keeps Home API-down in the same neutral checker-and-wave frame as the other consoles", () => {
     expect(boardCss).toContain(".atlas-round .atlas-home-route-card");
     expect(boardCss).toContain("border-radius:12px");
-    expect(boardCss).toContain("background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)");
-    expect(boardCss).toContain("background-size:32px 24px");
+    expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down")).toContain("background-color:#BDBDB8!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down")).toContain("background-size:64px 24px!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console.is-api-down::before")).toContain("background-size:22px 14px!important;");
+    expect(boardCss).toContain(".atlas-round-shell:has(.atlas-round-status[data-status=\"offline\"]) .atlas-connections-console");
   });
 });
