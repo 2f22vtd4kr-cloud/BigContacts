@@ -674,3 +674,15 @@ const displayCount = (value: number) => isLoading || isError ? "—" : value.toL
 - A local source checkout/build could not be run in this environment because the container could not resolve `github.com`; the Replit app search returned no editable Apex Atlas/BigContacts workspace. No build or visual screenshot verification is claimed.
 - Still required before merge: run the frontend-only Vite production build and Connections TypeScript check in an available workspace, then inspect desktop and 390px mobile screenshots against the design board. Exercise loading/error/empty states and a real path response only when using the existing safe frontend/API test environment; do not start bureau/research workflows to do so.
 - PR remains draft and must not be merged on the basis of source review alone.
+### Change 7 — label the relationship totals as loaded records
+- Mismatch: The endpoint returns the current relationship list (the UI has historically capped the display at up to 500 records), not a separately verified all-time aggregate. Bare labels could overstate the meaning of the count.
+- File changed: `artifacts/apex-finder/src/pages/board-connections.tsx`.
+- Exact implementation: the three summary captions now read `Loaded relationships`, `Loaded entity links`, and `Loaded asset links`. The displayed values remain counts of the actual response array and its Entity/Asset subsets.
+- Safety: makes the scope of the existing data clearer; does not change the endpoint, params, data, or behavior.
+- Verification: source diff reviewed; runtime verification pending.
+- Exact replacement:
+```tsx
+<div><strong>{displayCount(counts.all)}</strong><span>Loaded relationships</span></div>
+<div><strong>{displayCount(counts.entity)}</strong><span>Loaded entity links</span></div>
+<div><strong>{displayCount(counts.asset)}</strong><span>Loaded asset links</span></div>
+```
