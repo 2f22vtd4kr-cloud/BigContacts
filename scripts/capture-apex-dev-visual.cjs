@@ -135,7 +135,7 @@ async function main() {
         throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
-      if (await page.locator(".atlas-round-brand-mark").count() !== 2) throw new Error("The heraldic Apex Atlas shield must appear in desktop and mobile navigation.");
+      if (await page.locator(".atlas-round-brand-mark").count() !== 1 || !(await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count()) || await page.locator(".atlas-round-sidebar-brand").count()) throw new Error("The heraldic Apex Atlas shield must appear once in the shared header and never be duplicated inside the mobile drawer.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
