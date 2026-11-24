@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BoardPageFrame } from "@/components/board-page-frame";
 import DeepSearch from "@/pages/deep-search";
 import { Clock3, RefreshCw, Trash2 } from "lucide-react";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type SavedSearch = {
   id: string;
@@ -27,6 +28,12 @@ type RegistrySource = {
 };
 
 const STORAGE_KEY = "apex-atlas-saved-searches-v1";
+const MOCK_SAVED_SEARCHES: SavedSearch[] = [
+  { id: "preview-1", query: "Founders of UK climate startups with a warm route", savedAt: "2026-11-24T09:42:00.000Z", lastRunAt: "2026-11-24T09:42:00.000Z", resultCount: 6 },
+  { id: "preview-2", query: "Trustees of regional charities with a shared board seat", savedAt: "2026-11-18T10:00:00.000Z", lastRunAt: "2026-11-18T10:00:00.000Z", resultCount: 4 },
+  { id: "preview-3", query: "Directors who left a listed company in the last two years", savedAt: "2026-11-18T09:00:00.000Z" },
+];
+
 const WEB_PROVIDERS = [
   { key: "serper", label: "Serper" },
   { key: "tavily", label: "Tavily" },
@@ -60,6 +67,11 @@ export default function BoardDiscoverPage() {
   const [sourcesError, setSourcesError] = useState(false);
 
   useEffect(() => {
+    if (isMockMode()) {
+      setSavedSearches(MOCK_SAVED_SEARCHES);
+      setStorageReady(true);
+      return;
+    }
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       const parsed: unknown = raw ? JSON.parse(raw) : [];
@@ -78,11 +90,18 @@ export default function BoardDiscoverPage() {
   }, []);
 
   useEffect(() => {
-    if (!storageReady) return;
+    if (!storageReady || isMockMode()) return;
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSearches)); } catch { /* Storage may be unavailable in private browsing. */ }
   }, [savedSearches, storageReady]);
 
   const loadSources = useCallback(async () => {
+    if (isMockMode()) {
+      setSourceSnapshot(null);
+      setRegistrySources([]);
+      setSourcesError(false);
+      setSourcesLoading(false);
+      return;
+    }
     setSourcesLoading(true);
     setSourcesError(false);
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -178,6 +197,7 @@ export default function BoardDiscoverPage() {
       title="Where Atlas looks"
       description="Saved searches and the sources behind them. Atlas chooses its own sources for each run; this page shows what it can choose from."
     >
+      {isMockMode() && <p className="atlas-preview-fixture-note">LOCAL PREVIEW FIXTURES · NOT LIVE SEARCHES OR SOURCE STATUS</p>}
       <div className="atlas-discover-layout">
       <section className="atlas-discover-search" aria-label="Public-record search">
         <DeepSearch
