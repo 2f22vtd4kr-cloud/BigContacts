@@ -454,7 +454,7 @@ export default function ManualPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search sections…"
-        className="mb-5 w-full rounded-xl border border-primary/10 bg-background/80 px-4 py-3 text-sm text-[#18181A] placeholder:text-[#74747A]/50 outline-none focus-visible:ring-2 focus-visible:ring-lime-400/30 focus-visible:border-[#E4E4DF]"
+        className="mb-5 w-full rounded-xl border border-primary/10 bg-background/80 px-4 py-3 text-sm text-[#18181A] placeholder:text-[#74747A]/50 outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/30 focus-visible:border-[#E4E4DF]"
         autoComplete="off"
       />
 
