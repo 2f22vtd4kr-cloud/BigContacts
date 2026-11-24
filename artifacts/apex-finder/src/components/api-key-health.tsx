@@ -9,6 +9,7 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { fetchSystemStatus, summarizeApiKeys } from "@/lib/system-status";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -29,10 +30,16 @@ async function fetchPublicHealth(): Promise<PublicHealth | null> {
 }
 
 export function ApiKeyHealth({ className }: { className?: string }) {
+  const demoPreview = isMockMode();
   const [state, setState] = useState<ChipState>("loading");
   const [label, setLabel] = useState("KEYS");
 
   useEffect(() => {
+    if (demoPreview) {
+      setState("offline");
+      setLabel("KEYS OFF");
+      return;
+    }
     let cancelled = false;
     const tick = async () => {
       const health = await fetchPublicHealth();
@@ -77,7 +84,7 @@ export function ApiKeyHealth({ className }: { className?: string }) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, []);
+  }, [demoPreview]);
 
   const tone =
     state === "ok"
