@@ -69,3 +69,17 @@ This pass follows Unslop by Damir Sokolovsky, licensed CC BY 4.0: https://github
 .atlas-round .atlas-ledger-mobile-card-meta strong { font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; overflow-wrap:anywhere; }
 ```
 - No component logic, backend, route, or data behavior changed in this correction.
+
+
+## Follow-up correction — spacing and radius contract
+- The first rerun passed the responsive, Reactor Live, Home UI, and frontend polish source contracts, plus the Vite build. The remaining responsive workflow failure was in the shared `board-spacing-grid-contract.test.ts` (not a Ledger runtime or backend failure).
+- The new Ledger CSS introduced 10px gaps/table side padding and an 8px “Show more” radius, which violated the repository's 4px spacing grid and documented radius scale.
+- Corrected those literal declarations:
+```css
+.atlas-round .atlas-ledger-person { gap:8px; }
+.atlas-round .atlas-ledger-table th { padding:12px 8px; }
+.atlas-round .atlas-ledger-table td { padding:12px 8px; }
+.atlas-round .atlas-ledger-mobile-card-top { gap:8px; }
+.atlas-round .atlas-ledger-view-all { border-radius:10px; }
+```
+- The mobile metadata remains 11px after the prior correction. No component, API, route or backend code changed.
