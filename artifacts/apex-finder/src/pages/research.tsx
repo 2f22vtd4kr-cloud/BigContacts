@@ -379,7 +379,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
     <div className="mt-2 pt-2 border-t border-current/20 flex flex-col gap-2">
       {node.contactConfidence != null && node.contactConfidence > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono  tracking-[0.12em] opacity-60">REACH</span>
+          <span className="text-[11px] font-mono   opacity-60">Reach</span>
           <div className="h-1 flex-1 rounded-full bg-current/10 overflow-hidden">
             <div
               className="h-full rounded-full bg-current/60"
@@ -846,7 +846,7 @@ export default function IntelTerminal() {
                   </div>
                 ))}
               </div>
-              <div className="absolute right-0 top-0 bottom-3 w-16 bg-gradient-to-l from-[#FAFAF8] to-transparent pointer-events-none" />
+              
             </div>
           </div>
         )}
