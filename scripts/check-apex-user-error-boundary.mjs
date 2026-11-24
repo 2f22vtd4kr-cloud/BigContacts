@@ -13,6 +13,7 @@ const reactorStore = read("artifacts/apex-finder/src/lib/reactor-live-store.ts")
 const dashboard = read("artifacts/apex-finder/src/pages/dashboard.tsx");
 const boardCss = read("artifacts/apex-finder/src/flat-round.css");
 const layout = read("artifacts/apex-finder/src/components/layout-round.tsx");
+const activeNavRule = boardCss.slice(boardCss.lastIndexOf(".atlas-round-sidebar .atlas-round-navlink.is-active {"));
 
 const checks = [
   ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
@@ -30,7 +31,7 @@ const checks = [
   ["provider-key errors recognize API keys not set and equivalent deployment wording", errors.includes("not\\s+set") && errors.includes("not\\s+configured") && errors.includes("MISSING_CREDENTIAL")],
   ["local mock preview uses the same API-down visual state as the offline API", dashboard.includes("const apiUnavailable = mock || (apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth));")],
   ["Home, Discover, Ledger and Connections frames share Reactor continuous-wave placement", boardCss.includes(".atlas-round .atlas-home-board-console::after,") && boardCss.includes("display:none!important") && boardCss.includes("background-size:64px 24px!important") && boardCss.includes("background-size:22px 14px!important")],
-  ["light sidebar starts expanded, spans the viewport, and has text-only active selection", layout.includes("useState(false)") && boardCss.includes("height:calc(100dvh - 68px)") && boardCss.includes("height:100dvh") && boardCss.includes("font-weight:700!important") && !boardCss.includes("box-shadow:inset 3px 0 0 var(--round-red)")],
+  ["light sidebar starts expanded, spans the viewport, and has text-only active selection", layout.includes("useState(false)") && boardCss.includes("height:calc(100dvh - 68px)") && boardCss.includes("height:100dvh") && activeNavRule.includes("background:transparent!important") && activeNavRule.includes("box-shadow:none!important") && activeNavRule.includes("font-weight:700!important") && !activeNavRule.includes("var(--round-red)")],
   ["dismissed error notices stay suppressed for the browser session", notice.includes("DISMISSED_ERROR_SESSION_KEY") && notice.includes("sessionStorage.setItem") && notice.includes("dismissedCodes.current.has(next.code)")],
 ];
 
