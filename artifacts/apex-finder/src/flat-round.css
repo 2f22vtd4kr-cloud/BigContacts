@@ -1944,3 +1944,180 @@ body:has(.atlas-round-shell) {
   color:var(--round-ink-3);
   background:#F3F3F0;
 }
+
+
+/* -------------------------------------------------------------------------
+   Current light design-board fidelity pass (2026-11-24).
+   This is intentionally scoped to .atlas-round / html.light; the legacy
+   dark-green shell and its palette are not changed.
+   ------------------------------------------------------------------------- */
+html.light body,
+html.light main,
+.atlas-round,
+.atlas-round-shell .atlas-round-main {
+  background-color:#FAFAF8!important;
+}
+.atlas-round { background:#FAFAF8; color:#18181A; }
+.atlas-round-shell .atlas-round-sidebar {
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  background:var(--round-paper);
+}
+.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
+  display:flex;
+  width:68px;
+  min-width:68px;
+  padding-inline:10px;
+  overflow-x:hidden;
+}
+.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink {
+  min-width:44px;
+  min-height:44px;
+}
+.atlas-round-shell:not(.is-sidebar-collapsed) .atlas-round-sidebar {
+  width:240px;
+  min-width:240px;
+}
+.atlas-round-shell .atlas-round-main { background:var(--round-paper)!important; }
+.atlas-round-sidebar .atlas-round-navlink { color:var(--round-ink-2); }
+.atlas-round-sidebar .atlas-round-navlink.is-active {
+  background:#FFFFFF;
+  color:var(--round-ink);
+  box-shadow:inset 3px 0 0 var(--round-red);
+}
+
+/* Home console: the desktop reference places the objective field and CTA
+   side-by-side; settings and the explanatory note sit on their own rows. */
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 120px;
+  grid-template-areas:
+    "sources sources"
+    "objective action"
+    "settings settings"
+    "explainer explainer";
+  align-items:start;
+  gap:12px;
+}
+.atlas-round .atlas-home-board-console .atlas-home-source-status {
+  grid-area:sources;
+  margin:0;
+  padding:0 0 10px;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > label {
+  grid-area:objective;
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:8px;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+  min-height:92px;
+  width:100%;
+  padding:12px!important;
+  border:1px solid #E4E4DF!important;
+  border-radius:10px!important;
+  background:#F3F3F0!important;
+  color:#18181A!important;
+  font:400 14px/1.5 "Geist",sans-serif!important;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea::placeholder {
+  color:#74747A!important;
+  opacity:1;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > label .atlas-home-objective-count {
+  align-self:flex-end;
+  margin:0;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > div:last-of-type {
+  display:contents;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-settings {
+  grid-area:settings;
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+  gap:12px;
+  width:100%;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-depth,
+.atlas-round .atlas-home-board-console .atlas-launch-target-count {
+  min-height:40px;
+  padding:3px 8px;
+  border:1px solid #E4E4DF;
+  border-radius:10px;
+  background:#F3F3F0;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-depth button {
+  min-height:32px;
+  padding:0 12px;
+  border:1px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:#55555A;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-depth button[aria-pressed="true"] {
+  border-color:#E4E4DF;
+  background:#FFFFFF;
+  color:#18181A;
+  box-shadow:0 1px 2px #18181A0D;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-target-count button {
+  width:32px;
+  height:32px;
+  min-width:32px;
+  min-height:32px;
+  border:1px solid #E4E4DF;
+  border-radius:8px;
+  background:#FFFFFF;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root > .atlas-launch-cta,
+.atlas-round .atlas-home-board-console .atlas-launch-primary-root .atlas-launch-cta {
+  grid-area:action;
+  width:100%!important;
+  min-width:0!important;
+  min-height:48px;
+  height:48px;
+  padding-inline:8px;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-cta:disabled {
+  background:#F3F3F0!important;
+  border:1px solid #E4E4DF!important;
+  color:#74747A!important;
+  box-shadow:none!important;
+  text-shadow:none!important;
+  animation:none!important;
+  opacity:1!important;
+}
+.atlas-round .atlas-home-board-console .atlas-home-launch-explainer {
+  grid-area:explainer;
+  margin:0;
+  color:#55555A;
+  font:400 12px/1.55 "Geist",sans-serif;
+}
+.atlas-round .atlas-home-board-console .atlas-home-api-down { grid-column:1/-1; }
+@media (max-width:760px) {
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root {
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"sources" "objective" "action" "settings" "explainer";
+    gap:12px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+    min-height:120px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-settings {
+    align-items:flex-start;
+    flex-direction:column;
+    gap:10px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-depth,
+  .atlas-round .atlas-home-board-console .atlas-launch-target-count {
+    width:max-content;
+    max-width:100%;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-depth { width:100%; }
+  .atlas-round .atlas-home-board-console .atlas-launch-depth button { flex:1; }
+  .atlas-round .atlas-home-board-console .atlas-launch-cta { width:100%!important; }
+  .atlas-round .atlas-home-console-inner { padding:16px; }
+}
