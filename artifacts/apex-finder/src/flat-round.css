@@ -2155,3 +2155,11 @@ html.light main,
     min-height:76px;
   }
 }
+
+.atlas-round .atlas-preview-fixture-note {
+  margin:0 0 12px;
+  color:#74747A;
+  font:500 10px/1.4 "Geist Mono",ui-monospace,monospace;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
