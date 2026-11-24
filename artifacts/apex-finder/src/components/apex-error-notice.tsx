@@ -15,12 +15,16 @@ export function ApexErrorNotice() {
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
-      const onReactor = window.location.pathname === "/reactor" || window.location.pathname.startsWith("/reactor/");
-      const isInlineReactorApiError =
+      const pathname = window.location.pathname;
+      const onReactor = pathname === "/reactor" || pathname.startsWith("/reactor/");
+      const onOverview = pathname === "/";
+      const hasInlineApiError =
         next.title === "The Apex research service is unavailable" ||
         /Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message) ||
         /^API returned non-JSON \(\d{3}\)/i.test(next.message);
-      if (onReactor && isInlineReactorApiError) return;
+      // Overview and Reactor already render an actionable, page-level API state.
+      // Avoid stacking a second global notice over the same failure.
+      if ((onReactor || onOverview) && hasInlineApiError) return;
       setError(next);
     };
 
