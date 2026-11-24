@@ -1870,7 +1870,8 @@ body:has(.atlas-round-shell) {
     top:60px;
     bottom:0;
     left:0;
-    width:min( min(84vw, 300px), calc(100vw - 48px));
+    width:min(84vw, 300px);
+    max-width:calc(100vw - 48px);
     height:auto;
     padding:16px 12px calc(20px + env(safe-area-inset-bottom));
     border-right:1px solid var(--round-line);
