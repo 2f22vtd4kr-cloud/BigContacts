@@ -2386,8 +2386,9 @@ html.light main,
 .atlas-round [class*="text-green-"] { color:var(--round-green)!important; }
 .atlas-round [class*="text-amber-"],
 .atlas-round [class*="text-yellow-"] { color:var(--round-gold)!important; }
-.atlas-round [class*="text-blue-"],
-.atlas-round [class*="text-primary"] { color:var(--round-blue)!important; }
+.atlas-round [class*="text-blue-"] { color:var(--round-blue)!important; }
+.atlas-round [class*="text-primary"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-secondary"] { color:var(--round-ink-2)!important; }
 .atlas-round [class*="text-stone-100"],
 .atlas-round [class*="text-white"] { color:var(--round-ink)!important; }
 .atlas-round button [class*="text-white"],
@@ -2422,12 +2423,12 @@ html.light main,
 .atlas-round [class*="bg-destructive"] { background-color:rgba(200,50,30,.07)!important; }
 .atlas-round [class*="bg-amber-"],
 .atlas-round [class*="bg-yellow-"] { background-color:rgba(237,185,43,.10)!important; }
-.atlas-round [class*="bg-blue-"],
-.atlas-round [class*="bg-primary/"] { background-color:rgba(39,87,198,.08)!important; }
+.atlas-round [class*="bg-blue-"] { background-color:rgba(39,87,198,.08)!important; }
+.atlas-round [class*="bg-primary/"] { background-color:rgba(31,138,77,.08)!important; }
 .atlas-round [class*="bg-background"] { background-color:var(--round-paper)!important; }
 .atlas-round [class*="bg-card"] { background-color:var(--round-card)!important; }
 .atlas-round [class*="bg-muted"] { background-color:var(--round-raised)!important; }
-.atlas-round [class~="bg-primary"] { background-color:var(--round-blue)!important; color:#FFFFFF!important; }
+.atlas-round [class~="bg-primary"] { background-color:var(--round-green)!important; color:#FFFFFF!important; }
 .atlas-round [class*="bg-gradient-to-"] {
   background-image:none!important;
   background-color:var(--round-raised)!important;
