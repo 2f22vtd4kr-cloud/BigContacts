@@ -552,3 +552,60 @@ export default function BoardConnectionsPage() {
   .atlas-round .atlas-board-connections .atlas-connection-record-node { max-width:calc(50% - 18px); }
 }
 ```
+### Change 4 — horizontal returned-path chain
+- Mismatch: The existing path result displayed nodes vertically with down arrows; the board presents linked records as a horizontal chain.
+- Files changed: `artifacts/apex-finder/src/components/connection-path-finder.tsx` and `artifacts/apex-finder/src/flat-round.css`.
+- Exact implementation: the finder heading now describes routes through recorded relationships. Each returned path node is wrapped in a bordered label/type chip; adjacent returned nodes are joined with a right arrow and the flex chain wraps when space is limited.
+- Safety: path query is still user-triggered and still uses the existing `useGetConnectionPath` response. Node IDs, labels, node types, edge IDs/labels/evidence status, hop count, score, and recommendation remain sourced from the API. No sample route or evidence status is created.
+- Verification: source-level JSX/CSS review completed; successful API-backed path rendering remains unverified because the API must remain stopped.
+- Exact changed JSX:
+```tsx
+                  <li key={node.id}>
+                    <span className="atlas-home-route-node">
+                      <span>{node.label}</span>
+                      <small>{node.nodeType}</small>
+                    </span>
+                    {index < routeQuery.data.path.length - 1 && <span className="atlas-home-route-node-arrow" aria-hidden="true">→</span>}
+                  </li>
+```
+- Exact appended CSS:
+```css
+/* Connections path results: render only returned nodes as a horizontal, wrapping chain. */
+.atlas-round .atlas-board-connections .atlas-home-route-nodes {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-nodes li {
+  display:flex;
+  min-width:0;
+  align-items:center;
+  gap:8px;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node {
+  display:grid;
+  min-width:0;
+  gap:2px;
+  padding:5px 10px;
+  border:1px solid #D6D6D0;
+  border-radius:6px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node > span {
+  color:var(--round-ink);
+  font:400 13px/1.35 "Geist",sans-serif;
+  overflow-wrap:anywhere;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node small {
+  color:var(--round-ink-3);
+  font:400 10px/1.3 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-node-arrow {
+  color:var(--round-ink-3);
+  font:400 16px/1 "Geist Mono",ui-monospace,monospace;
+}
+```
