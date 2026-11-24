@@ -178,3 +178,10 @@ The user correctly pointed out that merely lengthening the checker/wave tiles di
 **Deployment status at latest check:** GitHub commit status is success; Vercel deployment READY and Netlify deploy previews READY. This means the deploy artifacts completed, not that an unauthenticated browser can view them.
 
 No API service, worker, Bureau, research operation, database, or persistent fixture was started or modified.
+
+
+## Cross-page API-down frame correction
+
+A further review of the shared shell found that the neutral frame was applied only to Home. The header's existing WorkspaceStatus already exposes data-status="offline", so the current light shell now uses that existing state to neutralize the decorative frames on Home, Discover, Ledger, and Connections together. Each keeps the same long 64×24px continuous wave and 22×14px rectangular checker geometry; only the palette changes to grey while the workspace is offline. No extra API request or backend behavior is introduced.
+
+A regression assertion now checks all four real frame selectors and the neutral pattern dimensions. The existing Reactor page remains unchanged.
