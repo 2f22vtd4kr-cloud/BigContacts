@@ -30,6 +30,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
   useEffect(() => { setMobileOpen(false); }, [location]);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
 
   const navItems = primaryNav.map((item) => {
     const Icon = item.icon;
