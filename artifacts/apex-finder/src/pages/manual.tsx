@@ -228,9 +228,9 @@ const SECTIONS = [
         <ul className="list-disc list-inside space-y-2 text-sm text-[#74747A] mb-4 pl-2">
           <li><strong className="text-[#18181A]">Access Score</strong> reflects evidence-backed public reachability.</li>
           <li><strong className="text-[#18181A]">Signal Score</strong> reflects strength of the wealth/ownership footprint.</li>
-          <li><strong className="text-[#18181A]">FULL</strong> means a strong attributable direct/role contact path is present.</li>
-          <li><strong className="text-[#18181A]">PARTIAL</strong> means the person is identified but the public contact route is limited.</li>
-          <li><strong className="text-[#18181A]">INCOMPLETE</strong> means the attributable path is not established.</li>
+          <li><strong className="text-[#18181A]">Full</strong> means a strong attributable direct/role contact path is present.</li>
+          <li><strong className="text-[#18181A]">Partial</strong> means the person is identified but the public contact route is limited.</li>
+          <li><strong className="text-[#18181A]">Incomplete</strong> means the attributable path is not established.</li>
         </ul>
         <Callout title="Organization vs personal" tone="warn">
           info@, sales@, contact@, office@ and similar generic inboxes remain organization-scoped unless
