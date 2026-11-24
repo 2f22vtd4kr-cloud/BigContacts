@@ -109,9 +109,9 @@ export default function BoardConnectionsPage() {
           </section>
 
           <div className="atlas-connections-counts" aria-label="Relationship totals">
-            <div><strong>{displayCount(counts.all)}</strong><span>Relationships</span></div>
-            <div><strong>{displayCount(counts.entity)}</strong><span>Entity links</span></div>
-            <div><strong>{displayCount(counts.asset)}</strong><span>Asset links</span></div>
+            <div><strong>{displayCount(counts.all)}</strong><span>Loaded relationships</span></div>
+            <div><strong>{displayCount(counts.entity)}</strong><span>Loaded entity links</span></div>
+            <div><strong>{displayCount(counts.asset)}</strong><span>Loaded asset links</span></div>
           </div>
         </div>
 
