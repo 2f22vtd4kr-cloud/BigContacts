@@ -766,7 +766,7 @@ function GraphViewerInner() {
       {(isLoading || (width === 0 && gData.nodes.length === 0)) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-0 gap-2 text-primary font-mono text-sm st ">
           <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-hidden />
-          <span className="animate-pulse">Mapping graph…</span>
+          <span className="">Mapping graph…</span>
         </div>
       )}
 
@@ -1022,7 +1022,7 @@ function GraphViewerInner() {
           style={{ left: ctxMenu.x, top: ctxMenu.y }}
           onMouseLeave={() => setCtxMenu(null)}
         >
-          <div className="px-3 py-2 border-b border-[#9CFF1A]/10">
+          <div className="px-3 py-2 border-b border-[#E4E4DF]">
             <div className="text-[11px] font-mono text-[#74747A]  st">Node</div>
             <div className="text-xs font-mono text-[#18181A] font-medium truncate max-w-[160px]">{ctxMenu.nodeName}</div>
           </div>
