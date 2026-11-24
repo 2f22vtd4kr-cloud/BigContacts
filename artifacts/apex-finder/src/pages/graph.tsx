@@ -885,7 +885,7 @@ function GraphViewerInner() {
             const fontSize = Math.min(3.5, 14 / globalScale);
             ctx.save();
             ctx.font = `${fontSize}px monospace`;
-            ctx.fillStyle = "rgba(148,163,184,0.65)";
+            ctx.fillStyle = "rgba(116,116,122,0.65)";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText((link.label as string).replace(/_/g, " "), midX, midY);
