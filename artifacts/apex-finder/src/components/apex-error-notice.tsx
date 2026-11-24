@@ -29,7 +29,8 @@ function Icon({ severity }: { severity: ApexUserError["severity"] }) {
 }
 
 export function ApexErrorNotice() {
-  const [error, setError] = useState<ApexUserError | null>(null);\n  const dismissedCodes = useRef(dismissedErrorCodes());
+  const [error, setError] = useState<ApexUserError | null>(null);
+  const dismissedCodes = useRef(dismissedErrorCodes());
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
@@ -39,7 +40,8 @@ export function ApexErrorNotice() {
         /Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message) ||
         /^API returned non-JSON \(\d{3}\)/i.test(next.message);
       if (onReactor && isInlineReactorApiError) return;
-      if (dismissedCodes.current.has(next.code)) return;\n      setError(next);
+      if (dismissedCodes.current.has(next.code)) return;
+      setError(next);
     };
 
     const on = (event: Event) => showError((event as CustomEvent<ApexUserError>).detail);
