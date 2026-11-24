@@ -281,3 +281,274 @@ export default function BoardConnectionsPage() {
 }
 
 ```
+### Change 3a — Connections board styling
+- Mismatch: The page needed the board's heraldic console frame, paper interior, restrained filter segments, large live totals, white route panel, and compact relationship rows. Desktop columns need to match the board's 500px left register and flexible right rail; below 980px they stack.
+- File changed: `artifacts/apex-finder/src/flat-round.css`.
+- Exact implementation: appended a Connections-scoped CSS block (all selectors are scoped under `.atlas-board-connections`) with a checky left frame, wave right frame, Geist/Geist Mono hierarchy, focus-visible search treatment, responsive grid, and horizontal entity/asset relationship chips. The route panel remains neutral and the record list is API-driven.
+- Safety: presentation-only CSS; no global component behavior, endpoint, data, or route changes. No new tab or feature is introduced.
+- Verification: selectors and responsive breakpoints reviewed at source level. Browser build/screenshots remain pending.
+- Exact full CSS block appended:
+```css
+/* Connections board: register on the left, path finder and returned records on the right. */
+.atlas-round .atlas-board-connections { max-width:1600px; padding-top:24px; }
+.atlas-round .atlas-board-connections .atlas-connections-layout {
+  display:grid;
+  grid-template-columns:minmax(0,500px) minmax(0,1fr);
+  gap:64px;
+  align-items:start;
+}
+.atlas-round .atlas-board-connections .atlas-connections-left-column,
+.atlas-round .atlas-board-connections .atlas-connections-right-column { display:grid; min-width:0; align-content:start; gap:28px; }
+.atlas-round .atlas-board-connections .atlas-board-page-intro { max-width:500px; margin:0; }
+.atlas-round .atlas-board-connections .atlas-board-page-intro h1 {
+  margin:0;
+  color:var(--round-ink)!important;
+  font:500 56px/1.04 "Geist",sans-serif!important;
+  letter-spacing:-.035em!important;
+}
+.atlas-round .atlas-board-connections .atlas-board-page-intro p {
+  max-width:480px;
+  margin:20px 0 0;
+  color:var(--round-ink-2)!important;
+  font:400 17px/1.55 "Geist",sans-serif!important;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console {
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+  padding:8px;
+  overflow:hidden;
+  border:0;
+  border-radius:20px;
+  background:transparent;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console::before,
+.atlas-round .atlas-board-connections .atlas-connections-console::after {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  top:0;
+  bottom:0;
+  width:50%;
+  pointer-events:none;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console::before {
+  left:0;
+  border-radius:20px 0 0 20px;
+  background-color:#EDB92B;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Crect width='12' height='12' fill='%23C8321E'/%3E%3Crect x='12' y='12' width='12' height='12' fill='%23C8321E'/%3E%3Crect x='12' width='12' height='12' fill='%23EDB92B'/%3E%3Crect y='12' width='12' height='12' fill='%23EDB92B'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:24px 24px;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console::after {
+  right:0;
+  border-radius:0 20px 20px 0;
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='24' viewBox='0 0 32 24'%3E%3Cpath d='M-16 12 C-8 4 -8 4 0 12 S8 20 16 12 S24 4 32 12 S40 20 48 12' fill='none' stroke='%23FAFAF8' stroke-width='1.35' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:32px 24px;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console-inner {
+  position:relative;
+  z-index:1;
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:16px;
+  padding:20px;
+  border:1px solid var(--round-line);
+  border-radius:12px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-connections-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0;
+}
+.atlas-round .atlas-board-connections .atlas-connections-heading h2 {
+  margin:0;
+  color:var(--round-ink)!important;
+  font:500 18px/1.25 "Geist",sans-serif!important;
+}
+.atlas-round .atlas-board-connections .atlas-connections-heading > span {
+  flex:none;
+  color:var(--round-ink-3);
+  font:400 11px "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-connections-search {
+  display:flex;
+  min-height:48px;
+  align-items:center;
+  gap:10px;
+  padding:0 12px;
+  border:1px solid #E4E4DF;
+  border-radius:8px;
+  background:var(--round-raised);
+}
+.atlas-round .atlas-board-connections .atlas-connections-search svg { width:16px; height:16px; flex:none; color:var(--round-ink-3); }
+.atlas-round .atlas-board-connections .atlas-connections-search input {
+  width:100%;
+  min-width:0;
+  height:44px;
+  padding:0;
+  border:0!important;
+  outline:0;
+  background:transparent!important;
+  box-shadow:none!important;
+  font:400 14px/1.4 "Geist",sans-serif!important;
+}
+.atlas-round .atlas-board-connections .atlas-connections-search input::placeholder { color:var(--round-ink-3); opacity:1; }
+.atlas-round .atlas-board-connections .atlas-connections-search:focus-within { border-color:var(--round-blue); outline:2px solid #2757C626; outline-offset:1px; }
+.atlas-round .atlas-board-connections .atlas-connections-tabs {
+  display:flex;
+  align-items:center;
+  gap:2px;
+  margin:0;
+  padding:3px;
+  border:1px solid var(--round-line);
+  border-radius:8px;
+  background:var(--round-raised);
+}
+.atlas-round .atlas-board-connections .atlas-connections-tabs button {
+  flex:1;
+  min-width:0;
+  min-height:34px;
+  padding:0 7px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:var(--round-ink-2);
+  font:400 12px "Geist",sans-serif;
+  white-space:nowrap;
+}
+.atlas-round .atlas-board-connections .atlas-connections-tabs button.is-active {
+  border-color:var(--round-line);
+  background:var(--round-card);
+  color:var(--round-ink);
+  font-weight:500;
+  box-shadow:0 1px 2px #18181A0D;
+}
+.atlas-round .atlas-board-connections .atlas-connections-console-note {
+  margin:0;
+  color:var(--round-ink-2);
+  font:400 12px/1.5 "Geist",sans-serif;
+}
+.atlas-round .atlas-board-connections .atlas-connections-counts {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin:0;
+  border:0;
+}
+.atlas-round .atlas-board-connections .atlas-connections-counts > div { display:flex; min-width:0; flex-direction:column; gap:5px; padding:0 14px; }
+.atlas-round .atlas-board-connections .atlas-connections-counts > div:first-child { padding-left:0; }
+.atlas-round .atlas-board-connections .atlas-connections-counts > div + div { border-left:1px solid var(--round-line); }
+.atlas-round .atlas-board-connections .atlas-connections-counts strong {
+  color:var(--round-ink);
+  font:500 34px/1.1 "Geist",sans-serif;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.atlas-round .atlas-board-connections .atlas-connections-counts span { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-board-connections .atlas-connections-route-panel {
+  min-width:0;
+  padding:24px;
+  border:1px solid var(--round-line);
+  border-radius:16px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-connections-path-finder { margin:0; padding:0; border:0; }
+.atlas-round .atlas-board-connections .atlas-connections-path-finder-heading h3 {
+  margin:0;
+  color:var(--round-ink);
+  font:500 20px/1.25 "Geist",sans-serif;
+}
+.atlas-round .atlas-board-connections .atlas-connections-path-finder-heading p {
+  margin:8px 0 0;
+  color:var(--round-ink-2);
+  font:400 13px/1.5 "Geist",sans-serif;
+}
+.atlas-round .atlas-board-connections .atlas-home-route-finder { margin-top:16px; }
+.atlas-round .atlas-board-connections .atlas-home-route-finder select { min-height:44px; font-size:14px; }
+.atlas-round .atlas-board-connections .atlas-home-route-finder > button { min-height:44px; font:500 13px "Geist",sans-serif; }
+.atlas-round .atlas-board-connections .atlas-connections-routes { min-width:0; padding-top:8px; }
+.atlas-round .atlas-board-connections .atlas-connections-routes .atlas-connections-heading { margin-bottom:14px; }
+.atlas-round .atlas-board-connections .atlas-connections-routes .atlas-connections-heading p {
+  margin:6px 0 0;
+  color:var(--round-ink-3);
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-connections-record-list { display:grid; gap:12px; border-top:0; }
+.atlas-round .atlas-board-connections .atlas-connection-record {
+  display:flex;
+  min-width:0;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:16px;
+  border:1px solid var(--round-line);
+  border-radius:12px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-connection-record-names { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:8px; }
+.atlas-round .atlas-board-connections .atlas-connection-record-node {
+  display:inline-flex;
+  max-width:calc(50% - 18px);
+  align-items:center;
+  padding:5px 9px;
+  border:1px solid #D6D6D0;
+  border-radius:6px;
+  background:var(--round-card);
+  color:var(--round-ink);
+  font:400 13px/1.35 "Geist",sans-serif;
+  text-decoration:none;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.atlas-round .atlas-board-connections .atlas-connection-record-hop {
+  position:relative;
+  flex:1;
+  min-width:20px;
+  height:1px;
+  background:#D6D6D0;
+}
+.atlas-round .atlas-board-connections .atlas-connection-record-hop::after {
+  content:"";
+  position:absolute;
+  top:-2px;
+  right:0;
+  width:4px;
+  height:4px;
+  transform:rotate(45deg);
+  border-top:1px solid var(--round-ink-3);
+  border-right:1px solid var(--round-ink-3);
+}
+.atlas-round .atlas-board-connections .atlas-connection-record-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-board-connections .atlas-connection-record time { flex:none; color:var(--round-ink-3); font:400 11px "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-board-connections .atlas-connection-record-note { margin:8px 0 0; color:var(--round-ink-2); font:400 12px/1.5 "Geist",sans-serif; }
+.atlas-round .atlas-board-connections .atlas-connections-data-note { margin:12px 0 0; color:var(--round-ink-3); font:400 11px/1.5 "Geist",sans-serif; }
+@media (max-width:980px) {
+  .atlas-round .atlas-board-connections .atlas-connections-layout { grid-template-columns:minmax(0,1fr); gap:32px; }
+  .atlas-round .atlas-board-connections .atlas-connections-left-column { gap:24px; }
+  .atlas-round .atlas-board-connections .atlas-board-page-intro h1 { font-size:44px!important; }
+  .atlas-round .atlas-board-connections .atlas-board-page-intro p { font-size:16px!important; }
+  .atlas-round .atlas-board-connections .atlas-connections-counts strong { font-size:30px; }
+}
+@media (max-width:760px) {
+  .atlas-round .atlas-board-connections { padding-top:20px; }
+  .atlas-round .atlas-board-connections .atlas-connections-layout { gap:28px; }
+  .atlas-round .atlas-board-connections .atlas-connections-left-column,
+  .atlas-round .atlas-board-connections .atlas-connections-right-column { gap:20px; }
+  .atlas-round .atlas-board-connections .atlas-board-page-intro h1 { font-size:36px!important; line-height:1.04!important; }
+  .atlas-round .atlas-board-connections .atlas-board-page-intro p { margin-top:14px; font-size:15px!important; }
+  .atlas-round .atlas-board-connections .atlas-connections-console-inner { gap:12px; padding:16px; }
+  .atlas-round .atlas-board-connections .atlas-connections-tabs button { padding-inline:5px; font-size:11px; }
+  .atlas-round .atlas-board-connections .atlas-connections-counts > div { padding-inline:8px; }
+  .atlas-round .atlas-board-connections .atlas-connections-counts strong { font-size:24px; }
+  .atlas-round .atlas-board-connections .atlas-connections-counts span { font-size:10px; }
+  .atlas-round .atlas-board-connections .atlas-connections-route-panel { padding:16px; }
+  .atlas-round .atlas-board-connections .atlas-connection-record { flex-direction:column; gap:10px; padding:12px; }
+  .atlas-round .atlas-board-connections .atlas-connection-record-node { max-width:calc(50% - 18px); }
+}
+```
