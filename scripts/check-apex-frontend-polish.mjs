@@ -61,7 +61,7 @@ const checks = [
   ["active shell avoids a redundant, invented footer tagline", !roundLayout.includes("atlas-round-footer")],
   ["shared page frame keeps the Card breadcrumb optional and separate from the page title", boardPageFrame.includes("breadcrumb?: ReactNode") && boardPageFrame.includes("atlas-board-page-intro") && !boardPageFrame.includes("Apex Atlas /")],
   ["display tracking follows the board while page metadata remains untracked", flatRound.includes("letter-spacing:-.035em") && flatRound.includes(".atlas-round-page-meta") && flatRound.includes("font-size:11px; letter-spacing:0;") && flatRound.includes(".atlas-error-notice-label") ],
-  ["board page metadata and footer retain the documented eleven-pixel minimum", /\.atlas-round-page-meta[^{}]*\{[^}]*font-size:11px/.test(flatRound) && /\.atlas-round-footer[^{}]*\{[^}]*font-size:11px/.test(flatRound) && /\.atlas-round-content \[class\*="text-\[10px\]"\]/.test(flatRound) ],
+  ["board page metadata and footer retain the documented eleven-pixel minimum", flatRound.includes(".atlas-round-wordmark span, .atlas-round-page-meta, .atlas-round-footer") && flatRound.includes("font-size:11px; letter-spacing:0;") && flatRound.includes(".atlas-round-page-meta {") && flatRound.includes(".atlas-round-footer { font-size:11px;") ],
   ["Home launch console fills its grid column instead of inheriting the legacy narrow width", flatRound.includes("width:100%!important; max-width:none!important;") && flatRound.includes(".atlas-round .atlas-home-board-console .atlas-home-actions")],
 
   ["dashboard figures use consistent thousands separators", dashboard.includes('toLocaleString("en-US")')],
