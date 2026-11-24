@@ -880,13 +880,7 @@ body:has(.atlas-round-shell) {
 
 
 
-/* Correct the Discover board composition and its search-console form hierarchy. */
-.atlas-round .atlas-discover-layout {
-  display:grid;
-  grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);
-  gap:36px;
-  align-items:start;
-}
+/* Discover grid proportions are defined once in the page layout rules above. */
 .atlas-round .atlas-board-discover .atlas-discover-search .atlas-discover-search-console {
   position:relative;
   isolation:isolate;
