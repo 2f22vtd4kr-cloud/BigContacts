@@ -257,3 +257,13 @@ if (boardMode) {
 - Kept the existing subject tab data and all card values API-backed. The mobile subject tab strip remains horizontally scrollable; it does not truncate the list to a fixed number of tabs.
 
 **Verification:** CSS update succeeded. Visual screenshot comparison and build verification are still pending; no browser or Replit session was started.
+
+### 5. Stabilize the mock adapter and identify company dossier layout
+
+**File:** `artifacts/apex-finder/src/pages/profile.tsx`
+
+- Memoized the development-only mock entity adapter so effects depending on `entity` do not re-run on every render.
+- Added the `is-company-card` root class using the existing canonical entity-type checks so company layout rules apply only to company/trust records.
+- No fixture values are used outside the existing development mock mode. No mock record is written to the API.
+
+**Verification:** GitHub content update succeeded. Typecheck/build and live-record visual verification remain pending.
