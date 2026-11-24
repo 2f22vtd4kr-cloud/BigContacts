@@ -294,11 +294,11 @@ async function main() {
           const visibleCardHeadings = await page.getByRole("heading", { name: "Mira Patel" }).count();
           if (visibleCardHeadings !== 1) throw new Error(`Card responsive header is duplicated: ${visibleCardHeadings} visible headings`);
           const cardColors = await page.evaluate(() => ({
-            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
-            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
+            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile .atlas-card-subject-copy h2")).color,
+            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile .atlas-card-subject-score small")).color,
             neonTextCount: Array.from(document.querySelectorAll(".atlas-board-profile [style]")).filter((element) => ["rgb(156, 255, 26)", "rgb(184, 255, 77)"].includes(getComputedStyle(element).color)).length,
           }));
-          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)" || cardColors.neonTextCount !== 0) {
+          if (cardColors.primaryLabel !== "rgb(24, 24, 26)" || cardColors.secondaryLabel !== "rgb(116, 116, 122)" || cardColors.neonTextCount !== 0) {
             throw new Error(`Card profile label contrast regression: ${JSON.stringify(cardColors)}`);
           }
         }
