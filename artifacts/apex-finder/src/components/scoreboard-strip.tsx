@@ -65,11 +65,10 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
     if (isMockMode()) return;
     load();
     const id = window.setInterval(load, 60_000);
-    if (isMockMode()) return null;
-
-  return () => window.clearInterval(id);
+    return () => window.clearInterval(id);
   }, [load, refreshKey]);
 
+  if (isMockMode()) return null;
   if (authBlocked && !data) return null;
   if (err && !data) {
     return (
