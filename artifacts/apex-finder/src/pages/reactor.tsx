@@ -2651,10 +2651,10 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
   // Offline mock: idle desk only — no fabricated targets or contact yields
   useEffect(() => {
     if (!isMockMode()) return;
-    setAtlasState(mockAtlasLiveState() as any);
-    setLiveNodes(mockLiveNodes());
-    setLiveLabel("Desk idle");
-    setLivePhaseDetail("Launch Apex Atlas to start a research job");
+    setAtlasState(null);
+    setLiveNodes(new Set());
+    setLiveLabel("Demo preview");
+    setLivePhaseDetail("Live research is disabled in this local preview");
     setTotalEntities(0);
     setHotCount(0);
     setTotalAssets(0);
