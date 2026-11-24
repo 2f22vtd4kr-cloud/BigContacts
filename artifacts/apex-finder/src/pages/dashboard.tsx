@@ -105,7 +105,7 @@ export default function Dashboard() {
 
           <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console">
             <div className="atlas-home-console-inner">
-              <LaunchAtlasButton variant="primary" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
+              <LaunchAtlasButton variant="primary" label="Launch" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>
           </section>
 
