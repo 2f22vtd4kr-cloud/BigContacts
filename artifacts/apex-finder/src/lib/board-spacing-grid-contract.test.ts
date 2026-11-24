@@ -73,11 +73,19 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain(".atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }");
   });
 
-  it("keeps Card mobile navigation on the shared icon-tab contract", () => {
-    expect(layoutSource).toContain('const linkClass = mobile ? "atlas-round-navlink" : isCardPage ? "atlas-card-shell-navlink" : "atlas-round-navlink";');
-    expect(layoutSource).toContain('{(!isCardPage || mobile) && <Icon aria-hidden="true" />}');
-    expect(boardCss).toContain(".atlas-round-mobile-tabbar .atlas-round-navlink svg");
-    expect(boardCss).toContain(".atlas-round-shell.is-card-page .atlas-round-content { padding: 16px 16px calc(112px + env(safe-area-inset-bottom)); }");
+  it("keeps the full-height sidebar and text-only active navigation", () => {
+    expect(layoutSource).toContain('id="atlas-round-sidebar"');
+    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
+    expect(layoutSource).toContain('aria-label="Main navigation"');
+    expect(boardCss).toContain("height:calc(100dvh - 68px);");
+    expect(boardCss).toContain(".atlas-round-sidebar .atlas-round-navlink.is-active { background:var(--round-raised); color:var(--round-ink); box-shadow:none; font-weight:700; }");
+    expect(boardCss).not.toContain("box-shadow:inset 3px 0 0 var(--round-red)");
+    expect(boardCss).toContain(".atlas-round-shell .atlas-round-sidebar .atlas-round-navlink span { display:inline; }");
+  });
+
+  it("keeps the header and API-down shell on one uninterrupted paper surface", () => {
+    expect(boardCss).toContain("background:#FAFAF8; border-bottom:0; backdrop-filter:none;");
+    expect(boardCss).toContain("background-color:#FAFAF8!important;");
   });
 
   it("renders global errors using the board's paper alert surface", () => {
