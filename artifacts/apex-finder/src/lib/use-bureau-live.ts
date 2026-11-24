@@ -7,6 +7,7 @@
  * BureauOpsStage from becoming a second, independently interpreted live feed.
  */
 import { useEffect, useMemo, useState } from "react";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 export type BureauDeskEvent = {
   timestamp?: string;
@@ -66,7 +67,7 @@ export function useBureauLiveDesk(
   eventLog: BureauDeskEvent[] | undefined,
   opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean; jobId?: string | null },
 ) {
-  const enabled = opts?.enabled !== false;
+  const enabled = opts?.enabled !== false && !isMockMode();
   const atlasLive = Boolean(opts?.atlasLive);
   const jobId = opts?.jobId ?? null;
   const pollMs = opts?.pollMs ?? 8_000;
