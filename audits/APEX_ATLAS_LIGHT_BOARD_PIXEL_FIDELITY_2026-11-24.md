@@ -221,6 +221,9 @@ The first CI rerun confirmed the responsive frontend contract had hard-coded the
 
 - Workspace status popover now uses paper/raised surfaces, restrained green/gold/red state colours, sentence-case labels, and no neon/glow/pulse treatment.
 - System status now uses the board palette and type scale, identifies canonical provider-secret names, distinguishes active keys from rate-limited keys, and avoids describing configured model-role credentials as missing search-provider keys.
+- Workspace status now reports zero active search-provider keys as `No keys` or `Limited`, never `Ready`; an unreachable API remains a separate `Offline` state.
+- Secondary routes (Graph, Jobs, Research, Manual, Improvements, Data Sources, Duplicates, and OSINT Tools) inherit the board palette, 11px type floor, sentence-case labels, restrained weight, approved spacing/radius scale, and removal of decorative neon, blur, pulse, gradient, and utility-shadow treatments.
+- Reactor's API-down frame now uses the same 64×24px wave and 22×14px checker geometry as Home, Discover, Ledger, and Connections.
 - API-key health distinguishes `No keys` from `API offline`; the public health bit remains coarse and the authenticated status endpoint remains the detailed source.
 - The API-down shell uses a single 64×24px continuous wave tile and 22×14px neutral checker cells across Home, Discover, Ledger, Connections, and Reactor. The header and page share one paper surface with no divider or shadow. The sidebar reaches the viewport bottom; the selected item has no red stripe or filled highlight.
 
@@ -231,7 +234,7 @@ The board spacing contract now checks the canonical palette, 4px spacing grid, a
 ### Remaining evidence required before sign-off
 
 - Run the updated frontend, API regression, and complete CI suites against the current branch head.
-- Capture Home, Discover, Ledger, Connections, Reactor, and System status at mobile, tablet, and desktop sizes, including API-down and key-missing states.
-- Compare the captures against the live board. A successful static build or source assertion is not a substitute for the final rendered visual review.
+- The responsive CI workflow now captures the six primary board pages at desktop, tablet, and mobile sizes, plus System status with missing keys and API-down frames on Home, Discover, Ledger, Connections, and Reactor. It uploads the screenshots as a seven-day GitHub Actions artifact.
+- Inspect the latest artifact against the live design board. These browser captures use synthetic fixtures to verify layout and state styling; they do not replace a final authenticated Replit inspection with the real deployment and credentials.
 
 No backend routes, API contracts, database, worker, Bureau, research, or provider-routing behavior was changed by these visual/status corrections. The provider-secret reference documents existing server-side names only; it does not provision secrets.
