@@ -14,7 +14,7 @@ import { ScoreboardStrip } from "@/components/scoreboard-strip";
 import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
-import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
+import { isMockMode } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
 import { parseReactorAtlasPoll } from "@/lib/reactor-page-atlas-poll";
