@@ -1718,3 +1718,11 @@ body:has(.atlas-round-shell) {
 /* Keep the current horizontal shell on the documented radius scale. */
 .atlas-round-primary { border-radius:16px; }
 .atlas-round-mobile-tabbar .atlas-round-navlink { border-radius:6px; }
+
+
+/* The final desktop Discover rail sizing must not override the phone stack. */
+@media (max-width:760px) {
+  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }
+  .atlas-round .atlas-discover-rail,
+  .atlas-round .atlas-discover-panel { min-width:0; max-width:100%; }
+}
