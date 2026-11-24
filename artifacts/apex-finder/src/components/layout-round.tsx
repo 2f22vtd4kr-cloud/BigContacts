@@ -1,18 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Database, House, Menu, Network, Search, X } from "lucide-react";
 import { ReactorMark } from "@/components/reactor-mark";
 import { WorkspaceStatus } from "@/components/workspace-status";
 
 function ApexAtlasMark() {
+  const clipPathId = useId().replace(/:/g, "");
+
   return (
-    <svg className="atlas-round-brand-mark" viewBox="0 0 32 36" aria-hidden="true" focusable="false">
-      <path d="M2.5 2.5H29.5V17.2C29.5 25.1 23.2 30.7 16 34C8.8 30.7 2.5 25.1 2.5 17.2V2.5Z" fill="#EDB92B" stroke="#18181A" strokeWidth="1.25" />
-      <path d="M3.3 3.3H16V17H3.3V3.3Z" fill="#C8321E" />
-      <path d="M16 17H28.7V17.2C28.7 24.6 22.8 29.7 16 32.8V17Z" fill="#C8321E" />
-      <path d="M16 3.3H28.7V17H16V3.3Z" fill="#EDB92B" />
-      <path d="M3.3 17H16V32.8C9.2 29.7 3.3 24.6 3.3 17.2V17Z" fill="#EDB92B" />
-      <path d="M16 3.3V32.8M3.3 17H28.7" fill="none" stroke="#18181A" strokeWidth="1" />
+    <svg className="atlas-round-brand-mark" viewBox="0 0 20 22" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id={clipPathId}>
+          <path d="M0 0h20v12c0 5.5-4.2 8.6-10 10C4.2 20.6 0 17.5 0 12V0z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipPathId})`}>
+        <rect width="10" height="11" fill="#C8321E" />
+        <rect x="10" width="10" height="11" fill="#EDB92B" />
+        <rect y="11" width="10" height="11" fill="#EDB92B" />
+        <rect x="10" y="11" width="10" height="11" fill="#C8321E" />
+      </g>
     </svg>
   );
 }
@@ -68,33 +75,31 @@ export function Layout({ children }: { children: React.ReactNode; onSwitchToLega
   return (
     <div className="atlas-round atlas-round-shell min-h-[100dvh]">
       <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
-      <header className="atlas-round-mobile-header">
-        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
-        <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
-          aria-controls="atlas-round-sidebar" aria-expanded={mobileOpen}
-          aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
-          onClick={() => setMobileOpen((value) => !value)}>
-          {mobileOpen ? <X /> : <Menu />}
-        </button>
-      </header>
-      {mobileOpen && <button type="button" className="atlas-round-sidebar-backdrop"
-        aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-      <aside id="atlas-round-sidebar" className={`atlas-round-sidebar ${mobileOpen ? "is-open" : ""}`}
-        aria-label="Apex Atlas sidebar">
-        <div className="atlas-round-sidebar-brand">
+      <header className="atlas-round-header">
+        <div className="atlas-round-brand">
           <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
         </div>
-        <nav className="atlas-round-sidebar-nav" aria-label="Primary navigation">
-          <div className="atlas-round-sidebar-label">Workspace</div>
+        <nav className="atlas-round-primary" aria-label="Primary navigation">
           <NavItems />
         </nav>
-      </aside>
-      <div className="atlas-round-main-column">
-        <main id="main-content" tabIndex={-1} className="atlas-round-main">
-          <div className="atlas-round-desktop-status"><WorkspaceStatus compact /></div>
-          <div className="atlas-round-content">{children}</div>
-            </main>
-      </div>
+        <div className="atlas-round-actions">
+          <WorkspaceStatus compact />
+          <button ref={mobileToggleRef} className="atlas-round-mobile-toggle" type="button"
+            aria-controls="atlas-round-mobile-nav" aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setMobileOpen((value) => !value)}>
+            {mobileOpen ? <X /> : <Menu />}
+          </button>
+        </div>
+      </header>
+      <nav id="atlas-round-mobile-nav" className="atlas-round-mobile-utilities"
+        aria-label="Primary navigation" hidden={!mobileOpen}>
+        <div className="atlas-round-mobile-utilities-heading">Workspace</div>
+        <NavItems />
+      </nav>
+      <main id="main-content" tabIndex={-1} className="atlas-round-main">
+        <div className="atlas-round-content">{children}</div>
+      </main>
     </div>
   );
 }
