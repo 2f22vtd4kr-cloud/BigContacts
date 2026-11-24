@@ -1770,7 +1770,7 @@ body:has(.atlas-round-shell) {
 /* The reference frame uses a red checker left rail and blue wave right rail. */
 .atlas-round .atlas-home-board-console::before {
   background-color:#C8321E;
-  background-image:repeating-conic-gradient(#EDB92B 0% 25%,#C8321E 0% 50%);
+  background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0);
   background-size:16px 16px;
   background-position:0 0;
 }
