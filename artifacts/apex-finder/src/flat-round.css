@@ -2237,3 +2237,14 @@ html.light main,
   background-repeat:repeat!important;
   background-size:48px 24px!important;
 }
+
+
+/* Mobile drawer occupies the complete area below the shared header. */
+@media (max-width:760px) {
+  .atlas-round-shell .atlas-round-sidebar {
+    top:60px;
+    bottom:0;
+    height:auto!important;
+    min-height:0!important;
+  }
+}
