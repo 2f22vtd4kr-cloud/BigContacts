@@ -2178,3 +2178,62 @@ html.light main,
   color:#74747A!important;
   opacity:1;
 }
+
+
+/* -------------------------------------------------------------------------
+   API-down screenshot corrections — current light shell only.
+   ------------------------------------------------------------------------- */
+.atlas-round-shell > .atlas-round-header {
+  background:var(--round-paper)!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+
+/* Full-height navigation beneath the header, with text-only active treatment. */
+.atlas-round-shell .atlas-round-sidebar {
+  align-self:stretch;
+  min-height:calc(100dvh - 68px);
+  height:calc(100dvh - 68px);
+  bottom:0;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active {
+  background:transparent!important;
+  color:var(--round-ink)!important;
+  box-shadow:none!important;
+  font-weight:700!important;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active span { font-weight:700!important; }
+
+/* Longer rectangular checker repeat and wider horizontal wave repeat. */
+.atlas-round .atlas-home-board-console::before,
+.atlas-round .atlas-discover-search-console::before,
+.atlas-round .atlas-ledger-board-console::before,
+.atlas-round .atlas-board-connections .atlas-connections-console::before {
+  background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)!important;
+  background-size:24px 16px!important;
+  background-position:0 0!important;
+}
+.atlas-round .atlas-home-board-console::after,
+.atlas-round .atlas-discover-search-console::after,
+.atlas-round .atlas-ledger-board-console::after,
+.atlas-round .atlas-board-connections .atlas-connections-console::after {
+  background-color:#2757C6!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 0!important;
+  background-size:48px 24px!important;
+}
+
+/* Match Reactor's existing neutral frame whenever Home's API is unavailable. */
+.atlas-round .atlas-home-board-console.is-api-down::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:24px 16px!important;
+}
+.atlas-round .atlas-home-board-console.is-api-down::after {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-size:48px 24px!important;
+}
