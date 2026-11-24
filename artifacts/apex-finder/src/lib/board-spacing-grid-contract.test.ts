@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
+const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.tsx", import.meta.url), "utf8");
 
 describe("Flat Round four-pixel spacing grid", () => {
   it("keeps padding, margin and gaps on four-pixel increments", () => {
@@ -70,6 +71,21 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("stroke='%23FAFAF8'");
     expect(boardCss).toContain(".atlas-home-board-console::before { left:0; border-radius:20px 0 0 20px; }");
     expect(boardCss).toContain(".atlas-home-board-console::after { right:0; border-radius:0 20px 20px 0; }");
+  });
+
+  it("keeps Card mobile navigation on the shared icon-tab contract", () => {
+    expect(layoutSource).toContain('const linkClass = mobile ? "atlas-round-navlink" : isCardPage ? "atlas-card-shell-navlink" : "atlas-round-navlink";');
+    expect(layoutSource).toContain('{(!isCardPage || mobile) && <Icon aria-hidden="true" />}');
+    expect(boardCss).toContain(".atlas-round-mobile-tabbar .atlas-round-navlink svg");
+    expect(boardCss).toContain(".atlas-round-shell.is-card-page .atlas-round-content { padding: 16px 16px calc(112px + env(safe-area-inset-bottom)); }");
+  });
+
+  it("renders global errors using the board's paper alert surface", () => {
+    expect(errorNoticeSource).toContain('className="atlas-error-notice"');
+    expect(errorNoticeSource).toContain('className="atlas-error-notice-card"');
+    expect(errorNoticeSource).toContain("data-severity={error.severity}");
+    expect(errorNoticeSource).not.toMatch(/bg-(?:sky|amber|lime|orange|rose)-950/);
+    expect(boardCss).toContain(".atlas-error-notice-card {");
   });
 
   it("draws review bends with a seamless repeating diagonal field", () => {
