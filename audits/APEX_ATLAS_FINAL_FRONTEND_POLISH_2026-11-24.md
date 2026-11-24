@@ -89,7 +89,7 @@ The touch-target assertions use literal occurrence counts (three `min-h-[44px]` 
 
 ### 6. Full browser visual QA across the board pages
 
-A browser-capable Vercel desktop was provisioned and the PR branch was checked out locally at `ef5aaccdfd81166b8e72fe94fb9ab79cf74a24ae`. The public design board was opened in Chromium and inspected at its live page sections. The local Apex frontend was run from `artifacts/apex-finder` and captured at desktop (1440px) and phone (390px) widths for Overview, Ledger, Discover, Reactor, Connections and the Card detail route.
+A browser-capable Vercel desktop was provisioned and the PR branch was checked out locally at `ef5aaccdfd81166b8e72fe94fb9ab79cf74a24ae`. The public design board was opened in Chromium and inspected at its live page sections. The local Apex frontend was run from `artifacts/apex-finder` and captured at desktop (1280px) and phone (390px) widths for Overview, Ledger, Discover, Reactor, Connections and the Card detail route.
 
 For filled-state comparison, a Playwright-only request interceptor supplied fictional records in memory for the duration of each browser page. It did not write to local backend services, a database, the Bureau, or the repository. A visible `LOCAL VISUAL FIXTURES · NOT LIVE DATA` marker was added to the inspection captures. The sample fixture uses clearly fictional board-style names and relationships. It does not create user-owned contacts or assert real research provenance.
 
