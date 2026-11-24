@@ -328,6 +328,7 @@ export default function DeepSearch({ boardMode = false, selectedQuery, onSaveSea
   }, [selectedQuery]);
 
   const run = async (q: string) => {
+    if (isMockMode()) { setError("Search is disabled in the local visual preview."); return; }
     const trimmed = q.trim();
     if (!trimmed) return;
     setQuery(trimmed);
