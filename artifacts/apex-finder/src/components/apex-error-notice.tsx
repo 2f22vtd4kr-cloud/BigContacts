@@ -63,7 +63,7 @@ export function ApexErrorNotice() {
                   Try again
                 </button>
               )}
-              <Link href="/status" onClick={() => setError(null)} className="atlas-error-notice-action">
+              <Link href="/status" onClick={() => setError(null)} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
                 System Status <ArrowUpRight aria-hidden="true" />
               </Link>
             </div>
