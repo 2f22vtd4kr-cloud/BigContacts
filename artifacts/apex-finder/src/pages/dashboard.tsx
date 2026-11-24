@@ -1,4 +1,4 @@
-import { useGetDashboardStats } from "@workspace/api-client-react";
+import { getGetDashboardStatsQueryKey, useGetDashboardStats } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
 import { ChevronRight, CircleAlert } from "lucide-react";
@@ -30,7 +30,7 @@ function StatTile({
 
 export default function Dashboard() {
   const mock = isMockMode();
-  const statsQuery = useGetDashboardStats();
+  const statsQuery = useGetDashboardStats({ query: { enabled: !mock, queryKey: getGetDashboardStatsQueryKey() } });
   // Keep the canonical research-lead projection warm without rendering the retired Home feed.
   useQuery({
     queryKey: ["dashboard", "research-leads"],
