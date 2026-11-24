@@ -115,6 +115,11 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isMockMode()) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     const controller = new AbortController();
     const refresh = async () => {
