@@ -100,3 +100,19 @@ The board includes populated specimens to demonstrate layout. The safe app previ
 - Card does not invent claim-level evidence, relationships, or assets that are absent from the existing fixture.
 
 These are data-contract differences, not colour or spacing differences. The current pass fixes the shared light shell and the Home console's major geometry; any further route-specific refinement should preserve the above boundaries.
+
+
+## Follow-up corrections — API-down screenshot and shell
+
+The supplied mobile comparison exposed a mismatch missed by the earlier pass: the board shows a neutral grey decorative frame when the API is down, while Home kept the red/gold checker and blue wave. The earlier statement that Home's frame was aligned was incomplete.
+
+- Home now derives an `is-api-down` frame class from the existing `apiUnavailable` state. No health endpoint, API contract, or backend logic was added.
+- Home uses the same neutral grey frame colours already present in Reactor for API-down state.
+- Checker tiles are now rectangular (`24 × 16px`) and the wave repeat is wider (`48 × 24px`) to reduce the square-looking pattern.
+- The light header shares the page-paper background and no longer draws a separate bottom rule or shadow.
+- Desktop navigation opens expanded by default and remains collapsible. The active destination has no red selection stripe or filled block; its label is bold.
+- The sidebar is constrained to the full viewport height beneath the header.
+- Dismissed error codes are remembered for the browser session. Repeated emissions of the same error no longer reopen the same notice after dismissal.
+- Missing credentials now recognize “keys not set”, “not configured”, “not provided”, and equivalent wording, with safe instructions to use System Status and deployment secrets.
+
+The changes are frontend-only and scoped to the current light shell. The legacy dark-green UI, backend, database, generated client, workers, Bureau, and research behaviour remain untouched. Build/tests/browser recapture are pending on this branch.
