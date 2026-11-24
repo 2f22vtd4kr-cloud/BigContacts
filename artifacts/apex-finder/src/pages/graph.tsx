@@ -53,10 +53,10 @@ class GraphErrorBoundary extends Component<{ children: ReactNode }, { error: str
     if (this.state.error) {
       return (
         <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 px-6 text-center">
-          <Network className="h-8 w-8 text-muted-foreground" />
-          <p className="font-mono text-sm text-foreground">Connections view could not start</p>
-          <p className="max-w-md text-[12px] text-muted-foreground">{this.state.error}</p>
-          <Link href="/profiles" className="atlas-outline-btn rounded-lg px-3 py-1.5 font-mono text-[11px]">
+          <Network className="h-8 w-8 text-[#74747A]" />
+          <p className="font-mono text-sm text-[#18181A]">Connections view could not start</p>
+          <p className="max-w-md text-[12px] text-[#74747A]">{this.state.error}</p>
+          <Link href="/profiles" className="atlas-outline-btn rounded-md px-3 py-2 font-mono text-[11px]">
             Back to ledger
           </Link>
         </div>
@@ -370,15 +370,15 @@ function GraphViewerInner() {
   }, [gData, targetId]);
 
   function nodeColor(node: any): string {
-    if (node.isTarget) return "hsl(160, 84%, 39%)";
+    if (node.isTarget) return "#2757C6";
     const t: string = node.nodeType ?? "";
-    if (t === "HNWI") return "hsl(45, 90%, 45%)";
-    if (t === "Corporation" || t === "Corp") return "hsl(217, 80%, 52%)";
-    if (t === "Trust") return "hsl(270, 65%, 45%)";
-    if (t === "Gatekeeper") return "hsl(38, 90%, 45%)";
+    if (t === "HNWI") return "#1F8A4D";
+    if (t === "Corporation" || t === "Corp") return "#2757C6";
+    if (t === "Trust") return "#EDB92B";
+    if (t === "Gatekeeper") return "#C8321E";
     if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(t))
-      return "hsl(215, 16%, 38%)";
-    return "hsl(215, 14%, 50%)";
+      return "#74747A";
+    return "#74747A";
   }
 
   /** Draw the entity name label below each node */
@@ -393,13 +393,13 @@ function GraphViewerInner() {
 
     // Text color by node type
     const _nt: string = node.nodeType ?? "";
-    const color = node.isTarget                              ? "#9CFF1A"
-      : _nt === "HNWI"                                      ? "#9CFF1A"
-      : (_nt === "Corporation" || _nt === "Corp")           ? "#93c5fd"
-      : _nt === "Trust"                                     ? "#c4b5fd"
-      : _nt === "Gatekeeper"                                ? "#fcd34d"
-      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(_nt) ? "#94a3b8"
-      : "#94a3b8";
+    const color = node.isTarget                              ? "#2757C6"
+      : _nt === "HNWI"                                      ? "#1F8A4D"
+      : (_nt === "Corporation" || _nt === "Corp")           ? "#2757C6"
+      : _nt === "Trust"                                     ? "#EDB92B"
+      : _nt === "Gatekeeper"                                ? "#C8321E"
+      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(_nt) ? "#74747A"
+      : "#74747A";
 
     ctx.save();
     ctx.font = `${fontSize}px sans-serif`;
@@ -412,8 +412,8 @@ function GraphViewerInner() {
     const offsetY = nodeRadius + 1.5 / globalScale;
 
     // Soft shadow for legibility — keep blur small to avoid bleed into the circle
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 2 / globalScale;
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
     ctx.fillStyle = color;
     ctx.fillText(label, node.x, node.y + offsetY);
     ctx.restore();
@@ -430,9 +430,9 @@ function GraphViewerInner() {
     // Match nodeCanvasObject radius (graph units); only stroke width scales with zoom
     const r = Math.sqrt(baseR) * 6 + 2.5;
 
-    const color = conf >= 70 ? "rgba(16,185,129,0.85)"  // green — high confidence
-                : conf >= 30 ? "rgba(245,158,11,0.70)"  // amber — partial
-                :              "rgba(100,116,139,0.45)"; // grey — low
+    const color = conf >= 70 ? "rgba(31,138,77,0.85)"  // green — high confidence
+                : conf >= 30 ? "rgba(237,185,43,0.70)"  // amber — partial
+                :              "rgba(116,116,122,0.45)"; // grey — low
 
     ctx.save();
     ctx.beginPath();
@@ -455,17 +455,17 @@ function GraphViewerInner() {
   return (
     <div
       id="graph-container"
-      className="relative flex h-full min-h-[100dvh] w-full flex-col overflow-hidden bg-background md:block md:min-h-[70vh]"
+      className="relative flex h-full min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FAFAF8] md:block md:min-h-[70vh]"
       onContextMenu={(e) => e.preventDefault()}
     >
 
       {/* ── Mobile top bar — only when the desk has people ── */}
       {deskHasPeople && (
-      <div className="flex lg:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex lg:hidden flex-col border-b border-[#E4E4DF] bg-[#FFFFFF]/90  z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}
-            className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded bg-[#F3F3F0] border border-[#E4E4DF] text-[#74747A] hover:text-[#18181A] flex-shrink-0"
             title="Back to profile"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -473,23 +473,23 @@ function GraphViewerInner() {
         )}
         <button
           onClick={() => setSelectorOpen((o) => !o)}
-          className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-background border border-[#9CFF1A]/12 text-left"
+          className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-[#FAFAF8] border border-[#E4E4DF] text-left"
         >
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Target</div>
-            <div className="text-sm font-mono text-foreground truncate font-semibold">
+            <div className="text-[11px] font-mono text-[#74747A]  ">Target</div>
+            <div className="text-sm font-mono text-[#18181A] truncate font-medium">
               {displayEntityName ?? (deskHasPeople && targetId > 0 ? `Entity #${targetId}` : "Select person")}
             </div>
           </div>
-          <ChevronDown className={cn("w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
+          <ChevronDown className={cn("w-4 h-4 text-[#74747A] ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
         </button>
         <button
           onClick={() => setFilterOpen((o) => !o)}
           className={cn(
             "w-9 h-9 flex items-center justify-center rounded border flex-shrink-0",
             filterOpen || minScore > 0 || assetTypeFilter
-              ? "bg-primary/10 border-primary/50 text-primary"
-              : "bg-muted border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground"
+              ? "bg-primary/10 border-[#BDBDB8] text-primary"
+              : "bg-[#F3F3F0] border-[#E4E4DF] text-[#74747A] hover:text-[#18181A]"
           )}
           title="Filter"
         >
@@ -497,7 +497,7 @@ function GraphViewerInner() {
         </button>
         <button
           onClick={() => fgRef.current?.zoomToFit(400, 50)}
-          className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground flex-shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded bg-[#F3F3F0] border border-[#E4E4DF] text-[#74747A] hover:text-[#18181A] flex-shrink-0"
         >
           <Maximize className="w-4 h-4" />
         </button>
@@ -507,15 +507,15 @@ function GraphViewerInner() {
 
       {/* ── Mobile filter sheet ── */}
       {deskHasPeople && filterOpen && (
-        <div className="lg:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl p-4 space-y-4">
+        <div className="lg:hidden absolute left-3 right-3 top-[57px] z-50 bg-[#FFFFFF] border border-[#E4E4DF] rounded  p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Graph Filters</span>
-            <button onClick={() => setFilterOpen(false)} className="text-muted-foreground hover:text-foreground">
+            <span className="text-[11px] font-mono text-[#74747A]  ">Graph Filters</span>
+            <button onClick={() => setFilterOpen(false)} className="text-[#74747A] hover:text-[#18181A]">
               <X className="w-4 h-4" />
             </button>
           </div>
           <div>
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+            <label className="text-[11px] font-mono text-[#74747A]   mb-2 block">
               Min Signal Score: {minScore}%
             </label>
             <input
@@ -526,7 +526,7 @@ function GraphViewerInner() {
             />
           </div>
           <div>
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+            <label className="text-[11px] font-mono text-[#74747A]   mb-2 block">
               Asset Type
             </label>
             <div className="grid grid-cols-2 gap-1">
@@ -535,10 +535,10 @@ function GraphViewerInner() {
                   key={type}
                   onClick={() => setAssetTypeFilter((f) => (f === type ? null : type))}
                   className={cn(
-                    "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
+                    "text-[11px] font-mono px-2 py-1 rounded border transition-colors",
                     assetTypeFilter === type
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-[#9CFF1A]/12 text-muted-foreground hover:border-primary/50"
+                      : "border-[#E4E4DF] text-[#74747A] hover:border-[#BDBDB8]"
                   )}
                 >
                   {type === "RealEstate" ? "Real Estate" : type}
@@ -548,7 +548,7 @@ function GraphViewerInner() {
           </div>
           <button
             onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
-            className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-[#9CFF1A]/12 rounded py-1.5 transition-colors"
+            className="w-full text-[11px] font-mono text-[#74747A] hover:text-[#18181A] border border-[#E4E4DF] rounded py-2 transition-colors"
           >
             Clear Filters
           </button>
@@ -562,7 +562,7 @@ function GraphViewerInner() {
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}
-            className="flex items-center space-x-1.5 bg-card/90 backdrop-blur border border-[#9CFF1A]/12 px-3 py-2 rounded text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center space-x-1.5 bg-[#FFFFFF]/90  border border-[#E4E4DF] px-3 py-2 rounded text-xs font-mono text-[#74747A] hover:text-[#18181A] transition-colors"
             title="Back to profile"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -573,35 +573,35 @@ function GraphViewerInner() {
         <div className="relative">
           <button
             onClick={() => setSelectorOpen((o) => !o)}
-            className="flex min-h-[40px] items-center space-x-2 bg-card/90 backdrop-blur border border-[#9CFF1A]/12 px-3 py-2 rounded text-sm font-mono text-foreground hover:border-primary/50 transition-colors min-w-0 w-full sm:min-w-[220px] sm:w-auto"
+            className="flex min-h-[40px] items-center space-x-2 bg-[#FFFFFF]/90  border border-[#E4E4DF] px-3 py-2 rounded text-sm font-mono text-[#18181A] hover:border-[#BDBDB8] transition-colors min-w-0 w-full sm:min-w-[220px] sm:w-auto"
           >
             <Network className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span className="truncate flex-1 text-left">
               {displayEntityName ?? (deskHasPeople && targetId > 0 ? `Entity #${targetId}` : "Select person")}
             </span>
-            <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", selectorOpen && "rotate-180")} />
+            <ChevronDown className={cn("w-3.5 h-3.5 text-[#74747A] transition-transform", selectorOpen && "rotate-180")} />
           </button>
         </div>
 
         {/* Zoom controls */}
-        <div className="flex space-x-1 bg-card/90 backdrop-blur border border-[#9CFF1A]/12 p-1 rounded">
+        <div className="flex space-x-1 bg-[#FFFFFF]/90  border border-[#E4E4DF] p-1 rounded">
           <button
             onClick={() => fgRef.current?.zoom((fgRef.current.zoom() ?? 1) * 1.25)}
-            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-[#74747A] hover:text-[#18181A] inline-flex items-center justify-center"
             title="Zoom in"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoom((fgRef.current.zoom() ?? 1) * 0.8)}
-            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-[#74747A] hover:text-[#18181A] inline-flex items-center justify-center"
             title="Zoom out"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoomToFit(400, 50)}
-            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-[#74747A] hover:text-[#18181A] inline-flex items-center justify-center"
             title="Fit view"
           >
             <Maximize className="w-4 h-4" />
@@ -613,10 +613,10 @@ function GraphViewerInner() {
           <button
             onClick={() => setFilterOpen((o) => !o)}
             className={cn(
-              "flex items-center space-x-1.5 bg-card/90 backdrop-blur border px-3 py-2 rounded text-xs font-mono transition-colors",
+              "flex items-center space-x-1.5 bg-[#FFFFFF]/90  border px-3 py-2 rounded text-xs font-mono transition-colors",
               filterOpen || minScore > 0 || assetTypeFilter
                 ? "border-primary/60 text-primary"
-                : "border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground"
+                : "border-[#E4E4DF] text-[#74747A] hover:text-[#18181A]"
             )}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -627,9 +627,9 @@ function GraphViewerInner() {
           </button>
 
           {filterOpen && (
-            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl z-50 p-4 space-y-4 hidden md:block">
+            <div className="absolute top-full mt-2 right-0 w-64 bg-[#FFFFFF] border border-[#E4E4DF] rounded  z-50 p-4 space-y-4 hidden md:block">
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+                <label className="text-[11px] font-mono text-[#74747A]   mb-2 block">
                   Min Signal Score: {minScore}%
                 </label>
                 <input
@@ -638,13 +638,13 @@ function GraphViewerInner() {
                   onChange={(e) => setMinScore(Number(e.target.value))}
                   className="w-full accent-primary"
                 />
-                <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                <div className="flex justify-between text-[11px] text-[#74747A] mt-1">
                   <span>0%</span><span>90%</span>
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+                <label className="text-[11px] font-mono text-[#74747A]   mb-2 block">
                   Asset Type
                 </label>
                 <div className="grid grid-cols-2 gap-1">
@@ -653,10 +653,10 @@ function GraphViewerInner() {
                       key={type}
                       onClick={() => setAssetTypeFilter((f) => (f === type ? null : type))}
                       className={cn(
-                        "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
+                        "text-[11px] font-mono px-2 py-1 rounded border transition-colors",
                         assetTypeFilter === type
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-[#9CFF1A]/12 text-muted-foreground hover:border-primary/50"
+                          : "border-[#E4E4DF] text-[#74747A] hover:border-[#BDBDB8]"
                       )}
                     >
                       {type === "RealEstate" ? "Real Estate" : type}
@@ -667,7 +667,7 @@ function GraphViewerInner() {
 
               <button
                 onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
-                className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-[#9CFF1A]/12 rounded py-1 transition-colors"
+                className="w-full text-[11px] font-mono text-[#74747A] hover:text-[#18181A] border border-[#E4E4DF] rounded py-1 transition-colors"
               >
                 Clear Filters
               </button>
@@ -681,20 +681,20 @@ function GraphViewerInner() {
       {/* ── Entity selector dropdown (shared mobile + desktop) ── */}
       {selectorOpen && (
         <div className={cn(
-          "bg-card border border-[#9CFF1A]/12 shadow-2xl z-50 flex flex-col",
+          "bg-[#FFFFFF] border border-[#E4E4DF]  z-50 flex flex-col",
           // Mobile: full-width below top bar
           "md:absolute md:top-auto md:left-auto md:w-80 md:max-h-72",
           // Positioned differently per context
           "absolute left-3 right-3 top-[57px] md:top-16 md:left-4 max-h-64 rounded"
         )}>
-          <div className="p-2 border-b border-[#9CFF1A]/12 flex items-center space-x-2">
-            <Search className="w-3.5 h-3.5 text-muted-foreground" />
+          <div className="p-2 border-b border-[#E4E4DF] flex items-center space-x-2">
+            <Search className="w-3.5 h-3.5 text-[#74747A]" />
             <input
               autoFocus
               value={selectorQuery}
               onChange={(e) => setSelectorQuery(e.target.value)}
               placeholder="Search entity…"
-              className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+              className="flex-1 bg-transparent text-sm font-mono text-[#18181A] outline-none placeholder:text-[#74747A]/50"
             />
           </div>
           <div className="overflow-y-auto flex-1">
@@ -703,19 +703,19 @@ function GraphViewerInner() {
                 key={e.id}
                 onClick={() => selectEntity(e.id)}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left",
+                  "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#F3F3F0]/50 transition-colors text-left",
                   e.id === targetId && "bg-primary/10 text-primary"
                 )}
               >
                 <div>
-                  <div className="font-medium font-mono text-foreground">{e.name}</div>
-                  <div className="text-xs text-muted-foreground">{e.type}</div>
+                  <div className="font-medium font-mono text-[#18181A]">{e.name}</div>
+                  <div className="text-xs text-[#74747A]">{e.type}</div>
                 </div>
                 <ScoreBadge score={e.bayesianScore} />
               </button>
             ))}
             {filteredEntities.length === 0 && (
-              <div className="p-4 text-xs text-muted-foreground text-center">No results</div>
+              <div className="p-4 text-xs text-[#74747A] text-center">No results</div>
             )}
           </div>
         </div>
@@ -724,21 +724,21 @@ function GraphViewerInner() {
       {/* ── Legend ── */}
       {deskHasPeople && (
       <div className={cn(
-        "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-[#9CFF1A]/12 p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
+        "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-[#FFFFFF]/80  border border-[#E4E4DF] p-2 md:p-3 rounded text-[11px] md:text-xs font-mono",
         // Hide on mobile when node detail bottom sheet is open (it sits at bottom-0 and would overlap)
         selectedNode ? "hidden lg:flex" : "flex"
       )}>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-primary mr-1.5 md:mr-2" /> HNWI</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#9CFF1A] mr-1.5 md:mr-2" /> Corp</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 md:mr-2" /> Trust</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#9CFF1A] mr-1.5 md:mr-2" /> Gatekeeper</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
+        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#1F8A4D] mr-2" /> HNWI</div>
+        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#2757C6] mr-2" /> Corp</div>
+        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#EDB92B] mr-2" /> Trust</div>
+        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#C8321E] mr-2" /> Gatekeeper</div>
+        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-[#74747A] mr-2" /> Asset</div>
       </div>
       )}
 
       {/* ── Truncation notice ── */}
       {(graphData as any)?.truncated && (
-        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-1.5 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 text-[10px] md:text-xs font-mono text-[#d4ff8a]/90 text-center">
+        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-2 rounded border border-[#E4E4DF] bg-[#F3F3F0] text-[11px] md:text-xs font-mono text-[#1F8A4D] text-center">
           Dense neighborhood truncated for performance — filters and target focus still apply
         </div>
       )}
@@ -746,16 +746,16 @@ function GraphViewerInner() {
       {/* ── Error state — entity not found or graph API error ── */}
       {isError && !isMockMode() && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#9CFF1A]/12 bg-card/50">
-            <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#E4E4DF] bg-[#FFFFFF]/50">
+            <Network className="w-6 h-6 text-[#74747A]/50" aria-hidden />
           </div>
-          <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">Graph unavailable</div>
-          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+          <div className="font-mono text-sm font-medium  st text-[#18181A]">Graph unavailable</div>
+          <p className="text-xs text-[#74747A] max-w-sm leading-relaxed">
             Entity not found or api-server graph route failed. Select another target or check System status.
           </p>
           <div className="flex flex-wrap justify-center gap-2 pt-1">
-            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#9CFF1A]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Entity ledger</Link>
-            <Link href="/status" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#9CFF1A]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">System status</Link>
+            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-md border border-[#E4E4DF] bg-[#FFFFFF]/60 px-3 py-2 text-[11px] font-medium text-[#18181A] hover:border-[#BDBDB8]">Entity ledger</Link>
+            <Link href="/status" className="inline-flex min-h-[36px] items-center rounded-md border border-[#E4E4DF] bg-[#FFFFFF]/60 px-3 py-2 text-[11px] font-medium text-[#18181A] hover:border-[#BDBDB8]">System status</Link>
           </div>
         </div>
       )}
@@ -764,9 +764,9 @@ function GraphViewerInner() {
 
       {/* ── Loading ── */}
       {(isLoading || (width === 0 && gData.nodes.length === 0)) && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 gap-2 text-primary font-mono text-sm tracking-widest uppercase">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 gap-2 text-primary font-mono text-sm st ">
           <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-hidden />
-          <span className="animate-pulse">Mapping graph…</span>
+          <span className="">Mapping graph…</span>
         </div>
       )}
 
@@ -776,31 +776,31 @@ function GraphViewerInner() {
           className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 px-6 text-center"
           data-testid="graph-empty"
         >
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#9CFF1A]/20 bg-[#9CFF1A]/[0.07]">
-            <Network className="h-6 w-6 text-[#9CFF1A]/70" aria-hidden />
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#E4E4DF] bg-[#F3F3F0]">
+            <Network className="h-6 w-6 text-[#1F8A4D]" aria-hidden />
           </div>
           <div>
-            <p className="text-sm font-semibold text-stone-100">No people on the graph yet</p>
-            <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-stone-400">
+            <p className="text-sm font-medium text-[#18181A]">No people on the graph yet</p>
+            <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-[#55555A]">
               Launch Apex Atlas or open the ledger so relationships can appear. No demo nodes.
             </p>
           </div>
           <div className="mt-1 flex w-full max-w-xs flex-col items-stretch gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
             <Link
               href="/reactor"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-[#9CFF1A] to-[#5eead4] px-4 py-2.5 text-xs font-bold text-black"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-primary px-4 py-3 text-xs font-medium text-white"
             >
               Launch Apex Atlas
             </Link>
             <Link
               href="/profiles"
-              className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 px-3 py-2.5 text-xs font-semibold text-[#d4ff8a]"
+              className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-[#E4E4DF] bg-[#F3F3F0] px-3 py-2 text-xs font-medium text-[#1F8A4D]"
             >
               Open ledger
             </Link>
             <Link
               href="/search"
-              className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[#9CFF1A]/15 px-3 py-2.5 text-xs font-medium text-stone-300"
+              className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-[#E4E4DF] px-3 py-2 text-xs font-medium text-[#55555A]"
             >
               Discover
             </Link>
@@ -810,23 +810,23 @@ function GraphViewerInner() {
 
       {/* ── Sparse graph note (constellation, no edges) ── */}
       {!isLoading && gData.nodes.length >= 2 && gData.links.length === 0 && (
-        <div className="pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 rounded-lg border border-[#9CFF1A]/15 bg-card/90 px-3 py-2 text-center shadow-lg md:bottom-8">
-          <p className="text-[11px] font-medium text-foreground">People on desk — no links mapped yet</p>
-          <p className="text-[10px] text-muted-foreground">Relationships appear after research connects them.</p>
+        <div className="pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 rounded-md border border-[#E4E4DF] bg-[#FFFFFF]/90 px-3 py-2 text-center  md:bottom-8">
+          <p className="text-[11px] font-medium text-[#18181A]">People on desk — no links mapped yet</p>
+          <p className="text-[11px] text-[#74747A]">Relationships appear after research connects them.</p>
         </div>
       )}
 
       {/* ── Force Graph ── */}
       {graphLoadError && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/90 px-4 text-center">
-          <Network className="h-8 w-8 text-muted-foreground" />
-          <p className="font-mono text-sm text-foreground">Connections graph unavailable</p>
-          <p className="text-[12px] text-muted-foreground">{graphLoadError}</p>
-          <Link href="/profiles" className="atlas-outline-btn rounded-lg px-3 py-1.5 font-mono text-[11px]">Back to ledger</Link>
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-[#FAFAF8]/90 px-4 text-center">
+          <Network className="h-8 w-8 text-[#74747A]" />
+          <p className="font-mono text-sm text-[#18181A]">Connections graph unavailable</p>
+          <p className="text-[12px] text-[#74747A]">{graphLoadError}</p>
+          <Link href="/profiles" className="atlas-outline-btn rounded-md px-3 py-2 font-mono text-[11px]">Back to ledger</Link>
         </div>
       )}
       {!ForceGraph2D && !graphLoadError && width > 0 && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#FAFAF8]/80">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       )}
@@ -844,8 +844,8 @@ function GraphViewerInner() {
           nodeRelSize={6}
           linkColor={(link: any) => {
             const status = link.evidenceStatus as string | undefined;
-            if (status === "disputed" || status === "rejected") return "rgba(248, 113, 113, 0.35)";
-            if (status === "supported") return "rgba(52, 211, 153, 0.28)";
+            if (status === "disputed" || status === "rejected") return "rgba(200, 50, 30, 0.28)";
+            if (status === "supported") return "rgba(31, 138, 77, 0.24)";
             return "rgba(255, 255, 255, 0.18)";
           }}
           linkWidth={(link: any) => {
@@ -885,7 +885,7 @@ function GraphViewerInner() {
             const fontSize = Math.min(3.5, 14 / globalScale);
             ctx.save();
             ctx.font = `${fontSize}px monospace`;
-            ctx.fillStyle = "rgba(148,163,184,0.65)";
+            ctx.fillStyle = "rgba(116,116,122,0.65)";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText((link.label as string).replace(/_/g, " "), midX, midY);
@@ -897,67 +897,67 @@ function GraphViewerInner() {
       {/* ── Node detail panel — right sidebar on desktop, bottom sheet on mobile ── */}
       {selectedNode && (
         <div className={cn(
-          "absolute bg-card/95 backdrop-blur-md border-[#9CFF1A]/12 z-20 flex flex-col animate-in",
+          "absolute bg-[#FFFFFF]/95  border-[#E4E4DF] z-20 flex flex-col animate-in",
           // Mobile: bottom sheet
           "bottom-0 left-0 right-0 border-t max-h-[60vh] slide-in-from-bottom",
           // Desktop: right sidebar
           "md:top-0 md:right-0 md:bottom-0 md:left-auto md:w-96 md:border-t-0 md:border-l md:max-h-none md:slide-in-from-right"
         )}>
-          <div className="p-4 border-b border-[#9CFF1A]/12 flex justify-between items-center bg-muted/20">
-            <h2 className="font-bold text-sm font-mono tracking-wider flex items-center">
+          <div className="p-4 border-b border-[#E4E4DF] flex justify-between items-center bg-[#F3F3F0]/20">
+            <h2 className="font-medium text-sm font-mono  flex items-center">
               <Network className="w-4 h-4 mr-2 text-secondary" /> Node Intelligence
             </h2>
-            <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => setSelectedNode(null)} className="text-[#74747A] hover:text-[#18181A]">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           <div className="p-4 md:p-6 flex-1 overflow-y-auto space-y-4">
             <div>
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-mono">
+              <div className="text-xs text-[#74747A]   mb-1 font-mono">
                 {selectedNode.nodeType}
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-foreground">{selectedNode.label}</h3>
+              <h3 className="text-lg md:text-xl font-medium text-[#18181A]">{selectedNode.label}</h3>
               {selectedNode.nationality && (
-                <div className="text-sm text-muted-foreground mt-1">{selectedNode.nationality}</div>
+                <div className="text-sm text-[#74747A] mt-1">{selectedNode.nationality}</div>
               )}
             </div>
 
             <div className="space-y-2 font-mono text-sm">
               {selectedNode.bayesianScore != null && (
-                <div className="flex justify-between items-center p-3 border border-[#9CFF1A]/12 bg-muted/10 rounded">
-                  <span className="text-muted-foreground">Signal Score</span>
+                <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0]/10 rounded">
+                  <span className="text-[#74747A]">Signal Score</span>
                   <ScoreBadge score={selectedNode.bayesianScore} />
                 </div>
               )}
               {selectedNode.estimatedValue != null && (
-                <div className="flex justify-between items-center p-3 border border-[#9CFF1A]/12 bg-muted/10 rounded">
-                  <span className="text-muted-foreground">Est. Value</span>
-                  <span className="text-foreground">{formatCurrency(selectedNode.estimatedValue)}</span>
+                <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0]/10 rounded">
+                  <span className="text-[#74747A]">Est. Value</span>
+                  <span className="text-[#18181A]">{formatCurrency(selectedNode.estimatedValue)}</span>
                 </div>
               )}
               {selectedNode.isTarget && (
                 <div className="flex justify-between items-center p-3 border border-primary/30 bg-primary/5 rounded">
                   <span className="text-primary/70">Role</span>
-                  <span className="text-primary font-bold">PRIMARY TARGET</span>
+                  <span className="text-primary font-medium">Primary target</span>
                 </div>
               )}
               {selectedNode.isCentral && !selectedNode.isTarget && (
-                <div className="flex justify-between items-center p-3 border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 rounded">
-                  <span className="text-[#9CFF1A]/70">Role</span>
-                  <span className="text-[#9CFF1A] font-bold">CENTRAL NODE</span>
+                <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0] rounded">
+                  <span className="text-[#1F8A4D]">Role</span>
+                  <span className="text-[#1F8A4D] font-medium">Central node</span>
                 </div>
               )}
               {selectedNode.contactOutcome && (
-                <div className="flex justify-between items-center p-3 border border-[#9CFF1A]/12 bg-muted/10 rounded">
-                  <span className="text-muted-foreground">Contact Outcome</span>
-                  <span className="text-foreground text-xs">{String(selectedNode.contactOutcome).replace(/_/g, " ")}</span>
+                <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0]/10 rounded">
+                  <span className="text-[#74747A]">Contact Outcome</span>
+                  <span className="text-[#18181A] text-xs">{String(selectedNode.contactOutcome).replace(/_/g, " ")}</span>
                 </div>
               )}
               {typeof selectedNode.contactConfidence === "number" && selectedNode.contactConfidence > 0 && (
-                <div className="flex justify-between items-center p-3 border border-[#9CFF1A]/12 bg-muted/10 rounded">
-                  <span className="text-muted-foreground">Access Confidence</span>
-                  <span className="text-foreground">{selectedNode.contactConfidence}</span>
+                <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0]/10 rounded">
+                  <span className="text-[#74747A]">Access Confidence</span>
+                  <span className="text-[#18181A]">{selectedNode.contactConfidence}</span>
                 </div>
               )}
             </div>
@@ -969,11 +969,11 @@ function GraphViewerInner() {
                 if (m.approachVector) approachVector = m.approachVector;
               } catch { /* noop */ }
               return (
-                <div className="border-t border-[#9CFF1A]/12 pt-4">
-                  <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider flex items-center">
-                    <Shield className="w-3 h-3 mr-1.5 text-[#9CFF1A]" /> How to Approach
+                <div className="border-t border-[#E4E4DF] pt-4">
+                  <div className="text-xs text-[#74747A] mb-2 font-mono   flex items-center">
+                    <Shield className="w-3 h-3 mr-1.5 text-[#1F8A4D]" /> How to Approach
                   </div>
-                  <div className="text-xs font-mono text-[#9CFF1A] bg-[#9CFF1A]/5 border border-[#9CFF1A]/20 p-3 rounded leading-relaxed">
+                  <div className="text-xs font-mono text-[#1F8A4D] bg-[#F3F3F0] border border-[#E4E4DF] p-3 rounded leading-relaxed">
                     {approachVector}
                   </div>
                 </div>
@@ -981,11 +981,11 @@ function GraphViewerInner() {
             })()}
 
             {selectedNode.metadata && selectedNode.nodeType !== "Gatekeeper" && (
-              <div className="border-t border-[#9CFF1A]/12 pt-4">
-                <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider">
+              <div className="border-t border-[#E4E4DF] pt-4">
+                <div className="text-xs text-[#74747A] mb-2 font-mono  ">
                   Raw Intel
                 </div>
-                <pre className="text-xs text-primary whitespace-pre-wrap bg-background p-3 rounded border border-[#9CFF1A]/12 overflow-x-auto">
+                <pre className="text-xs text-primary whitespace-pre-wrap bg-[#FAFAF8] p-3 rounded border border-[#E4E4DF] overflow-x-auto">
                   {selectedNode.metadata}
                 </pre>
               </div>
@@ -999,14 +999,14 @@ function GraphViewerInner() {
                     : targetId
                 )}
                 disabled={!selectedNode.id?.startsWith("e:") || selectedNode.isTarget}
-                className="w-full py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/50 text-xs font-mono uppercase tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-[#BDBDB8] text-xs font-mono   transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Set as Target
               </button>
               <button
                 onClick={() => openRelModal(selectedNode.id, selectedNode.label)}
                 disabled={!selectedNode.id?.startsWith("e:")}
-                className="w-full py-2 flex items-center justify-center gap-1.5 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground border border-[#9CFF1A]/12 text-xs font-mono uppercase tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 flex items-center justify-center gap-2 bg-[#F3F3F0]/20 hover:bg-[#F3F3F0]/40 text-[#74747A] hover:text-[#18181A] border border-[#E4E4DF] text-xs font-mono   transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Link2 className="w-3 h-3" /> Add Relationship From Here
               </button>
@@ -1018,23 +1018,23 @@ function GraphViewerInner() {
       {/* ── Right-click context menu ── */}
       {ctxMenu && (
         <div
-          className="fixed z-50 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl py-1 min-w-[180px]"
+          className="fixed z-50 bg-[#FFFFFF] border border-[#E4E4DF] rounded  py-1 min-w-[180px]"
           style={{ left: ctxMenu.x, top: ctxMenu.y }}
           onMouseLeave={() => setCtxMenu(null)}
         >
-          <div className="px-3 py-1.5 border-b border-[#9CFF1A]/10">
-            <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">Node</div>
-            <div className="text-xs font-mono text-foreground font-semibold truncate max-w-[160px]">{ctxMenu.nodeName}</div>
+          <div className="px-3 py-2 border-b border-[#E4E4DF]">
+            <div className="text-[11px] font-mono text-[#74747A]  st">Node</div>
+            <div className="text-xs font-mono text-[#18181A] font-medium truncate max-w-[160px]">{ctxMenu.nodeName}</div>
           </div>
           <button
             onClick={() => openRelModal(ctxMenu.nodeId, ctxMenu.nodeName)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-foreground hover:bg-muted/50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-[#18181A] hover:bg-[#F3F3F0]/50 transition-colors"
           >
             <Link2 className="w-3.5 h-3.5 text-primary" /> Add Relationship From Here
           </button>
           <button
             onClick={() => { selectEntity(parseInt(ctxMenu.nodeId.slice(2), 10)); setCtxMenu(null); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-foreground hover:bg-muted/50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-[#18181A] hover:bg-[#F3F3F0]/50 transition-colors"
           >
             <Network className="w-3.5 h-3.5 text-secondary" /> Set as Graph Target
           </button>
@@ -1055,7 +1055,7 @@ function GraphViewerInner() {
       <Dialog open={addRelOpen} onOpenChange={(o) => { setAddRelOpen(o); if (!o) { setRelError(null); setRelSearchResults([]); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-mono text-sm tracking-widest uppercase flex items-center gap-2">
+            <DialogTitle className="font-mono text-sm st  flex items-center gap-2">
               <Link2 className="w-4 h-4 text-primary" /> Add Relationship
             </DialogTitle>
           </DialogHeader>
@@ -1063,26 +1063,26 @@ function GraphViewerInner() {
           <div className="space-y-4 py-2">
             {/* Source (pre-filled, read-only) */}
             <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">From (Source)</label>
-              <div className="px-3 py-2 bg-muted/20 border border-[#9CFF1A]/12 rounded text-sm font-mono text-foreground/70">
+              <label className="text-[11px] font-mono text-[#74747A]   mb-1.5 block">From (Source)</label>
+              <div className="px-3 py-2 bg-[#F3F3F0]/20 border border-[#E4E4DF] rounded text-sm font-mono text-[#18181A]/70">
                 {relSourceName}
               </div>
             </div>
 
             {/* Target entity search */}
             <div className="relative">
-              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">To (Target Entity)</label>
+              <label className="text-[11px] font-mono text-[#74747A]   mb-1.5 block">To (Target Entity)</label>
               <input
                 value={relTargetId ? relTargetName : relSearchQ}
                 onChange={(e) => { setRelTargetId(null); setRelTargetName(""); handleRelSearch(e.target.value); }}
                 placeholder="Search entities…"
-                className="w-full px-3 py-2 bg-background border border-[#9CFF1A]/12 rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+                className="w-full px-3 py-2 bg-[#FAFAF8] border border-[#E4E4DF] rounded text-sm font-mono text-[#18181A] placeholder:text-[#74747A]/40 focus:border-[#BDBDB8] focus:outline-none"
               />
               {relSearchResults.length > 0 && !relTargetId && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-[#9CFF1A]/12 rounded shadow-xl z-50 max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-[#FFFFFF] border border-[#E4E4DF] rounded  z-50 max-h-48 overflow-y-auto">
                   {relSearchResults.map((r) => (
                     <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
-                      className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
+                      className="w-full text-left px-3 py-2 text-sm font-mono text-[#18181A] hover:bg-[#F3F3F0]/50 transition-colors border-b border-border/30 last:border-0">
                       {formatEntityName(r.name)}
                     </button>
                   ))}
@@ -1092,9 +1092,9 @@ function GraphViewerInner() {
 
             {/* Relationship type */}
             <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
+              <label className="text-[11px] font-mono text-[#74747A]   mb-1.5 block">Relationship Type</label>
               <select value={relType} onChange={(e) => setRelType(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-[#9CFF1A]/12 rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
+                className="w-full px-3 py-2 bg-[#FAFAF8] border border-[#E4E4DF] rounded text-sm font-mono text-[#18181A] focus:border-[#BDBDB8] focus:outline-none">
                 {["KNOWS","OWNS","CONTROLS","ASSOCIATES_WITH","EMPLOYED_BY","DIRECTS","FAMILY_OF"].map((t) => (
                   <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
                 ))}
@@ -1104,20 +1104,20 @@ function GraphViewerInner() {
             {/* Strength */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Strength</label>
-                <span className="text-[10px] font-mono text-foreground font-bold">{(relStrength * 100).toFixed(0)}%</span>
+                <label className="text-[11px] font-mono text-[#74747A]  ">Strength</label>
+                <span className="text-[11px] font-mono text-[#18181A] font-medium">{(relStrength * 100).toFixed(0)}%</span>
               </div>
               <input type="range" min={0.1} max={1.0} step={0.05} value={relStrength}
                 onChange={(e) => setRelStrength(Number(e.target.value))} className="w-full accent-primary" />
-              <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
+              <div className="flex justify-between text-[11px] text-[#74747A] mt-0.5"><span>Weak</span><span>Strong</span></div>
             </div>
 
             {/* Notes */}
             <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
+              <label className="text-[11px] font-mono text-[#74747A]   mb-1.5 block">Notes (optional)</label>
               <textarea value={relNotes} onChange={(e) => setRelNotes(e.target.value)} rows={2}
                 placeholder="Source or evidence for this link…"
-                className="w-full px-3 py-2 bg-background border border-[#9CFF1A]/12 rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />
+                className="w-full px-3 py-2 bg-[#FAFAF8] border border-[#E4E4DF] rounded text-sm font-mono text-[#18181A] placeholder:text-[#74747A]/40 focus:border-[#BDBDB8] focus:outline-none resize-none" />
             </div>
 
             {relError && <p className="text-xs font-mono text-red-400">{relError}</p>}
@@ -1125,10 +1125,10 @@ function GraphViewerInner() {
 
           <DialogFooter className="gap-2">
             <DialogClose asChild>
-              <button className="px-4 py-2 rounded border border-[#9CFF1A]/12 text-muted-foreground font-mono text-xs uppercase tracking-wider hover:text-foreground transition-colors">Cancel</button>
+              <button className="px-4 py-2 rounded border border-[#E4E4DF] text-[#74747A] font-mono text-xs   hover:text-[#18181A] transition-colors">Cancel</button>
             </DialogClose>
             <button onClick={handleSaveRel} disabled={relSaving || !relTargetId}
-              className="flex items-center gap-2 px-4 py-2 rounded bg-primary/20 border border-primary/40 text-primary font-mono text-xs uppercase tracking-wider hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 px-4 py-2 rounded bg-primary/20 border border-[#BDBDB8] text-primary font-mono text-xs   hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               {relSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               {relSaving ? "Saving…" : "Save"}
             </button>

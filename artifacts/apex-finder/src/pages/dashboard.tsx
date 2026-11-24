@@ -64,7 +64,7 @@ export default function Dashboard() {
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const objectiveMaxChars = (apiHealthQuery.data as { launchLimits?: { discoveryObjectiveMaxChars?: unknown } } | undefined)?.launchLimits?.discoveryObjectiveMaxChars;
   const hasAtlasHealth = typeof objectiveMaxChars === "number" && Number.isSafeInteger(objectiveMaxChars) && objectiveMaxChars > 0;
-  const apiUnavailable = !mock && apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth);
+  const apiUnavailable = mock || (apiHealthQuery.isFetched && (apiHealthQuery.isError || !hasAtlasHealth));
   const sourceAvailabilityQuery = useQuery({
     queryKey: ["dashboard", "source-availability"],
     queryFn: async (): Promise<HomeSourceReadiness> => {
@@ -103,7 +103,7 @@ export default function Dashboard() {
             <p>Describe who you want to reach. Atlas searches public records, links the evidence and maps the shortest route to them.</p>
           </section>
 
-          <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console">
+          <section className={`atlas-home-actions atlas-home-board-console${apiUnavailable ? " is-api-down" : ""}`} aria-label="Launch console">
             <div className="atlas-home-console-inner">
               <LaunchAtlasButton variant="primary" label="Launch" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>

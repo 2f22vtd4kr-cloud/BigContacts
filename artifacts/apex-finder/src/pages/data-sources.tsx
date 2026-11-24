@@ -78,8 +78,8 @@ const SOURCES: SourceDef[] = [
     bodyParams: { targetCount: 10000, batchSize: 100 },
     kind: "ingestor",
     Icon: Layers,
-    color: "#10B981",
-    bg: "rgba(16,185,129,0.1)",
+    color: "#1F8A4D",
+    bg: "rgba(31,138,77,0.1)",
     phase: 1,
     note: "Start and monitor this pipeline in the Mass Seed Operations panel. It creates provisional source-backed candidates; HNWI status is not assumed. Companies House requires COMPANIES_HOUSE_API_KEY.",
   },
@@ -89,8 +89,8 @@ const SOURCES: SourceDef[] = [
     description: "FAA aircraft registration records: aircraft asset leads plus provisional individual/legal-entity registrant candidates, fractional-ownership status and published Other Name 1–5 fields. Registration does not prove beneficial ownership or personal wealth.",
     kind: "ingestor",
     Icon: Plane,
-    color: "#F59E0B",
-    bg: "rgba(245,158,11,0.1)",
+    color: "#EDB92B",
+    bg: "rgba(237,185,43,0.1)",
     phase: 1,
     homepage: "https://registry.faa.gov/database/ReleasableAircraft.zip",
     endpoint: "/api/ingest/faa",
@@ -104,8 +104,8 @@ const SOURCES: SourceDef[] = [
     description: "Global Legal Entity Identifier Foundation — live search for corporate legal entities worldwide.",
     kind: "enricher",
     Icon: Network,
-    color: "#06B6D4",
-    bg: "rgba(6,182,212,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 1,
     homepage: "https://www.gleif.org/en/lei-data/gleif-lei-look-up-api",
     note: "Available via live registry search — no bulk ingest endpoint",
@@ -116,8 +116,8 @@ const SOURCES: SourceDef[] = [
     description: "World's largest open database of companies — 200m+ companies across 140 jurisdictions.",
     kind: "enricher",
     Icon: Search,
-    color: "#EC4899",
-    bg: "rgba(236,72,153,0.1)",
+    color: "#C8321E",
+    bg: "rgba(200,50,30,0.1)",
     phase: 1,
     homepage: "https://opencorporates.com",
     note: "Available via live registry search — 50 req/day free tier",
@@ -128,8 +128,8 @@ const SOURCES: SourceDef[] = [
     description: "Enriches existing entities with officer correspondence addresses from UK Companies House PSC filings. Also recomputes contact confidence scores for all entities.",
     kind: "enricher",
     Icon: UserCheck,
-    color: "#10B981",
-    bg: "rgba(16,185,129,0.1)",
+    color: "#1F8A4D",
+    bg: "rgba(31,138,77,0.1)",
     phase: 1,
     homepage: "https://developer-specs.company-information.service.gov.uk",
     jobType: "companies-house-enrich",
@@ -144,8 +144,8 @@ const SOURCES: SourceDef[] = [
     description: "Open investigative data platform aggregating 200+ datasets — beneficial ownership, sanctions lists, PEPs, and leaked documents.",
     kind: "enricher",
     Icon: FileSearch,
-    color: "#EF4444",
-    bg: "rgba(239,68,68,0.1)",
+    color: "#C8321E",
+    bg: "rgba(200,50,30,0.1)",
     phase: 8,
     homepage: "https://aleph.occrp.org",
     jobType: "occrp",
@@ -157,8 +157,8 @@ const SOURCES: SourceDef[] = [
     description: "Historic residential property transactions with price, date, property type, tenure and property address. PPD is not a current title register and does not identify a purchaser’s current residence.",
     kind: "ingestor",
     Icon: Landmark,
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 8,
     homepage: "https://use-land-property-data.service.gov.uk/datasets/ocod",
     endpoint: "/api/ingest/land-registry",
@@ -172,8 +172,8 @@ const SOURCES: SourceDef[] = [
     description: "Latest public aircraft status only — airborne/on-ground with coarse altitude and speed bands. Exact positions, callsigns, track bearings and historical routes are not retained.",
     kind: "enricher",
     Icon: Activity,
-    color: "#14B8A6",
-    bg: "rgba(20,184,166,0.1)",
+    color: "#1F8A4D",
+    bg: "rgba(31,138,77,0.1)",
     phase: 8,
     homepage: "https://opensky-network.org",
     endpoint: "/api/ingest/opensky",
@@ -187,8 +187,8 @@ const SOURCES: SourceDef[] = [
     description: "European national aircraft registries (UK CAA, DGAC, LBA, etc.) for jurisdiction-specific registration and registrant records. Registration is not proof of beneficial ownership.",
     kind: "ingestor",
     Icon: Plane,
-    color: "#6B7280",
-    bg: "rgba(107,114,128,0.1)",
+    color: "#74747A",
+    bg: "rgba(116,116,122,0.1)",
     phase: 8,
     homepage: "https://www.easa.europa.eu",
     comingSoon: true,
@@ -203,8 +203,8 @@ const SOURCES: SourceDef[] = [
       "Legacy deterministic contact harvesting has been retired. No current API route or canonical Investigator capability exposes this pipeline; pattern-derived addresses are not public evidence and are never promoted to verified contact state.",
     kind: "enricher",
     Icon: Mail,
-    color: "#10B981",
-    bg: "rgba(16,185,129,0.1)",
+    color: "#1F8A4D",
+    bg: "rgba(31,138,77,0.1)",
     phase: 9,
     homepage: "https://query.wikidata.org",
     note: "Retired legacy contact-harvesting pipeline. The API endpoint returns HTTP 410; it is not part of the canonical Investigator. Pattern-generated addresses are never evidence and this job must not be run.",
@@ -218,8 +218,8 @@ const SOURCES: SourceDef[] = [
       "Optional local all-MiniLM-L6-v2 derived cache for semantic similarity and associate matching. It stores embeddings only; it does not create entities, discover contacts or conduct research.",
     kind: "enricher",
     Icon: Brain,
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 10,
     homepage: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
     endpoint: "/api/ingest/compute-embeddings",
@@ -234,8 +234,8 @@ const SOURCES: SourceDef[] = [
       "12,500+ categorised OSINT tools sourced from tomvaillant/osint-tool-database on Hugging Face. Search by keyword or filter by category (Social Media, Company Research, Geolocation, Dark Web, etc.). Cached 24h in Redis.",
     kind: "enricher",
     Icon: BookOpen,
-    color: "#06B6D4",
-    bg: "rgba(6,182,212,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 10,
     homepage: "https://huggingface.co/datasets/tomvaillant/osint-tool-database",
     note: "Browse at /osint-tools — no ingest trigger needed; data fetched on-demand.",
@@ -249,8 +249,8 @@ const SOURCES: SourceDef[] = [
       "Public offshore-leaks dataset covering the Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks and FinCEN Files. A name match is a lead for careful source review, not proof of wrongdoing or beneficial ownership.",
     kind: "enricher",
     Icon: FileSearch,
-    color: "#F43F5E",
-    bg: "rgba(244,63,94,0.1)",
+    color: "#C8321E",
+    bg: "rgba(200,50,30,0.1)",
     phase: 11,
     homepage: "https://offshoreleaks.icij.org",
     note: "No dedicated ICIJ adapter is exposed to the canonical Investigator in this deployment; inspect a specific public record through web.visit when the objective justifies it.",
@@ -262,8 +262,8 @@ const SOURCES: SourceDef[] = [
       "Public beneficial-ownership data standard and source catalogue. A specific published record may provide a lead for ownership-chain review, but this deployment has no dedicated adapter and each relationship requires source-level verification.",
     kind: "enricher",
     Icon: Layers,
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 11,
     homepage: "https://www.openownership.org",
     note: "No dedicated OpenOwnership BODS adapter is currently exposed. Public record URLs may be inspected through web.visit; a registry entry alone does not establish beneficial ownership.",
@@ -275,8 +275,8 @@ const SOURCES: SourceDef[] = [
       "Uses free RDAP, certificate-transparency, DNS, and archived public pages to validate domain ownership clues without treating registrar infrastructure as personal access.",
     kind: "enricher",
     Icon: AtSign,
-    color: "#10B981",
-    bg: "rgba(16,185,129,0.1)",
+    color: "#1F8A4D",
+    bg: "rgba(31,138,77,0.1)",
     phase: 11,
     homepage: "https://rdap.org",
     note: "The model may select domain.lookup for RDAP/WHOIS after a verified domain. Certificate-transparency and archive pages require separately justified retrieval; no automatic domain sweep is performed.",
@@ -288,8 +288,8 @@ const SOURCES: SourceDef[] = [
       "Equasis and VesselFinder are public reference sites for vessel/registration research. No dedicated vessel-ownership adapter is currently exposed; a registry or vessel match is not proof of beneficial ownership.",
     kind: "enricher",
     Icon: Anchor,
-    color: "#0EA5E9",
-    bg: "rgba(14,165,233,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 11,
     homepage: "https://www.equasis.org",
     note: "Not a callable canonical Investigator capability in this deployment. Any public record must be independently fetched and its registrant/beneficial-owner limitations preserved.",
@@ -301,8 +301,8 @@ const SOURCES: SourceDef[] = [
       "Historical flight routes and itineraries are intentionally disabled. Apex does not collect or expose historical aircraft movement traces.",
     kind: "enricher",
     Icon: Plane,
-    color: "#F59E0B",
-    bg: "rgba(245,158,11,0.1)",
+    color: "#EDB92B",
+    bg: "rgba(237,185,43,0.1)",
     phase: 11,
     homepage: "https://globe.adsbexchange.com",
     note: "Disabled by privacy policy. No historical-flight action or ingestion endpoint is exposed to the canonical Investigator.",
@@ -314,8 +314,8 @@ const SOURCES: SourceDef[] = [
       "Checks known email addresses against 200+ online services (Holehe) and discovers social profiles by username across 3,000+ sites (Maigret). Exposes social accounts hidden from standard search.",
     kind: "enricher",
     Icon: User,
-    color: "#EC4899",
-    bg: "rgba(236,72,153,0.1)",
+    color: "#C8321E",
+    bg: "rgba(200,50,30,0.1)",
     phase: 11,
     homepage: "https://github.com/megadose/holehe",
     note: "The email/username actions are exposed only after fresh signed worker attestation. Inputs must be publicly observed; results remain account leads, never identity proof or bulk sweeps.",
@@ -327,8 +327,8 @@ const SOURCES: SourceDef[] = [
       "Passive OSINT aggregator that queries Google, Bing, LinkedIn, DNS, and Shodan for emails, hostnames, and subdomains associated with a domain or person name.",
     kind: "enricher",
     Icon: Terminal,
-    color: "#6B7280",
-    bg: "rgba(107,114,128,0.1)",
+    color: "#74747A",
+    bg: "rgba(116,116,122,0.1)",
     phase: 11,
     homepage: "https://github.com/laramies/theHarvester",
     note: "Not a direct canonical Investigator action in this deployment. An installed binary or health-panel status is not proof of model-visible capability.",
@@ -340,8 +340,8 @@ const SOURCES: SourceDef[] = [
       "Generalist NER model (urchade/gliner-multi-v2.1, 83M params) running locally via Python microservice on port 7890. Replaces regex-based name extraction in web enricher — zero-shot; no training needed for new entity types.",
     kind: "enricher",
     Icon: Cpu,
-    color: "#A78BFA",
-    bg: "rgba(167,139,250,0.1)",
+    color: "#2757C6",
+    bg: "rgba(39,87,198,0.1)",
     phase: 11,
     homepage: "https://github.com/urchade/GLiNER",
     note: "Legacy local name-extraction helper only; not a network OSINT worker or standalone Investigator capability. It must not perform external lookups.",
@@ -389,37 +389,37 @@ type FunnelData = {
 const OUTCOME_META: Record<string, { label: string; color: string; barColor: string; description: string }> = {
   direct_contact_candidate: {
     label: "Direct Contact",
-    color: "text-[#b8ff4d]",
-    barColor: "bg-[#9CFF1A]",
+    color: "text-[#1F8A4D]",
+    barColor: "bg-[#1F8A4D]",
     description: "Person-level email or phone found in public sources",
   },
   direct_contact_verified: {
     label: "Verified Contact",
-    color: "text-[#d4ff8a]",
-    barColor: "bg-[#b8ff4d]",
+    color: "text-[#1F8A4D]",
+    barColor: "bg-[#1F8A4D]",
     description: "Validated person-level contact with full attribution",
   },
   social_only: {
     label: "Social Only",
-    color: "text-[#9CFF1A]",
-    barColor: "bg-[#9CFF1A]",
+    color: "text-[#1F8A4D]",
+    barColor: "bg-[#1F8A4D]",
     description: "LinkedIn/Twitter/Telegram found — eligible for direct-contact follow-up (J1)",
   },
   evidence_only: {
     label: "Evidence Only",
-    color: "text-[#9CFF1A]",
-    barColor: "bg-[#9CFF1A]",
+    color: "text-[#1F8A4D]",
+    barColor: "bg-[#1F8A4D]",
     description: "Website or address found — eligible for social/direct-contact follow-up",
   },
   organization_contact: {
     label: "Org Contact",
-    color: "text-lime-400",
-    barColor: "bg-lime-500",
+    color: "text-[#1F8A4D]",
+    barColor: "bg-[#1F8A4D]",
     description: "Company phone/inbox found (not personal)",
   },
   none: {
     label: "Not Enriched",
-    color: "text-muted-foreground",
+    color: "text-[#74747A]",
     barColor: "bg-muted-foreground/40",
     description: "No enrichment pass has run yet",
   },
@@ -465,18 +465,18 @@ function FunnelPanel() {
   ];
 
   return (
-    <div className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
+    <div className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4  flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">
+          <Filter className="h-4 w-4 text-[#2757C6]" />
+          <span className="text-sm font-medium font-mono   text-[#2757C6]">
             Contact Discovery Funnel
           </span>
-          <span className="text-[11px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">J0</span>
+          <span className="text-[11px] font-mono bg-primary/10 text-[#2757C6] px-2 py-1 rounded  ">J0</span>
         </div>
         <button
           onClick={load}
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+          className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-[#74747A] hover:text-[#18181A] transition-colors"
           title="Refresh"
         >
           <RefreshCw className="h-3.5 w-3.5" />
@@ -484,12 +484,12 @@ function FunnelPanel() {
       </div>
 
       {!data ? (
-        <div className="rounded-lg border border-[#9CFF1A]/12 bg-muted/20 px-3 py-2">
-          <p className="text-xs font-mono text-muted-foreground">
+        <div className="rounded-lg border border-[#E4E4DF]/12 bg-muted/20 px-3 py-2">
+          <p className="text-xs font-mono text-[#74747A]">
             {loadError ? "Funnel data is unavailable right now." : "Loading funnel data…"}
           </p>
           {loadError && (
-            <p className="mt-1 text-[10px] font-mono text-muted-foreground/70">
+            <p className="mt-1 text-[11px] font-mono text-[#74747A]/70">
               The panel will be available when the data service is ready.
             </p>
           )}
@@ -499,20 +499,20 @@ function FunnelPanel() {
           {/* Conversion summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#b8ff4d]" },
-              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-[#9CFF1A]" },
-              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-[#9CFF1A]" },
-              { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
+              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#1F8A4D]" },
+              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-[#1F8A4D]" },
+              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-[#1F8A4D]" },
+              { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-[#74747A]" },
             ].map(s => (
               <div key={s.label} className="text-center">
-                <div className={`text-xl font-bold font-mono ${s.color}`}>{s.value}</div>
-                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">{s.label}</div>
+                <div className={`text-xl font-medium font-mono ${s.color}`}>{s.value}</div>
+                <div className="text-[11px] font-mono text-[#74747A]   mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
 
           {/* Outcome bars */}
-          <div className="space-y-2 border-t border-[#9CFF1A]/08 pt-3">
+          <div className="space-y-2 border-t border-[#E4E4DF]/08 pt-3">
             {OUTCOME_ORDER.map(key => {
               const meta = OUTCOME_META[key];
               const count = data.outcomes[key] ?? 0;
@@ -521,15 +521,15 @@ function FunnelPanel() {
               return (
                 <div key={key} className="space-y-0.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[10px] font-mono font-semibold ${meta?.color ?? "text-muted-foreground"}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-mono font-medium ${meta?.color ?? "text-[#74747A]"}`}>
                         {meta?.label ?? key}
                       </span>
-                      <span className="text-[11px] font-mono text-muted-foreground hidden md:inline">
+                      <span className="text-[11px] font-mono text-[#74747A] hidden md:inline">
                         — {meta?.description}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-[11px] font-mono text-[#74747A]">
                       {count.toLocaleString()} ({pct.toFixed(1)}%)
                     </span>
                   </div>
@@ -546,23 +546,23 @@ function FunnelPanel() {
 
           {/* By entity type (compact) */}
           {Object.keys(data.byEntityType).length > 0 && (
-            <div className="border-t border-[#9CFF1A]/08 pt-3">
-              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">By Entity Type</p>
+            <div className="border-t border-[#E4E4DF]/08 pt-3">
+              <p className="text-[11px] font-mono text-[#74747A]   mb-2">By Entity Type</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {Object.entries(data.byEntityType).map(([type, outcomes]) => {
                   const typeTotal = Object.values(outcomes).reduce((s, n) => s + n, 0);
                   const direct = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
                   const social = outcomes["social_only"] ?? 0;
                   return (
-                    <div key={type} className="rounded-lg border border-[#9CFF1A]/08 p-2">
-                      <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
-                      <div className="text-[10px] font-mono text-[#b8ff4d]">
+                    <div key={type} className="rounded-lg border border-[#E4E4DF]/08 p-2">
+                      <div className="text-[11px] font-mono font-medium text-[#18181A] mb-1">{type}</div>
+                      <div className="text-[11px] font-mono text-[#1F8A4D]">
                         {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
                       </div>
-                      <div className="text-[10px] font-mono text-[#9CFF1A]">
+                      <div className="text-[11px] font-mono text-[#1F8A4D]">
                         {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social
                       </div>
-                      <div className="text-[11px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
+                      <div className="text-[11px] font-mono text-[#74747A]">{typeTotal.toLocaleString()} total</div>
                     </div>
                   );
                 })}
@@ -571,7 +571,7 @@ function FunnelPanel() {
           )}
 
           {data.note && (
-            <p className="text-[11px] font-mono text-muted-foreground/60 border-t border-border/30 pt-2">{data.note}</p>
+            <p className="text-[11px] font-mono text-[#74747A]/60 border-t border-border/30 pt-2">{data.note}</p>
           )}
         </>
       )}
@@ -594,13 +594,13 @@ function RegistryMatrixPanel() {
   }, []);
 
   return (
-    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4 ">
       <div className="flex items-center gap-2 mb-3">
-        <Globe className="h-4 w-4 text-lime-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
+        <Globe className="h-4 w-4 text-[#1F8A4D]" />
+        <span className="text-sm font-medium font-mono   text-[#1F8A4D]">
           Registry Coverage Matrix
         </span>
-        <span className="text-[11px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
+        <span className="text-[11px] font-mono bg-[#F3F3F0] text-[#1F8A4D] px-2 py-1 rounded  ">J2</span>
       </div>
       {!loading && sources.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
@@ -608,43 +608,43 @@ function RegistryMatrixPanel() {
             {
               label: "Random mix",
               value: sources.filter((s) => s.runtimeMode === "random_mix").length,
-              color: "text-[#d4ff8a]",
+              color: "text-[#1F8A4D]",
               detail: "shuffled into discovery",
             },
             {
               label: "Explicit only",
               value: sources.filter((s) => s.runtimeMode === "explicit_only").length,
-              color: "text-[#d4ff8a]",
+              color: "text-[#1F8A4D]",
               detail: "select when needed",
             },
             {
               label: "Bulk only",
               value: sources.filter((s) => s.runtimeMode === "bulk_only").length,
-              color: "text-lime-300",
+              color: "text-[#1F8A4D]",
               detail: "periodic imports",
             },
             {
               label: "Production reviewed",
               value: sources.filter((s) => s.productionReviewStatus === "reviewed_for_production").length,
-              color: "text-lime-300",
+              color: "text-[#1F8A4D]",
               detail: "public-release checked",
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-2.5 py-2">
-              <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
-              <div className="text-[11px] font-mono text-muted-foreground">{item.detail}</div>
+            <div key={item.label} className="rounded-lg border border-[#E4E4DF]/10 bg-muted/10 px-2 py-2">
+              <div className={`text-lg font-medium font-mono ${item.color}`}>{item.value}</div>
+              <div className="text-[11px] font-mono   text-[#18181A]">{item.label}</div>
+              <div className="text-[11px] font-mono text-[#74747A]">{item.detail}</div>
             </div>
           ))}
         </div>
       )}
       {loading ? (
-        <p className="text-xs font-mono text-muted-foreground">Loading registry coverage…</p>
+        <p className="text-xs font-mono text-[#74747A]">Loading registry coverage…</p>
       ) : (
         <>
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left text-[10px] font-mono">
-          <thead className="text-muted-foreground uppercase tracking-wider border-b border-[#9CFF1A]/10">
+        <table className="w-full text-left text-[11px] font-mono">
+          <thead className="text-[#74747A]   border-b border-[#E4E4DF]/10">
             <tr>
               <th className="py-2 pr-3">Registry</th>
               <th className="py-2 pr-3">Jurisdiction</th>
@@ -656,18 +656,18 @@ function RegistryMatrixPanel() {
           <tbody>
             {sources.map((source) => (
               <tr key={source.id} className="border-b border-border/30 last:border-0 align-top">
-                <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{source.label}</td>
-                <td className="py-2 pr-3 text-lime-300 whitespace-nowrap">{source.jurisdiction}</td>
+                <td className="py-2 pr-3 font-medium text-[#18181A] whitespace-nowrap">{source.label}</td>
+                <td className="py-2 pr-3 text-[#1F8A4D] whitespace-nowrap">{source.jurisdiction}</td>
                 <td className="py-2 pr-3 whitespace-nowrap">
                   <span className={cn(
-                    "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
+                    "inline-flex items-center gap-1 rounded px-2 py-1",
                     source.runtimeMode === "random_mix"
-                      ? "bg-[#9CFF1A]/10 text-[#d4ff8a]"
+                      ? "bg-[#F3F3F0] text-[#1F8A4D]"
                       : source.runtimeMode === "bulk_only"
-                        ? "bg-lime-400/10 text-lime-300"
+                        ? "bg-[#F3F3F0] text-[#1F8A4D]"
                         : source.runtimeMode === "unavailable"
-                          ? "bg-muted/40 text-muted-foreground"
-                          : "bg-[#9CFF1A]/10 text-[#d4ff8a]",
+                          ? "bg-muted/40 text-[#74747A]"
+                          : "bg-[#F3F3F0] text-[#1F8A4D]",
                   )}>
                     {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
                     {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : source.runtimeMode === "unavailable" ? "unavailable" : "explicit only"}
@@ -675,7 +675,7 @@ function RegistryMatrixPanel() {
                 </td>
                 <td className={cn(
                   "py-2 whitespace-nowrap",
-                  source.productionReviewStatus === "reviewed_for_production" ? "text-lime-300" : "text-muted-foreground",
+                  source.productionReviewStatus === "reviewed_for_production" ? "text-[#1F8A4D]" : "text-[#74747A]",
                 )}>
                   {source.productionReviewStatus === "reviewed_for_production"
                     ? "production reviewed"
@@ -686,17 +686,17 @@ function RegistryMatrixPanel() {
                 <td className="py-2">
                   <button
                     onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
-                    className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1 text-[#74747A] hover:text-[#18181A]"
                   >
                     {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     {expandedId === source.id ? "hide" : "inspect"}
                   </button>
                   {expandedId === source.id && (
-                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-[#9CFF1A]/10 bg-muted/10 p-2.5 text-muted-foreground">
+                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-[#E4E4DF]/10 bg-muted/10 p-3 text-[#74747A]">
                       <p>{source.runtimeNote}</p>
-                      <p className="mt-1 text-foreground/80">{source.personOfficerFields}</p>
+                      <p className="mt-1 text-[#18181A]/80">{source.personOfficerFields}</p>
                       <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
-                      {source.notes && <p className="mt-1 text-[#d4ff8a]/80">{source.notes}</p>}
+                      {source.notes && <p className="mt-1 text-[#1F8A4D]/80">{source.notes}</p>}
                     </div>
                   )}
                 </td>
@@ -709,22 +709,22 @@ function RegistryMatrixPanel() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2">
         {sources.map((source) => (
-          <div key={source.id} className="rounded-lg border border-[#9CFF1A]/08 p-3 space-y-1">
+          <div key={source.id} className="rounded-lg border border-[#E4E4DF]/08 p-3 space-y-1">
               <button
                 onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
                 className="w-full flex items-center justify-between text-left"
               >
-                <span className="text-xs font-semibold text-foreground">{source.label}</span>
-                {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                <span className="text-xs font-medium text-[#18181A]">{source.label}</span>
+                {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5 text-[#74747A]" /> : <ChevronRight className="h-3.5 w-3.5 text-[#74747A]" />}
               </button>
-              <div className="flex items-center gap-2 text-[10px] font-mono">
-                <span className="text-lime-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "unavailable" ? "text-muted-foreground" : source.runtimeMode === "random_mix" ? "text-[#d4ff8a]" : source.runtimeMode === "bulk_only" ? "text-lime-300" : "text-[#d4ff8a]"}>
+              <div className="flex items-center gap-2 text-[11px] font-mono">
+                <span className="text-[#1F8A4D]">{source.jurisdiction}</span>
+                <span className={source.runtimeMode === "unavailable" ? "text-[#74747A]" : source.runtimeMode === "random_mix" ? "text-[#1F8A4D]" : source.runtimeMode === "bulk_only" ? "text-[#1F8A4D]" : "text-[#1F8A4D]"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : source.runtimeMode === "unavailable" ? "unavailable" : "explicit only"}
                 </span>
               </div>
               {expandedId === source.id && (
-                <div className="pt-1 text-[10px] font-mono text-muted-foreground">
+                <div className="pt-1 text-[11px] font-mono text-[#74747A]">
                   <p>{source.runtimeNote}</p>
                   <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
                   <p className="mt-1">{source.personOfficerFields}</p>
@@ -735,7 +735,7 @@ function RegistryMatrixPanel() {
       </div>
         </>
       )}
-      <p className="flex items-start gap-1.5 text-[10px] font-mono text-muted-foreground mt-3">
+      <p className="flex items-start gap-2 text-[11px] font-mono text-[#74747A] mt-3">
         <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
         Runtime availability and production review are separate. Random mix means the source is eligible for the shuffled discovery pass; unavailable sources are not callable in this deployment.
       </p>
@@ -766,32 +766,32 @@ function IdentityResolutionPanel() {
   const rejected  = stats?.candidates?.rejected  ?? 0;
 
   return (
-    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4 ">
       <div className="flex items-center gap-2 mb-3">
-        <UserCheck className="h-4 w-4 text-lime-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
+        <UserCheck className="h-4 w-4 text-[#1F8A4D]" />
+        <span className="text-sm font-medium font-mono   text-[#1F8A4D]">
           Identity Resolution
         </span>
-        <p className="text-[10px] font-mono text-muted-foreground">
+        <p className="text-[11px] font-mono text-[#74747A]">
           — cross-registry name bundles &amp; link candidates
         </p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-lime-300" },
-          { label: "Pending",       value: pending,               color: "text-[#d4ff8a]" },
-          { label: "Confirmed",     value: confirmed,             color: "text-[#d4ff8a]" },
-          { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
+          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-[#1F8A4D]" },
+          { label: "Pending",       value: pending,               color: "text-[#1F8A4D]" },
+          { label: "Confirmed",     value: confirmed,             color: "text-[#1F8A4D]" },
+          { label: "Rejected",      value: rejected,              color: "text-[#74747A]" },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-3 py-2">
-            <div className={`text-lg font-bold font-mono ${item.color}`}>
+          <div key={item.label} className="rounded-lg border border-[#E4E4DF]/10 bg-muted/10 px-3 py-2">
+            <div className={`text-lg font-medium font-mono ${item.color}`}>
               {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
             </div>
-            <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">{item.label}</div>
+            <div className="text-[11px] font-mono text-[#74747A]  ">{item.label}</div>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[10px] font-mono text-muted-foreground/60">
+      <p className="mt-3 text-[11px] font-mono text-[#74747A]/60">
         Review-only — confirmed links do not auto-merge entities or promote contacts.
       </p>
     </section>
@@ -849,15 +849,15 @@ function ToolStatusBadge({ state }: { state: "available" | "unavailable" | "unkn
   const label = state === "available" ? "Callable now" : state === "unavailable" ? "Unavailable here" : "Not verified";
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-mono font-medium ${
         state === "available"
-          ? "bg-[#9CFF1A]/15 text-[#b8ff4d]"
-          : "bg-muted/50 text-muted-foreground"
+          ? "bg-[#F3F3F0] text-[#1F8A4D]"
+          : "bg-muted/50 text-[#74747A]"
       }`}
       title={state === "unknown" ? "The runtime could not verify the signed worker attestation." : undefined}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${
-        state === "available" ? "bg-[#b8ff4d]" : "bg-muted-foreground/60"
+        state === "available" ? "bg-[#1F8A4D]" : "bg-muted-foreground/60"
       }`} />
       {label}
     </span>
@@ -903,17 +903,17 @@ function PythonToolsPanel() {
   const allReady = Boolean(status) && readyCount === totalCount;
 
   return (
-    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4  space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Terminal className="h-4 w-4 text-lime-400" />
-            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
+            <Terminal className="h-4 w-4 text-[#1F8A4D]" />
+            <span className="text-sm font-medium font-mono   text-[#1F8A4D]">
               Python OSINT capabilities
             </span>
-            <span className="text-[11px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Isolated worker</span>
+            <span className="text-[11px] font-mono bg-[#F3F3F0] text-[#1F8A4D] px-2 py-1 rounded  ">Isolated worker</span>
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-[11px] leading-relaxed text-[#74747A]">
             These non-AI tools are available to the Investigator only when the current turn's signed worker attestation and runtime action allowlist permit them.
           </p>
         </div>
@@ -921,18 +921,18 @@ function PythonToolsPanel() {
           onClick={load}
           disabled={loading}
           title="Re-check signed worker availability"
-          className="h-7 w-7 flex shrink-0 items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="h-7 w-7 flex shrink-0 items-center justify-center rounded hover:bg-muted/60 text-[#74747A] hover:text-[#18181A] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      <div className="rounded-lg border border-[#9CFF1A]/15 bg-muted/10 px-3 py-2.5">
+      <div className="rounded-lg border border-[#E4E4DF]/15 bg-muted/10 px-3 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${
-            !checked ? "bg-muted-foreground/40" : allReady ? "bg-[#9CFF1A]" : "bg-muted-foreground/60"
+            !checked ? "bg-muted-foreground/40" : allReady ? "bg-[#1F8A4D]" : "bg-muted-foreground/60"
           }`} />
-          <span className="text-xs font-semibold font-mono text-foreground">
+          <span className="text-xs font-medium font-mono text-[#18181A]">
             {!checked
               ? "Checking worker attestation…"
               : loadError
@@ -940,7 +940,7 @@ function PythonToolsPanel() {
                 : `${readyCount} / ${totalCount} capabilities callable in this runtime`}
           </span>
         </div>
-        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[11px] leading-relaxed text-[#74747A]">
           “Unavailable here” does not mean the tool is absent from source code. Execution requires the separate worker URL/token, exact pinned worker and egress-proxy image digests, an unexpired signed attestation, and sandbox authorization. Installing packages in the app workspace alone is not sufficient.
         </p>
       </div>
@@ -953,16 +953,16 @@ function PythonToolsPanel() {
             ? "unknown"
             : ready ? "available" : "unavailable";
           return (
-            <div key={key} className="rounded-lg border border-[#9CFF1A]/08 bg-muted/5 p-3">
+            <div key={key} className="rounded-lg border border-[#E4E4DF]/08 bg-muted/5 p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Terminal className="h-4 w-4 text-muted-foreground/60" />
-                <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+                <Terminal className="h-4 w-4 text-[#74747A]/60" />
+                <span className="text-xs font-medium text-[#18181A]">{meta.label}</span>
                 <ToolStatusBadge state={badgeState} />
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Investigator-selected</span>
+                <span className="text-[11px] font-mono   text-[#74747A]">Investigator-selected</span>
               </div>
-              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{meta.desc}</p>
-              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground/70">{meta.usageNote}</div>
-              <div className="mt-1 text-[10px] font-mono text-muted-foreground/60">{meta.input}</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-[#74747A]">{meta.desc}</p>
+              <div className="mt-1 text-[11px] leading-relaxed text-[#74747A]/70">{meta.usageNote}</div>
+              <div className="mt-1 text-[11px] font-mono text-[#74747A]/60">{meta.input}</div>
             </div>
           );
         })}
@@ -1010,24 +1010,24 @@ function SourceQualityPanel() {
   useEffect(() => { load(); }, []);
 
   const outcomeColor: Record<string, string> = {
-    direct_contact_verified: "text-[#b8ff4d]",
-    direct_contact_candidate: "text-[#d4ff8a]",
-    social_only: "text-lime-300",
-    organization_contact: "text-rose-300",
-    evidence_only: "text-stone-300",
-    none: "text-muted-foreground",
+    direct_contact_verified: "text-[#1F8A4D]",
+    direct_contact_candidate: "text-[#1F8A4D]",
+    social_only: "text-[#1F8A4D]",
+    organization_contact: "text-[#C8321E]",
+    evidence_only: "text-[#55555A]",
+    none: "text-[#74747A]",
   };
 
   return (
-    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4  space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-lime-400" />
+          <BarChart3 className="h-4 w-4 text-[#1F8A4D]" />
           <div>
-            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
+            <span className="text-sm font-medium font-mono   text-[#1F8A4D]">
               J9 Source Quality
             </span>
-            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+            <p className="text-[11px] font-mono text-[#74747A] mt-0.5">
               Per-source verification rates, directness scores, and entity coverage
             </p>
           </div>
@@ -1035,28 +1035,28 @@ function SourceQualityPanel() {
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-lg px-3 py-2 text-xs font-semibold border border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="rounded-lg px-3 py-2 text-xs font-medium border border-[#E4E4DF]/12 text-[#74747A] hover:text-[#18181A] disabled:opacity-50"
         >
           {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
         </button>
       </div>
 
-      {error && <p className="text-[10px] font-mono text-rose-400">{error}</p>}
+      {error && <p className="text-[11px] font-mono text-[#C8321E]">{error}</p>}
 
       {/* Outcome summary */}
       {data?.outcomeSummary && data.outcomeSummary.length > 0 && (
         <div>
-          <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
+          <p className="text-[11px] font-mono text-[#74747A]   mb-2">Contact outcome distribution</p>
           <div className="flex flex-wrap gap-2">
             {data.outcomeSummary.map(({ outcome, count, pct }) => (
-              <div key={outcome} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
-                <div className={`text-base font-bold font-mono ${outcomeColor[outcome] ?? "text-foreground"}`}>
+              <div key={outcome} className="rounded-lg border border-[#E4E4DF]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
+                <div className={`text-base font-medium font-mono ${outcomeColor[outcome] ?? "text-[#18181A]"}`}>
                   {Number(count).toLocaleString()}
                 </div>
-                <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider leading-tight">
+                <div className="text-[11px] font-mono text-[#74747A]   leading-tight">
                   {outcome.replace(/_/g, " ")}
                 </div>
-                <div className="text-[11px] font-mono text-muted-foreground">{pct}%</div>
+                <div className="text-[11px] font-mono text-[#74747A]">{pct}%</div>
               </div>
             ))}
           </div>
@@ -1066,33 +1066,33 @@ function SourceQualityPanel() {
       {/* Per-source table */}
       {data?.bySource && data.bySource.length > 0 && (
         <div>
-          <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
-          <div className="overflow-x-auto rounded-lg border border-[#9CFF1A]/08">
-            <table className="w-full text-[10px] font-mono">
+          <p className="text-[11px] font-mono text-[#74747A]   mb-2">Evidence by source</p>
+          <div className="overflow-x-auto rounded-lg border border-[#E4E4DF]/08">
+            <table className="w-full text-[11px] font-mono">
               <thead>
-                <tr className="border-b border-[#9CFF1A]/08 bg-muted/10">
+                <tr className="border-b border-[#E4E4DF]/08 bg-muted/10">
                   {["Source", "Entities", "Evidence", "Verified", "Candidate", "Reliability", "Directness"].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left text-[11px]   text-[#74747A] font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {data.bySource.slice(0, 12).map((row) => (
                   <tr key={row.source} className="border-b border-border/20 hover:bg-muted/5">
-                    <td className="px-3 py-1.5 text-foreground font-medium">{row.source}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{row.entities_covered.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-[#b8ff4d]">{row.verified_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-[#d4ff8a]">{row.candidate_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-lime-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
-                    <td className="px-3 py-1.5 text-stone-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-[#18181A] font-medium">{row.source}</td>
+                    <td className="px-3 py-2 text-[#74747A]">{row.entities_covered.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-[#74747A]">{row.total_evidence.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-[#1F8A4D]">{row.verified_count.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-[#1F8A4D]">{row.candidate_count.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-[#1F8A4D]">{(row.avg_reliability ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-[#55555A]">{(row.avg_directness ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {data.bySource.length === 0 && (
-            <p className="text-[10px] font-mono text-muted-foreground py-4 text-center">
+            <p className="text-[11px] font-mono text-[#74747A] py-4 text-center">
               No evidence rows yet — run a Phase J pass first.
             </p>
           )}
@@ -1100,7 +1100,7 @@ function SourceQualityPanel() {
       )}
 
       {data && (
-        <p className="text-[11px] font-mono text-muted-foreground">
+        <p className="text-[11px] font-mono text-[#74747A]">
           Generated {new Date(data.generatedAt).toLocaleTimeString()}
         </p>
       )}
@@ -1139,7 +1139,7 @@ const SEED_CONFIGS: Array<{
     min: 100,
     max: 50000,
     initial: 10000,
-    accent: "#10B981",
+    accent: "#1F8A4D",
   },
   {
     type: "faa",
@@ -1150,7 +1150,7 @@ const SEED_CONFIGS: Array<{
     min: 100,
     max: 100000,
     initial: 30000,
-    accent: "#F59E0B",
+    accent: "#EDB92B",
   },
   {
     type: "land-registry",
@@ -1161,7 +1161,7 @@ const SEED_CONFIGS: Array<{
     min: 100,
     max: 500000,
     initial: 50000,
-    accent: "#38BDF8",
+    accent: "#2757C6",
   },
 ];
 
@@ -1291,10 +1291,10 @@ function MassSeedOperationsPanel() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-primary" aria-hidden />
-            <h3 className="text-sm font-semibold text-foreground">Mass Seed Operations</h3>
+            <Database className="h-4 w-4 text-[#2757C6]" aria-hidden />
+            <h3 className="text-sm font-medium text-[#18181A]">Mass Seed Operations</h3>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
+          <p className="text-xs text-[#74747A] mt-1 max-w-3xl">
             Launch bounded registry batches and monitor their real job state. These jobs create source-backed candidate and asset records;
             they do not certify HNWI status, beneficial ownership, identity or personal net worth.
           </p>
@@ -1303,7 +1303,7 @@ function MassSeedOperationsPanel() {
           type="button"
           onClick={() => void refresh()}
           disabled={refreshing}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-mono text-[#74747A] hover:text-[#18181A] disabled:opacity-50"
         >
           <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
           Refresh job state
@@ -1318,19 +1318,19 @@ function MassSeedOperationsPanel() {
           const busy = Boolean(starting[config.type]);
           const canStart = lane.status === "idle" && !isRunning && !busy;
           return (
-            <div key={config.type} className="min-w-0 rounded-xl border border-border/70 bg-background/50 p-3.5 space-y-3">
+            <div key={config.type} className="min-w-0 rounded-xl border border-border/70 bg-background/50 p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h4 className="text-sm font-semibold text-foreground">{config.title}</h4>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">{config.description}</p>
+                  <h4 className="text-sm font-medium text-[#18181A]">{config.title}</h4>
+                  <p className="text-[11px] text-[#74747A] leading-relaxed mt-1">{config.description}</p>
                 </div>
-                <span className="shrink-0 inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", lane.status === "active" ? "bg-emerald-400 animate-pulse" : lane.status === "unknown" ? "bg-amber-400" : "bg-muted-foreground/50")} />
+                <span className="shrink-0 inline-flex items-center gap-2 text-[11px] font-mono   text-[#74747A]">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", lane.status === "active" ? "bg-[#F3F3F0] " : lane.status === "unknown" ? "bg-[#F3F3F0]" : "bg-muted-foreground/50")} />
                   {lane.status === "checking" ? "checking" : lane.status === "active" ? "active" : lane.status === "unknown" ? "unknown" : job?.status ?? "idle"}
                 </span>
               </div>
 
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              <label className="block text-[11px] font-mono   text-[#74747A]">
                 Maximum records
                 <input
                   type="number"
@@ -1345,9 +1345,9 @@ function MassSeedOperationsPanel() {
                       [config.type]: Number.isFinite(value) ? Math.max(config.min, Math.min(config.max, Math.floor(value))) : config.min,
                     }));
                   }}
-                  className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary"
+                  className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-[#18181A] outline-none focus:border-primary"
                 />
-                <span className="mt-1 block text-[10px] normal-case tracking-normal text-muted-foreground/70">
+                <span className="mt-1 block text-[11px] normal-case  text-[#74747A]/70">
                   {config.min.toLocaleString()}–{config.max.toLocaleString()} per run
                 </span>
               </label>
@@ -1356,7 +1356,7 @@ function MassSeedOperationsPanel() {
                 type="button"
                 onClick={() => void start(config)}
                 disabled={!canStart}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-xs font-medium text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
                 style={{ background: config.accent }}
               >
                 {busy || lane.status === "checking" ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : isRunning ? <Activity className="h-3.5 w-3.5" /> : <Database className="h-3.5 w-3.5" />}
@@ -1364,29 +1364,29 @@ function MassSeedOperationsPanel() {
               </button>
 
               {lane.error && (
-                <p role="alert" className="text-[10px] text-amber-500 break-words">{lane.error}</p>
+                <p role="alert" className="text-[11px] text-[#EDB92B] break-words">{lane.error}</p>
               )}
 
               {job && (
                 <div className="space-y-2 border-t border-border/60 pt-3">
-                  <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
-                    <span className="text-muted-foreground truncate">Job {job.jobId.slice(0, 12)}</span>
-                    <span className={cn(job.status === "done" ? "text-emerald-500" : job.status === "failed" ? "text-red-500" : "text-muted-foreground")}>{job.status}</span>
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                    <span className="text-[#74747A] truncate">Job {job.jobId.slice(0, 12)}</span>
+                    <span className={cn(job.status === "done" ? "text-[#1F8A4D]" : job.status === "failed" ? "text-[#C8321E]" : "text-[#74747A]")}>{job.status}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${job.progress}%`, background: config.accent }} />
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-muted-foreground">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-mono text-[#74747A]">
                     <span>{job.inserted.toLocaleString()} inserted</span>
                     <span>{job.skipped.toLocaleString()} skipped</span>
                     <span>{job.errors.toLocaleString()} errors</span>
                     <span>{Math.round(job.progress)}%</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground break-words">{job.message}</p>
+                  <p className="text-[11px] text-[#74747A] break-words">{job.message}</p>
                   {job.log && job.log.length > 0 && (
                     <div className="max-h-28 overflow-auto rounded-md bg-black/20 p-2 space-y-1">
                       {job.log.slice(-6).map((line, index) => (
-                        <p key={index} className="text-[10px] font-mono text-muted-foreground break-all">{line}</p>
+                        <p key={index} className="text-[11px] font-mono text-[#74747A] break-all">{line}</p>
                       ))}
                     </div>
                   )}
@@ -1404,7 +1404,7 @@ function MassSeedOperationsPanel() {
 
 function SourceCard({ src }: { src: SourceDef }) {
   return (
-    <div className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
+    <div className="rounded-2xl border border-[#E4E4DF]/10 bg-card/40 p-4  flex flex-col gap-3">
       <div className="flex items-start gap-3">
         <div className="rounded-lg p-2 flex-shrink-0" style={{ background: src.bg }}>
           <src.Icon className="h-4 w-4" style={{ color: src.color }} />
@@ -1412,20 +1412,20 @@ function SourceCard({ src }: { src: SourceDef }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-foreground">{src.label}</span>
+            <span className="font-medium text-sm text-[#18181A]">{src.label}</span>
             <span
-              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              className="text-[11px] font-mono px-2 py-1 rounded"
               style={{ background: src.bg, color: src.color }}
             >
               {src.kind}
             </span>
             {src.comingSoon && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+              <span className="text-[11px] font-mono px-2 py-1 rounded bg-muted text-[#74747A]">
                 coming soon
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{src.description}</p>
+          <p className="text-xs text-[#74747A] mt-1 leading-relaxed">{src.description}</p>
         </div>
 
         {src.homepage && (
@@ -1433,7 +1433,7 @@ function SourceCard({ src }: { src: SourceDef }) {
             href={src.homepage}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground/40 hover:text-muted-foreground transition-colors flex-shrink-0 mt-0.5"
+            className="text-[#74747A]/40 hover:text-[#74747A] transition-colors flex-shrink-0 mt-0.5"
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
@@ -1441,7 +1441,7 @@ function SourceCard({ src }: { src: SourceDef }) {
       </div>
 
       {src.note && (
-        <p className="text-[11px] font-mono text-muted-foreground/60 border-l-2 border-[#9CFF1A]/12 pl-2">
+        <p className="text-[11px] font-mono text-[#74747A]/60 border-l-2 border-[#E4E4DF]/12 pl-2">
           {src.note}
         </p>
       )}
@@ -1455,7 +1455,7 @@ function CollapsibleSection({
   icon: Icon,
   children,
   defaultOpen = false,
-  accent = "text-primary",
+  accent = "text-[#2757C6]",
 }: {
   title: string;
   subtitle: string;
@@ -1465,16 +1465,16 @@ function CollapsibleSection({
   accent?: string;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-2xl border border-[#9CFF1A]/12 bg-card/25 overflow-hidden">
+    <details open={defaultOpen} className="group rounded-2xl border border-[#E4E4DF]/12 bg-card/25 overflow-hidden">
       <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
         <Icon className={cn("h-4 w-4 flex-shrink-0", accent)} />
         <div className="min-w-0 flex-1">
-          <div className={cn("text-xs font-semibold font-mono uppercase tracking-widest", accent)}>{title}</div>
-          <div className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">{subtitle}</div>
+          <div className={cn("text-xs font-medium font-mono  ", accent)}>{title}</div>
+          <div className="text-[11px] font-mono text-[#74747A] truncate mt-0.5">{subtitle}</div>
         </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        <ChevronDown className="h-4 w-4 text-[#74747A] transition-transform group-open:rotate-180" />
       </summary>
-      <div className="border-t border-[#9CFF1A]/10 p-3 md:p-4 space-y-4">
+      <div className="border-t border-[#E4E4DF]/10 p-3 md:p-4 space-y-4">
         {children}
       </div>
     </details>
@@ -1490,16 +1490,16 @@ export default function DataSources() {
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-[#9CFF1A]/12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-[#E4E4DF]/12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
-          <p className="text-[12px] text-muted-foreground leading-snug min-w-0">
+          <Database className="h-5 w-5 text-[#2757C6] flex-shrink-0" aria-hidden />
+          <p className="text-[12px] text-[#74747A] leading-snug min-w-0">
             {ingestors.length} bulk/registry sources · {enrichers.filter(s => !s.comingSoon).length} enrichers · operational view
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="h-2 w-2 rounded-full bg-[#9CFF1A]" aria-hidden />
-          <span className="text-xs font-mono text-muted-foreground">Catalogue</span>
+          <span className="h-2 w-2 rounded-full bg-[#1F8A4D]" aria-hidden />
+          <span className="text-xs font-mono text-[#74747A]">Catalogue</span>
         </div>
       </div>
 
@@ -1510,7 +1510,7 @@ export default function DataSources() {
           subtitle="Which sources can participate in the shuffled target-discovery mix"
           icon={Shuffle}
           defaultOpen
-          accent="text-[#d4ff8a]"
+          accent="text-[#1F8A4D]"
         >
           <RegistryMatrixPanel />
         </CollapsibleSection>
@@ -1520,7 +1520,7 @@ export default function DataSources() {
           subtitle="Contact funnel, identity review, and source attribution"
           icon={BarChart3}
           defaultOpen
-          accent="text-lime-300"
+          accent="text-[#1F8A4D]"
         >
           <FunnelPanel />
           <IdentityResolutionPanel />
@@ -1531,7 +1531,7 @@ export default function DataSources() {
           title="Registry and bulk ingestors"
           subtitle={`${ingestors.length} sources · live adapters, bulk imports, and provider notes`}
           icon={Globe}
-          accent="text-primary"
+          accent="text-[#2757C6]"
         >
           <MassSeedOperationsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
@@ -1545,7 +1545,7 @@ export default function DataSources() {
           title="Enrichment adapters"
           subtitle={`${enrichers.filter(s => s.phase < 11).length} active enrichment services`}
           icon={Activity}
-          accent="text-primary"
+          accent="text-[#2757C6]"
         >
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
             {enrichers.filter(s => s.phase < 11).map((src) => (
@@ -1558,7 +1558,7 @@ export default function DataSources() {
           title="Extended OSINT tools"
           subtitle={`${[...ingestors, ...enrichers].filter(s => s.phase === 11).length} tools · runtime checks and optional enrichers`}
           icon={Cpu}
-          accent="text-lime-300"
+          accent="text-[#1F8A4D]"
         >
           <PythonToolsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">

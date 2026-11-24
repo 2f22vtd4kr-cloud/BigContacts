@@ -39,13 +39,13 @@ export default function BackgroundJobs() {
     <div className="min-h-full px-5 py-8 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-5xl">
         <div className="flex items-start gap-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-[#2757C6]">
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-primary">Workspace activity</div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Research control center</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            <div className="font-mono text-[11px]   text-[#2757C6]">Workspace activity</div>
+            <h1 className="mt-1 text-2xl font-medium ">Research control center</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#74747A]">
               Deterministic bulk-research launchers have been retired. Research begins only through the canonical model-owned control plane; this desk provides navigation and review surfaces rather than choosing research steps for the Investigator.
             </p>
           </div>
@@ -59,20 +59,20 @@ export default function BackgroundJobs() {
               className="group rounded-2xl border border-white/[0.06] bg-card/30 p-5 transition-colors hover:border-primary/25 hover:bg-card/50"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted/40 text-primary">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-muted/40 text-[#2757C6]">
                   <Icon className="h-4 w-4" />
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                <ArrowRight className="h-4 w-4 text-[#74747A]/40 transition-transform group-hover:translate-x-1 group-hover:text-[#2757C6]" />
               </div>
-              <h2 className="mt-5 text-sm font-semibold">{title}</h2>
-              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{description}</p>
+              <h2 className="mt-5 text-sm font-medium">{title}</h2>
+              <p className="mt-1.5 text-xs leading-5 text-[#74747A]">{description}</p>
             </Link>
           ))}
         </div>
 
         <div className="mt-6 rounded-2xl border border-primary/10 bg-primary/[0.035] p-5">
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">Architecture invariant</div>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          <div className="font-mono text-[11px]   text-[#2757C6]">Architecture invariant</div>
+          <p className="mt-2 text-xs leading-5 text-[#74747A]">
             The UI never selects a search provider, query sequence, hop count, discovery category, or promotion outcome. Those decisions belong to the Investigator and its oversight chain; the application supplies safety, persistence, provenance, and review boundaries.
           </p>
         </div>

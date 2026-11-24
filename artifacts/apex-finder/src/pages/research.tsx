@@ -109,17 +109,17 @@ type IntroPathCandidate = {
 const HYBRID_PIPELINE = "Free dig: model chooses search, visits pages, and tools — card is the answer. Same engine as Reactor.";
 
 function roleIcon(role: string) {
-  if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
-  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-[#9CFF1A]" />;
+  if (role === "TARGET") return <Target className="w-3 h-3 text-[#2757C6]" />;
+  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-[#1F8A4D]" />;
   if (role === "ASSET") return <GitBranch className="w-3 h-3 text-secondary" />;
-  return <ChevronRight className="w-3 h-3 text-muted-foreground" />;
+  return <ChevronRight className="w-3 h-3 text-[#74747A]" />;
 }
 
 function roleColor(role: string) {
-  if (role === "TARGET") return "border-primary/40 bg-primary/5 text-primary";
-  if (role === "GATEKEEPER") return "border-[#9CFF1A]/40 bg-[#9CFF1A]/5 text-[#9CFF1A]";
+  if (role === "TARGET") return "border-primary/40 bg-primary/5 text-[#2757C6]";
+  if (role === "GATEKEEPER") return "border-[#E4E4DF]/40 bg-[#F3F3F0] text-[#1F8A4D]";
   if (role === "ASSET") return "border-secondary/30 bg-secondary/5 text-secondary";
-  return "border-border bg-muted/10 text-muted-foreground";
+  return "border-border bg-muted/10 text-[#74747A]";
 }
 
 function roleLabel(role: string) {
@@ -137,14 +137,14 @@ function actionLabel(action: string) {
 }
 
 function getWarmthColor(score: number) {
-  if (score >= 0.75) return "text-primary font-bold";
-  if (score >= 0.5) return "text-[#9CFF1A]";
-  return "text-muted-foreground";
+  if (score >= 0.75) return "text-[#2757C6] font-medium";
+  if (score >= 0.5) return "text-[#1F8A4D]";
+  return "text-[#74747A]";
 }
 
 function getActionColor(action: string) {
-  if (action === "GATEKEEPER LOCKED") return "text-primary font-bold";
-  if (action === "TARGET IDENTIFIED") return "text-[#9CFF1A]";
+  if (action === "GATEKEEPER LOCKED") return "text-[#2757C6] font-medium";
+  if (action === "TARGET IDENTIFIED") return "text-[#1F8A4D]";
   return "text-secondary";
 }
 
@@ -158,15 +158,15 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
     <div className="border-t border-border/50 bg-card/30 p-4 md:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
-          <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
+          <h3 className="text-xs font-mono text-[#2757C6]   flex items-center gap-2">
             <FileCheck2 className="w-4 h-4" /> Evidence log
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-1">Each claim with how strong the support is and where it came from.</p>
+          <p className="text-[11px] text-[#74747A] mt-1">Each claim with how strong the support is and where it came from.</p>
         </div>
-        <span className="text-[12px] font-mono text-muted-foreground">{isLoading ? "loading…" : `${evidence.length} claims`}</span>
+        <span className="text-[12px] font-mono text-[#74747A]">{isLoading ? "loading…" : `${evidence.length} claims`}</span>
       </div>
       {evidence.length === 0 && !isLoading ? (
-        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">No verified evidence was saved for this run.</div>
+        <div className="rounded border border-dashed border-border p-3 text-xs text-[#74747A] font-mono">No verified evidence was saved for this run.</div>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {evidence.map((item) => {
@@ -174,34 +174,34 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
             const disputed = item.status === "disputed";
             const rejected = item.status === "rejected";
             const statusColor = supported
-              ? "text-[#b8ff4d]"
+              ? "text-[#1F8A4D]"
               : disputed
-                ? "text-rose-400"
+                ? "text-[#C8321E]"
                 : rejected
-                  ? "text-stone-400"
-                  : "text-[#9CFF1A]";
+                  ? "text-[#55555A]"
+                  : "text-[#1F8A4D]";
             return (
               <div key={item.id} className="rounded border border-border/70 bg-background/50 p-3">
                 <div className="flex items-start gap-2">
-                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#b8ff4d] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-stone-400" : "text-[#9CFF1A]")} />}
+                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#1F8A4D] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-[#C8321E]" : rejected ? "text-[#55555A]" : "text-[#1F8A4D]")} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12px] uppercase tracking-wider font-mono text-muted-foreground">{item.claimType}</span>
-                      <span className={cn("text-[12px] uppercase tracking-wider font-mono", statusColor)}>{item.status}</span>
-                      <span className="text-[12px] font-mono text-muted-foreground">{Math.round(item.confidence * 100)}% confidence</span>
+                      <span className="text-[12px]   font-mono text-[#74747A]">{item.claimType.replaceAll("_", " ").toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
+                      <span className={cn("text-[12px]   font-mono", statusColor)}>{item.status.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
+                      <span className="text-[12px] font-mono text-[#74747A]">{Math.round(item.confidence * 100)}% confidence</span>
                     </div>
-                    <p className="text-xs text-foreground/90 mt-1 leading-relaxed">{item.claim}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[12px] font-mono text-muted-foreground">
+                    <p className="text-xs text-[#18181A]/90 mt-1 leading-relaxed">{item.claim}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[12px] font-mono text-[#74747A]">
                       <span>{item.sourceName ?? "Unattributed source"}</span>
                       <span>·</span>
                       <span>{new Date(item.observedAt).toLocaleDateString()}</span>
                       <span>·</span>
-                      <span className={item.freshnessScore >= 0.7 ? "text-[#b8ff4d]" : item.freshnessScore >= 0.35 ? "text-[#9CFF1A]" : "text-rose-400"}>
+                      <span className={item.freshnessScore >= 0.7 ? "text-[#1F8A4D]" : item.freshnessScore >= 0.35 ? "text-[#1F8A4D]" : "text-[#C8321E]"}>
                         {item.freshnessScore >= 0.7 ? "current" : item.freshnessScore >= 0.35 ? "aging" : "stale"} evidence
                       </span>
-                      {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
+                      {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#2757C6] hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
                     </div>
-                    {item.rejectionReason && <p className={cn("text-[12px] mt-1", disputed ? "text-rose-400/80" : "text-muted-foreground")}>{disputed ? "Dispute: " : rejected ? "Rejected: " : "Review note: "}{item.rejectionReason}</p>}
+                    {item.rejectionReason && <p className={cn("text-[12px] mt-1", disputed ? "text-[#C8321E]/80" : "text-[#74747A]")}>{disputed ? "Dispute: " : rejected ? "Rejected: " : "Review note: "}{item.rejectionReason}</p>}
                   </div>
                 </div>
               </div>
@@ -228,16 +228,16 @@ function Scorecard({ score }: { score: ResearchScorecard | null }) {
     <div className="border-t border-border/50 bg-background/30 px-4 md:px-5 py-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Research scorecard</h3>
-          <p className="text-[11px] text-muted-foreground mt-1">Each score answers a different question. Wealth is never treated as reachability.</p>
+          <h3 className="text-xs font-mono text-[#2757C6]  ">Research scorecard</h3>
+          <p className="text-[11px] text-[#74747A] mt-1">Each score answers a different question. Wealth is never treated as reachability.</p>
         </div>
-        <span className="text-xs font-mono text-foreground">{Math.round(score.overall * 100)}/100 overall</span>
+        <span className="text-xs font-mono text-[#18181A]">{Math.round(score.overall * 100)}/100 overall</span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {items.map(([label, value, hint]) => (
           <div key={label} className="rounded border border-border/70 bg-card/50 p-2" title={hint}>
-            <div className="text-[12px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
-            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-[#b8ff4d]" : value >= 0.4 ? "text-[#9CFF1A]" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
+            <div className="text-[12px]   text-[#74747A] font-mono">{label}</div>
+            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-[#1F8A4D]" : value >= 0.4 ? "text-[#1F8A4D]" : "text-[#74747A]")}>{Math.round(value * 100)}</div>
             <div className="h-1 rounded bg-muted mt-1 overflow-hidden"><div className="h-full bg-current rounded" style={{ width: `${Math.round(value * 100)}%` }} /></div>
           </div>
         ))}
@@ -249,55 +249,55 @@ function Scorecard({ score }: { score: ResearchScorecard | null }) {
 function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
   if (!funnel) return null;
   const states: Array<[string, number, string]> = [
-    ["Discovered", funnel.discovered, "text-muted-foreground"],
-    ["Source-linked", funnel.sourceLinked, "text-stone-300"],
-    ["Needs check", funnel.attributionReview, "text-[#d4ff8a]"],
-    ["Corroborated", funnel.independentlyCorroborated, "text-lime-300"],
-    ["Verified contact", funnel.verifiedDirectRoute, "text-[#d4ff8a]"],
-    ["Rejected", funnel.rejected, "text-rose-300"],
+    ["Discovered", funnel.discovered, "text-[#74747A]"],
+    ["Source-linked", funnel.sourceLinked, "text-[#55555A]"],
+    ["Needs check", funnel.attributionReview, "text-[#1F8A4D]"],
+    ["Corroborated", funnel.independentlyCorroborated, "text-[#1F8A4D]"],
+    ["Verified contact", funnel.verifiedDirectRoute, "text-[#1F8A4D]"],
+    ["Rejected", funnel.rejected, "text-[#C8321E]"],
   ];
   const stateLabel = (state: string) => state.replaceAll("_", " ");
   return (
-    <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
+    <div className="border-t border-border/50 bg-[#FAFAF8] px-4 md:px-5 py-4 flex-shrink-0">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
+          <h3 className="text-xs font-mono text-[#2757C6]   flex items-center gap-2">
             <CircleAlert className="w-3.5 h-3.5" /> Contact Candidate Funnel
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-[11px] text-[#74747A] mt-1">
             Provider repetition is not corroboration. Personal routes require target attribution and independent source domains.
           </p>
         </div>
-        <span className="text-[12px] font-mono text-muted-foreground whitespace-nowrap">
+        <span className="text-[12px] font-mono text-[#74747A] whitespace-nowrap">
           {funnel.totalCandidates} candidates · {funnel.independentSourceDomains} domains
         </span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
         {states.map(([label, value, color]) => (
-          <div key={label} className="rounded border border-border/60 bg-card/40 px-2 py-1.5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
+          <div key={label} className="rounded border border-border/60 bg-card/40 px-2 py-2">
+            <div className="text-[11px]   text-[#74747A] font-mono">{label}</div>
             <div className={cn("text-lg font-mono mt-0.5", color)}>{value}</div>
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap gap-2 text-[12px] font-mono text-muted-foreground mb-2">
+      <div className="flex flex-wrap gap-2 text-[12px] font-mono text-[#74747A] mb-2">
         <span className="rounded border border-border/60 px-2 py-1">Organization-only: {funnel.organizationOnly}</span>
-        <span className={cn("rounded border px-2 py-1", funnel.conflicted ? "border-rose-400/30 text-rose-300" : "border-border/60")}>
+        <span className={cn("rounded border px-2 py-1", funnel.conflicted ? "border-[#E4E4DF] text-[#C8321E]" : "border-border/60")}>
           Conflicts: {funnel.conflicted}
         </span>
       </div>
       {funnel.candidates.length > 0 && (
-        <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+        <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
           {funnel.candidates.map((candidate) => (
-            <div key={candidate.key} className="rounded border border-border/50 bg-background/40 px-2.5 py-2">
+            <div key={candidate.key} className="rounded border border-border/50 bg-background/40 px-2 py-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[12px] text-primary uppercase">{candidate.vectorType}</span>
-                <span className="text-xs text-foreground break-all">{candidate.value}</span>
-                <span className="text-[12px] text-muted-foreground ml-auto">{stateLabel(candidate.state)}</span>
-                {candidate.conflictCount > 0 && <span className="text-[12px] text-rose-300">conflict</span>}
-                {candidate.exactClaimObserved && <span className="text-[12px] text-[#d4ff8a]">exact claim</span>}
+                <span className="text-[12px] text-[#2757C6] ">{candidate.vectorType}</span>
+                <span className="text-xs text-[#18181A] break-all">{candidate.value}</span>
+                <span className="text-[12px] text-[#74747A] ml-auto">{stateLabel(candidate.state)}</span>
+                {candidate.conflictCount > 0 && <span className="text-[12px] text-[#C8321E]">conflict</span>}
+                {candidate.exactClaimObserved && <span className="text-[12px] text-[#1F8A4D]">exact claim</span>}
               </div>
-              <div className="text-[12px] font-mono text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+              <div className="text-[12px] font-mono text-[#74747A] mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
                 <span>{candidate.scopes.join(", ") || "unscoped"}</span>
                 <span>·</span>
                 <span>{candidate.sourceDomains.length} source domain{candidate.sourceDomains.length === 1 ? "" : "s"}</span>
@@ -305,7 +305,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
                 <span>{candidate.providers.join(", ")}</span>
               </div>
               {candidate.rejectionReason && (
-                <div className="text-[12px] text-rose-300/90 mt-1">
+                <div className="text-[12px] text-[#C8321E]/90 mt-1">
                   Rejected: {candidate.rejectionReason}
                 </div>
               )}
@@ -319,47 +319,47 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
 
 function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null }) {
   return (
-    <div className="border-t border-border/50 bg-[#0B0F19] px-4 md:px-5 py-4 flex-shrink-0">
+    <div className="border-t border-border/50 bg-[#FAFAF8] px-4 md:px-5 py-4 flex-shrink-0">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="text-xs font-mono text-[#d4ff8a] uppercase tracking-widest flex items-center gap-2">
+          <h3 className="text-xs font-mono text-[#1F8A4D]   flex items-center gap-2">
             <Shield className="w-3.5 h-3.5" /> Intro Path Candidate
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-[11px] text-[#74747A] mt-1">
             One bounded, review-only route from durable evidence. This is not verified contact or authorization.
           </p>
         </div>
-        <span className="text-[12px] font-mono text-[#d4ff8a]/80 whitespace-nowrap">manual review</span>
+        <span className="text-[12px] font-mono text-[#1F8A4D]/80 whitespace-nowrap">manual review</span>
       </div>
       {!candidate ? (
-        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">
+        <div className="rounded border border-dashed border-border p-3 text-xs text-[#74747A] font-mono">
           No proven introduction path was found yet.
         </div>
       ) : (
-        <div className="rounded border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 p-3 space-y-2">
+        <div className="rounded border border-[#E4E4DF]/30 bg-[#F3F3F0] p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] uppercase tracking-wider font-mono text-[#d4ff8a]">{candidate.routeKind.replaceAll("_", " ")}</span>
-            <span className="text-xs font-semibold text-foreground">{candidate.route.label}</span>
+            <span className="text-[12px]   font-mono text-[#1F8A4D]">{candidate.routeKind.replaceAll("_", " ").toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
+            <span className="text-xs font-medium text-[#18181A]">{candidate.route.label}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-            {candidate.route.vectorType === "email" ? <Mail className="w-3 h-3 text-[#d4ff8a]" /> : <Phone className="w-3 h-3 text-[#d4ff8a]" />}
-            <span className="break-all text-foreground">{candidate.route.value}</span>
-            {candidate.route.personName && <span className="text-muted-foreground">· {candidate.route.personName}</span>}
-            {candidate.route.role && <span className="text-muted-foreground">· {candidate.route.role}</span>}
+            {candidate.route.vectorType === "email" ? <Mail className="w-3 h-3 text-[#1F8A4D]" /> : <Phone className="w-3 h-3 text-[#1F8A4D]" />}
+            <span className="break-all text-[#18181A]">{candidate.route.value}</span>
+            {candidate.route.personName && <span className="text-[#74747A]">· {candidate.route.personName}</span>}
+            {candidate.route.role && <span className="text-[#74747A]">· {candidate.route.role}</span>}
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">{candidate.whyItMayHelp}</p>
-          <div className="text-[11px] leading-relaxed text-[#d4ff8a]/80">
+          <p className="text-[11px] leading-relaxed text-[#74747A]">{candidate.whyItMayHelp}</p>
+          <div className="text-[11px] leading-relaxed text-[#1F8A4D]/80">
             <strong>Next manual action:</strong> {candidate.nextManualAction}
           </div>
-          <div className="flex flex-wrap gap-2 text-[12px] font-mono text-muted-foreground">
+          <div className="flex flex-wrap gap-2 text-[12px] font-mono text-[#74747A]">
             <span>{candidate.corroboration.independentDomains} source domain{candidate.corroboration.independentDomains === 1 ? "" : "s"}</span>
             {candidate.evidence.map((item) => (
-              <a key={item.sourceUrl} href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              <a key={item.sourceUrl} href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#2757C6] hover:underline">
                 <ExternalLink className="w-3 h-3" /> {item.source}
               </a>
             ))}
           </div>
-          <ul className="space-y-1 text-[12px] text-rose-300/80">
+          <ul className="space-y-1 text-[12px] text-[#C8321E]/80">
             {candidate.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
           </ul>
         </div>
@@ -376,10 +376,10 @@ function PathNodeContact({ node }: { node: PathStep }) {
   const email = node.contactEmail?.trim() ?? "";
   const isOrg = email ? ORG_INBOX_RE.test(email) : false;
   return (
-    <div className="mt-2 pt-2 border-t border-current/20 flex flex-col gap-1.5">
+    <div className="mt-2 pt-2 border-t border-current/20 flex flex-col gap-2">
       {node.contactConfidence != null && node.contactConfidence > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono uppercase tracking-[0.12em] opacity-60">REACH</span>
+          <span className="text-[11px] font-mono   opacity-60">Reach</span>
           <div className="h-1 flex-1 rounded-full bg-current/10 overflow-hidden">
             <div
               className="h-full rounded-full bg-current/60"
@@ -389,31 +389,31 @@ function PathNodeContact({ node }: { node: PathStep }) {
           <span className="text-[12px] font-mono opacity-70">{node.contactConfidence}%</span>
         </div>
       )}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-2 flex-wrap">
         {email && (
           <a
             href={`mailto:${email}`}
             className={cn(
-              "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[12px] transition-opacity hover:opacity-100",
+              "inline-flex max-w-full items-center gap-1 rounded border px-2 py-1 font-mono text-[12px] transition-opacity hover:opacity-100",
               isOrg
-                ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-                : "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]",
+                ? "border-[#E4E4DF]/35 bg-[#F3F3F0] text-[#1F8A4D]"
+                : "border-[#E4E4DF]/35 bg-[#F3F3F0] text-[#1F8A4D]",
             )}
             title={isOrg ? `REACH · org — ${email}` : `REACH · personal — ${email}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
+            <span className="text-[11px]   opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
             <span className="truncate max-w-[140px]">{email}</span>
           </a>
         )}
         {node.contactPhone && (
           <a
             href={`tel:${node.contactPhone}`}
-            className="inline-flex items-center gap-1 rounded border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 px-1.5 py-0.5 font-mono text-[12px] text-[#d4ff8a] transition-opacity hover:opacity-100"
+            className="inline-flex items-center gap-1 rounded border border-[#E4E4DF]/35 bg-[#F3F3F0] px-2 py-1 font-mono text-[12px] text-[#1F8A4D] transition-opacity hover:opacity-100"
             title={`REACH · personal — ${node.contactPhone}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">P</span>
+            <span className="text-[11px]   opacity-70 shrink-0">P</span>
             <span>{node.contactPhone}</span>
           </a>
         )}
@@ -521,9 +521,9 @@ export default function IntelTerminal() {
           setIsComputing(false);
           setTerminalLog([{
             step: 0,
-            action: "CRITICAL FAILURE",
-            registry: "SYS",
-            target: "ERR",
+            action: "Critical failure",
+            registry: "System",
+            target: "Error",
             targetType: "System",
             uctScore: 0,
             warmthScore: 0,
@@ -542,14 +542,14 @@ export default function IntelTerminal() {
     <div className="flex h-full w-full bg-background overflow-hidden flex-col lg:flex-row">
 
       {/* ── Mobile header: compact entity picker + run button ── */}
-      <div className="lg:hidden flex-shrink-0 border-b border-border bg-card/80 backdrop-blur p-3 space-y-2 z-20">
+      <div className="lg:hidden flex-shrink-0 border-b border-border bg-card/80  p-3 space-y-2 z-20">
         <div className="flex items-center gap-2 mb-1">
-          <Cpu className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[12px] font-mono text-primary uppercase tracking-widest">Target Selection</span>
+          <Cpu className="w-3.5 h-3.5 text-[#2757C6]" />
+          <span className="text-[12px] font-mono text-[#2757C6]  ">Target Selection</span>
           {pathScore > 0 && (
             <span className={cn(
-              "ml-auto text-[12px] font-mono px-2 py-0.5 rounded border",
-              pathScore >= 0.7 ? "text-primary border-primary/40 bg-primary/5" : "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
+              "ml-auto text-[12px] font-mono px-2 py-1 rounded border",
+              pathScore >= 0.7 ? "text-[#2757C6] border-primary/40 bg-primary/5" : "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]"
             )}>
               PATH: {(pathScore * 100).toFixed(0)}/100
             </span>
@@ -560,14 +560,14 @@ export default function IntelTerminal() {
         <button
           onClick={() => setMobilePickerOpen((o) => !o)}
           disabled={isComputing}
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded border border-border bg-background text-sm font-mono text-foreground disabled:opacity-50"
+          className="w-full flex items-center justify-between px-3 py-3 rounded border border-border bg-background text-sm font-mono text-[#18181A] disabled:opacity-50"
         >
-          <span className={selectedEntityId ? "text-foreground" : "text-muted-foreground"}>
+          <span className={selectedEntityId ? "text-[#18181A]" : "text-[#74747A]"}>
             {selectedEntity?.name ?? "Select an entity..."}
           </span>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             {selectedEntity && <ScoreBadge score={selectedEntity.bayesianScore} />}
-            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", mobilePickerOpen && "rotate-180")} />
+            <ChevronDown className={cn("w-4 h-4 text-[#74747A] transition-transform", mobilePickerOpen && "rotate-180")} />
           </div>
         </button>
 
@@ -579,8 +579,8 @@ export default function IntelTerminal() {
                 key={ent.id}
                 onClick={() => { setSelectedEntityId(ent.id); setMobilePickerOpen(false); }}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2.5 text-sm font-mono border-b border-border last:border-0 hover:bg-muted/50 transition-colors text-left",
-                  selectedEntityId === ent.id && "bg-primary/10 text-primary"
+                  "w-full flex items-center justify-between px-3 py-3 text-sm font-mono border-b border-border last:border-0 hover:bg-muted/50 transition-colors text-left",
+                  selectedEntityId === ent.id && "bg-primary/10 text-[#2757C6]"
                 )}
               >
                 <span className="truncate pr-2">{formatEntityName(ent.name)}</span>
@@ -592,18 +592,18 @@ export default function IntelTerminal() {
 
         {/* Hybrid pipeline */}
         <div className="bg-background/60 border border-border/60 rounded px-3 py-2">
-          <div className="text-[12px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">Pipeline Architecture</div>
-          <div className="text-[11px] font-mono text-primary/80 leading-relaxed">{HYBRID_PIPELINE}</div>
+          <div className="text-[12px] font-mono text-[#74747A]/60   mb-1">Pipeline Architecture</div>
+          <div className="text-[11px] font-mono text-[#2757C6]/80 leading-relaxed">{HYBRID_PIPELINE}</div>
         </div>
 
         {/* Run button */}
         <button
           disabled={!selectedEntityId || isComputing}
           onClick={startAnalysis}
-          className="w-full py-2.5 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center rounded"
+          className="w-full py-3 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-[#74747A] text-[#2757C6] border border-primary/50 disabled:border-border font-mono text-sm   transition-all flex items-center justify-center rounded"
         >
           {isComputing ? (
-            <span className="animate-pulse flex items-center">
+            <span className=" flex items-center">
               <Hash className="w-4 h-4 mr-2 animate-spin" /> Digging…
             </span>
           ) : (
@@ -614,7 +614,7 @@ export default function IntelTerminal() {
         </button>
 
         {sessionId && !isComputing && (
-          <div className="text-[12px] font-mono text-stone-300 border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 rounded px-2 py-1.5 text-center">
+          <div className="text-[12px] font-mono text-[#55555A] border border-[#E4E4DF]/30 bg-[#F3F3F0] rounded px-2 py-2 text-center">
             <Shield className="w-3 h-3 inline mr-1.5 align-[-2px]" />
             Evidence collected — identity, ownership, and reachability are still under review
           </div>
@@ -622,31 +622,31 @@ export default function IntelTerminal() {
       </div>
 
       {/* ── Desktop Left Panel: Entity Selector ── */}
-      <div className="hidden lg:flex w-80 border-r border-border bg-card flex-col flex-shrink-0 z-10 shadow-xl">
+      <div className="hidden lg:flex w-80 border-r border-border bg-card flex-col flex-shrink-0 z-10 ">
         <div className="p-4 border-b border-border space-y-2">
-          <h2 className="text-sm font-bold font-mono tracking-wider flex items-center uppercase text-foreground">
-            <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
+          <h2 className="text-sm font-medium font-mono  flex items-center  text-[#18181A]">
+            <Cpu className="w-4 h-4 mr-2 text-[#2757C6]" /> Target Selection
           </h2>
           <div className="bg-background/60 border border-border/60 rounded px-3 py-2">
-            <div className="text-[12px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">Free dig</div>
-            <div className="text-[11px] font-mono text-primary/80 leading-relaxed">{HYBRID_PIPELINE}</div>
+            <div className="text-[12px] font-mono text-[#74747A]/60   mb-1">Free dig</div>
+            <div className="text-[11px] font-mono text-[#2757C6]/80 leading-relaxed">{HYBRID_PIPELINE}</div>
           </div>
         </div>
 
         {/* Search input */}
         <div className="px-3 pb-2 flex-shrink-0">
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-background border border-border">
-            <Search className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 px-2 py-2 rounded bg-background border border-border">
+            <Search className="w-3 h-3 text-[#74747A] flex-shrink-0" />
             <input
               type="text"
               value={entitySearch}
               onChange={(e) => setEntitySearch(e.target.value)}
               placeholder="Filter people or companies…"
-              className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+              className="flex-1 bg-transparent text-xs font-mono text-[#18181A] outline-none placeholder:text-[#74747A]/50"
             />
             {entitySearch && (
               <button onClick={() => setEntitySearch("")}>
-                <X className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                <X className="w-3 h-3 text-[#74747A] hover:text-[#18181A]" />
               </button>
             )}
           </div>
@@ -660,8 +660,8 @@ export default function IntelTerminal() {
               className={cn(
                 "p-3 rounded border text-sm font-mono cursor-pointer transition-colors flex justify-between items-center",
                 selectedEntityId === ent.id
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  ? "border-primary bg-primary/10 text-[#18181A]"
+                  : "border-transparent text-[#74747A] hover:bg-muted/50 hover:text-[#18181A]",
                 isComputing && selectedEntityId !== ent.id && "opacity-30 cursor-not-allowed"
               )}
             >
@@ -670,7 +670,7 @@ export default function IntelTerminal() {
             </div>
           ))}
           {entities?.length === 0 && (
-            <div className="text-[12px] font-mono text-muted-foreground/50 text-center py-4">No targets match that filter</div>
+            <div className="text-[12px] font-mono text-[#74747A]/50 text-center py-4">No targets match that filter</div>
           )}
         </div>
 
@@ -678,10 +678,10 @@ export default function IntelTerminal() {
           <button
             disabled={!selectedEntityId || isComputing}
             onClick={startAnalysis}
-            className="w-full py-2 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center"
+            className="w-full py-2 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-[#74747A] text-[#2757C6] border border-primary/50 disabled:border-border font-mono text-sm   transition-all flex items-center justify-center"
           >
             {isComputing ? (
-              <span className="animate-pulse flex items-center">
+              <span className=" flex items-center">
                 <Hash className="w-4 h-4 mr-2 animate-spin" /> Digging…
               </span>
             ) : (
@@ -691,7 +691,7 @@ export default function IntelTerminal() {
             )}
           </button>
           {sessionId && !isComputing && (
-            <div className="text-[12px] font-mono text-muted-foreground text-center">
+            <div className="text-[12px] font-mono text-[#74747A] text-center">
               Session #{sessionId} saved
             </div>
           )}
@@ -699,8 +699,8 @@ export default function IntelTerminal() {
       </div>
 
       {/* ── Right Panel: Intel Terminal ── */}
-      <div className="flex-1 flex flex-col bg-[#050810] relative min-w-0 overflow-hidden">
-        <div className="p-3 border-b border-border/50 bg-[#0B0F19] flex items-center justify-between text-xs font-mono text-muted-foreground flex-shrink-0">
+      <div className="flex-1 flex flex-col bg-[#FAFAF8] relative min-w-0 overflow-hidden">
+        <div className="p-3 border-b border-border/50 bg-[#FAFAF8] flex items-center justify-between text-xs font-mono text-[#74747A] flex-shrink-0">
           <div className="flex items-center space-x-2 min-w-0">
             <Terminal className="w-4 h-4 flex-shrink-0" />
             <span className="truncate hidden sm:block">
@@ -711,10 +711,10 @@ export default function IntelTerminal() {
           {pathScore > 0 && (
             <div
               className={cn(
-                "px-2 py-0.5 rounded border text-[12px] font-mono flex-shrink-0 ml-2",
+                "px-2 py-1 rounded border text-[12px] font-mono flex-shrink-0 ml-2",
                 pathScore >= 0.7
-                  ? "text-primary border-primary/40 bg-primary/5"
-                  : "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
+                  ? "text-[#2757C6] border-primary/40 bg-primary/5"
+                  : "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]"
               )}
             >
               {(pathScore * 100).toFixed(0)}/100
@@ -724,7 +724,7 @@ export default function IntelTerminal() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 font-mono text-sm space-y-2 min-h-0">
           {terminalLog.length === 0 && !isComputing && (
-            <div className="text-muted-foreground/50 h-full flex flex-col items-center justify-center space-y-3 select-none">
+            <div className="text-[#74747A]/50 h-full flex flex-col items-center justify-center space-y-3 select-none">
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
@@ -736,24 +736,24 @@ export default function IntelTerminal() {
           {terminalLog.map((log, i) => (
             <div key={i} className="animate-in fade-in slide-in-from-bottom-1 duration-150">
               <div className="flex items-start gap-x-2 overflow-x-auto pb-0.5 scrollbar-none">
-                <span className="text-[#9CFF1A] whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
+                <span className="text-[#1F8A4D] whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
                 <span className={cn(getActionColor(log.action), "whitespace-nowrap flex-shrink-0")}>[{actionLabel(log.action)}]</span>
-                <span className="text-purple-400 whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
-                <span className="text-foreground whitespace-nowrap flex-shrink-0">{log.target}</span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">({log.targetType})</span>
-                <span className="text-[#9CFF1A] whitespace-nowrap flex-shrink-0" title="Path strength score">score={log.uctScore.toFixed(3)}</span>
+                <span className="text-[#2757C6] whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
+                <span className="text-[#18181A] whitespace-nowrap flex-shrink-0">{log.target}</span>
+                <span className="text-xs text-[#74747A] whitespace-nowrap flex-shrink-0">({log.targetType})</span>
+                <span className="text-[#1F8A4D] whitespace-nowrap flex-shrink-0" title="Path strength score">score={log.uctScore.toFixed(3)}</span>
                 <span className={cn(getWarmthColor(log.warmthScore), "whitespace-nowrap flex-shrink-0")}>
                   W={Math.round(log.warmthScore * 100)}%
                 </span>
               </div>
-              <div className="text-muted-foreground text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2 leading-relaxed break-words">
+              <div className="text-[#74747A] text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2 leading-relaxed break-words">
                 {">"} {log.reasoning}
               </div>
             </div>
           ))}
 
           {isComputing && (
-            <div className="text-primary animate-pulse font-mono text-sm">
+            <div className="text-[#2757C6]  font-mono text-sm">
               {">"} Traversing graph... {terminalLog.length} nodes explored
             </div>
           )}
@@ -763,18 +763,18 @@ export default function IntelTerminal() {
 
         {/* ── Algorithm Pipeline Summary ── */}
         {algorithmPipeline && !isComputing && (
-          <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-3 flex-shrink-0 animate-in slide-in-from-bottom-4">
+          <div className="border-t border-border/50 bg-[#FAFAF8] px-4 md:px-5 py-3 flex-shrink-0 animate-in slide-in-from-bottom-4">
             <div className="flex items-center gap-2 mb-2">
-              <Layers className="w-3.5 h-3.5 text-primary/70" />
-              <span className="text-[12px] font-mono text-muted-foreground/50 uppercase tracking-widest">Algorithm Pipeline</span>
+              <Layers className="w-3.5 h-3.5 text-[#2757C6]/70" />
+              <span className="text-[12px] font-mono text-[#74747A]/50  ">Algorithm Pipeline</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 flex-wrap">
               {algorithmPipeline.map((stage, i) => (
-                <div key={i} className="flex items-start gap-1.5 bg-muted/10 border border-border/40 rounded px-2 py-1.5 min-w-0 flex-1 sm:min-w-[140px]">
-                  <span className="text-[12px] font-mono text-muted-foreground/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                <div key={i} className="flex items-start gap-2 bg-muted/10 border border-border/40 rounded px-2 py-2 min-w-0 flex-1 sm:min-w-[140px]">
+                  <span className="text-[12px] font-mono text-[#74747A]/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
                   <div className="min-w-0">
-                    <div className="text-[12px] font-mono font-bold text-primary/80 truncate">{stage.algo}</div>
-                    <div className="text-[12px] font-mono text-muted-foreground/60 leading-snug mt-0.5">{stage.contribution}</div>
+                    <div className="text-[12px] font-mono font-medium text-[#2757C6]/80 truncate">{stage.algo}</div>
+                    <div className="text-[12px] font-mono text-[#74747A]/60 leading-snug mt-0.5">{stage.contribution}</div>
                   </div>
                 </div>
               ))}
@@ -787,9 +787,9 @@ export default function IntelTerminal() {
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (
-          <div className="border-t border-border/50 bg-[#0B0F19] p-4 md:p-5 animate-in slide-in-from-bottom-10 flex-shrink-0">
+          <div className="border-t border-border/50 bg-[#FAFAF8] p-4 md:p-5 animate-in slide-in-from-bottom-10 flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center">
+              <h3 className="text-xs font-mono text-[#2757C6]   flex items-center">
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 Introduction path — {winningPath.length} steps
               </h3>
@@ -802,9 +802,9 @@ export default function IntelTerminal() {
                   <div className={cn("flex flex-col border p-3 rounded", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
-                      <span className="text-[12px] font-mono uppercase tracking-widest opacity-60">{roleLabel(node.role)}</span>
+                      <span className="text-[12px] font-mono   opacity-60">{roleLabel(node.role)}</span>
                     </div>
-                    <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
+                    <div className="font-medium text-[#18181A] text-sm leading-tight mb-1">{node.label}</div>
                     <div className="text-xs opacity-50">{node.nodeType}</div>
                     <PathNodeContact node={node} />
                     {node.actionRequired && (
@@ -813,7 +813,7 @@ export default function IntelTerminal() {
                   </div>
                   {i < winningPath.length - 1 && (
                     <div className="flex justify-center py-1">
-                      <ChevronRight className="w-4 h-4 text-muted-foreground rotate-90" />
+                      <ChevronRight className="w-4 h-4 text-[#74747A] rotate-90" />
                     </div>
                   )}
                 </div>
@@ -828,9 +828,9 @@ export default function IntelTerminal() {
                     <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
                       <div className="flex items-center mb-1.5 space-x-1">
                         {roleIcon(node.role)}
-                        <span className="text-[12px] font-mono uppercase tracking-widest opacity-60">{roleLabel(node.role)}</span>
+                        <span className="text-[12px] font-mono   opacity-60">{roleLabel(node.role)}</span>
                       </div>
-                      <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
+                      <div className="font-medium text-[#18181A] text-sm leading-tight mb-1">{node.label}</div>
                       <div className="text-xs opacity-50">{node.nodeType}</div>
                       <PathNodeContact node={node} />
                       {node.actionRequired && (
@@ -840,13 +840,13 @@ export default function IntelTerminal() {
                     {i < winningPath.length - 1 && (
                       <div className="flex items-center mx-2 flex-shrink-0">
                         <div className="w-4 h-px bg-border/60" />
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        <ChevronRight className="w-4 h-4 text-[#74747A]" />
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-              <div className="absolute right-0 top-0 bottom-3 w-16 bg-gradient-to-l from-[#0B0F19] to-transparent pointer-events-none" />
+              
             </div>
           </div>
         )}

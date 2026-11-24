@@ -1,7 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X, ArrowUpRight } from "lucide-react";
 import { classifyApexError, type ApexUserError } from "@/lib/apex-errors";
 import { Link } from "wouter";
+
+const DISMISSED_ERROR_SESSION_KEY = "apex.dismissed-user-errors.v1";
+
+function dismissedErrorCodes(): Set<string> {
+  try {
+    const saved = sessionStorage.getItem(DISMISSED_ERROR_SESSION_KEY);
+    const values: unknown = saved ? JSON.parse(saved) : [];
+    return new Set(Array.isArray(values) ? values.filter((value): value is string => typeof value === "string") : []);
+  } catch { return new Set(); }
+}
+
+function rememberDismissedError(code: string) {
+  try {
+    const codes = dismissedErrorCodes();
+    codes.add(code);
+    sessionStorage.setItem(DISMISSED_ERROR_SESSION_KEY, JSON.stringify([...codes].slice(-40)));
+  } catch { /* Session storage may be unavailable. */ }
+}
 
 function Icon({ severity }: { severity: ApexUserError["severity"] }) {
   if (severity === "critical" || severity === "error") return <AlertCircle className="h-5 w-5" />;
@@ -12,6 +30,7 @@ function Icon({ severity }: { severity: ApexUserError["severity"] }) {
 
 export function ApexErrorNotice() {
   const [error, setError] = useState<ApexUserError | null>(null);
+  const dismissedCodes = useRef(dismissedErrorCodes());
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
@@ -21,6 +40,7 @@ export function ApexErrorNotice() {
         /Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message) ||
         /^API returned non-JSON \(\d{3}\)/i.test(next.message);
       if (onReactor && isInlineReactorApiError) return;
+      if (dismissedCodes.current.has(next.code)) return;
       setError(next);
     };
 
@@ -63,12 +83,12 @@ export function ApexErrorNotice() {
                   Try again
                 </button>
               )}
-              <Link href="/status" onClick={() => setError(null)} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
+              <Link href="/status" onClick={() => { if (error) { dismissedCodes.current.add(error.code); rememberDismissedError(error.code); } setError(null); }} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
                 System Status <ArrowUpRight aria-hidden="true" />
               </Link>
             </div>
           </div>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
+          <button type="button" onClick={() => { if (error) { dismissedCodes.current.add(error.code); rememberDismissedError(error.code); } setError(null); }} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
             <X aria-hidden="true" />
           </button>
         </div>

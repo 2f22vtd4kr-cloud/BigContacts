@@ -12,7 +12,7 @@ import { fetchSystemStatus, summarizeApiKeys } from "@/lib/system-status";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-type ChipState = "loading" | "ok" | "degraded" | "offline";
+type ChipState = "loading" | "ok" | "degraded" | "unconfigured" | "offline";
 
 type PublicHealth = {
   researchKeysConfigured?: boolean;
@@ -30,7 +30,7 @@ async function fetchPublicHealth(): Promise<PublicHealth | null> {
 
 export function ApiKeyHealth({ className }: { className?: string }) {
   const [state, setState] = useState<ChipState>("loading");
-  const [label, setLabel] = useState("KEYS");
+  const [label, setLabel] = useState("Checking");
 
   useEffect(() => {
     let cancelled = false;
@@ -40,9 +40,12 @@ export function ApiKeyHealth({ className }: { className?: string }) {
 
       // This is intentionally only a coarse public readiness signal. Never expose
       // provider names, counts, rate limits, or secret state on the public shell.
-      if (health?.researchKeysConfigured) {
-        setState("ok");
-        setLabel("KEYS SET");
+      if (health?.researchKeysConfigured === true) {
+        setState("degraded");
+        setLabel("Keys configured");
+      } else if (health?.researchKeysConfigured === false) {
+        setState("unconfigured");
+        setLabel("No keys");
       }
 
       // If an operator session exists, upgrade the coarse state to the precise
@@ -53,21 +56,32 @@ export function ApiKeyHealth({ className }: { className?: string }) {
         const summary = summarizeApiKeys(status);
         if (summary.active > 0) {
           setState(summary.rateLimited > 0 ? "degraded" : "ok");
-          setLabel(`${summary.active} LIVE`);
+          setLabel(`${summary.active} active`);
           return;
         }
         if (summary.configured > 0 || summary.rateLimited > 0) {
           setState("degraded");
-          setLabel("LIMITED");
+          setLabel("Limited");
           return;
         }
-        setState("offline");
-        setLabel("KEYS OFF");
+        if (health?.researchKeysConfigured === true) {
+          setState("degraded");
+          setLabel("Keys configured");
+        } else if (health?.researchKeysConfigured === false) {
+          setState("unconfigured");
+          setLabel("No keys");
+        } else {
+          setState("offline");
+          setLabel("API offline");
+        }
       } catch {
         if (cancelled) return;
-        if (!health?.researchKeysConfigured) {
+        if (health?.researchKeysConfigured === false) {
+          setState("unconfigured");
+          setLabel("No keys");
+        } else if (health?.researchKeysConfigured !== true) {
           setState("offline");
-          setLabel("KEYS OFF");
+          setLabel("API offline");
         }
       }
     };
@@ -81,12 +95,14 @@ export function ApiKeyHealth({ className }: { className?: string }) {
 
   const tone =
     state === "ok"
-      ? "text-[#d4ff8a] border-[#9CFF1A]/30 bg-lime-500/10"
+      ? "text-[#1F8A4D] border-[#E4E4DF] bg-[#F3F3F0]"
       : state === "degraded"
-        ? "text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10"
+        ? "text-[#EDB92B] border-[#E4E4DF] bg-[#F3F3F0]"
         : state === "loading"
-          ? "text-muted-foreground border-border bg-card/40"
-          : "text-rose-300 border-rose-400/30 bg-rose-500/10";
+          ? "text-[#74747A] border-[#E4E4DF] bg-[#FAFAF8]"
+          : state === "unconfigured"
+            ? "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]"
+            : "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]";
 
   return (
     <Link
@@ -95,15 +111,15 @@ export function ApiKeyHealth({ className }: { className?: string }) {
       aria-label={`API key status: ${label}`}
       title="Open System status"
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-0.5 rounded-md border px-1.5 font-mono text-[11px] uppercase tracking-wide transition-colors hover:opacity-90 sm:gap-1.5 sm:px-2.5 sm:text-[13px]",
+        "inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center gap-2 rounded-md border px-2 font-mono text-[11px] font-medium transition-colors hover:opacity-90 sm:text-[13px]",
         tone,
         className,
       )}
     >
       {state === "loading" ? (
-        <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
       ) : (
-        <KeyRound className="h-3 w-3 shrink-0" aria-hidden />
+        <KeyRound className="h-4 w-4 shrink-0" aria-hidden />
       )}
       <span className="whitespace-nowrap tabular-nums">{label}</span>
     </Link>

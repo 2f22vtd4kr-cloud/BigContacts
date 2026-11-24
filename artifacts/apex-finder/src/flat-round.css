@@ -8,7 +8,7 @@
   font-family: "Geist", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
 }
 .atlas-round *, .atlas-round *::before, .atlas-round *::after { box-sizing: border-box; }
-.atlas-round-header { position:relative; min-height:68px; position:sticky; top:0; z-index:80; display:flex; align-items:center; gap: 28px; padding: 0 clamp(16px,3vw,44px); padding-left: max(16px,env(safe-area-inset-left)); padding-right: max(16px,env(safe-area-inset-right)); padding-top: env(safe-area-inset-top); background:rgba(250,250,248,.96); border-bottom:1px solid var(--round-line); backdrop-filter:blur(12px); }
+.atlas-round-header { position:relative; min-height:68px; position:sticky; top:0; z-index:80; display:flex; align-items:center; gap: 28px; padding: 0 clamp(16px,3vw,44px); padding-left: max(16px,env(safe-area-inset-left)); padding-right: max(16px,env(safe-area-inset-right)); padding-top: env(safe-area-inset-top); background:#FAFAF8; border-bottom:0; backdrop-filter:none; }
 .atlas-round-brand { display:flex; align-items:center; gap: 12px; flex-shrink:0; }
 .atlas-round-mark { width:32px; height:32px; display:grid; place-items:center; border:1px solid var(--round-ink); border-radius:50%; color:var(--round-ink); }
 .atlas-round-mark svg { width:17px; height:17px; }
@@ -707,9 +707,9 @@
 
 /* Board shell: a flat desktop tab bar and a raised five-destination phone bar. */
 .atlas-round-shell { display:block; min-height:100dvh; min-width:0; background:var(--round-paper); }
-.atlas-round-header { background:var(--round-card); backdrop-filter:none; box-shadow:0 1px 2px rgba(24,24,26,.04); }
+.atlas-round-header { background:var(--round-paper); backdrop-filter:none; box-shadow:none; }
 .atlas-round-header .atlas-round-wordmark { display:flex; flex-direction:row; align-items:center; gap: 12px; flex-shrink:0; color:var(--round-ink); text-decoration:none; }
-.atlas-round-header-brand strong { font:500 16px/1.1 "Geist",sans-serif; letter-spacing:-.01em; }
+.atlas-round-header-brand strong { font:500 16px/1.1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-round-brand-mark { display:block; width:26px; height:28.6px; flex:none; }
 .atlas-round-header-status { display:flex; align-items:center; flex:none; margin-left: 4px; }
 .atlas-round-header-status .atlas-round-status { max-width:180px; }
@@ -1033,7 +1033,7 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-discover-rail { gap: 24px; }
 
 /* Ledger's search/filter console uses the same split heraldic frame as Overview. */
-.atlas-round .atlas-ledger-board-console {
+.atlas-round .atlas-ledger-console {
   position:relative;
   isolation:isolate;
   padding: 8px;
@@ -1042,8 +1042,8 @@ body:has(.atlas-round-shell) {
   border-radius:20px;
   background:transparent;
 }
-.atlas-round .atlas-ledger-board-console::before,
-.atlas-round .atlas-ledger-board-console::after {
+.atlas-round .atlas-ledger-console::before,
+.atlas-round .atlas-ledger-console::after {
   content:"";
   position:absolute;
   top:0;
@@ -1052,7 +1052,7 @@ body:has(.atlas-round-shell) {
   width:50%;
   pointer-events:none;
 }
-.atlas-round .atlas-ledger-board-console::before {
+.atlas-round .atlas-ledger-console::before {
   left:0;
   border-radius:20px 0 0 20px;
   background-color:#EDB92B;
@@ -1060,7 +1060,7 @@ body:has(.atlas-round-shell) {
   background-repeat:repeat;
   background-size:24px 24px;
 }
-.atlas-round .atlas-ledger-board-console::after {
+.atlas-round .atlas-ledger-console::after {
   right:0;
   border-radius:0 20px 20px 0;
   background-color:#2757C6;
@@ -1113,7 +1113,7 @@ body:has(.atlas-round-shell) {
 .atlas-error-notice-why { margin: 8px 0 0; color:var(--round-ink-2); font:400 11px/1.5 "Geist",sans-serif; }
 .atlas-error-notice-why strong { color:var(--round-ink); font-weight:500; }
 .atlas-error-notice-next { margin-top: 12px; }
-.atlas-error-notice-label { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:.06em; text-transform:none; }
+.atlas-error-notice-label { color:var(--round-ink-3); font:400 11px/1.4 "Geist Mono",ui-monospace,monospace; letter-spacing:0; text-transform:none; }
 .atlas-error-notice-next ul { display:grid; gap: 4px; margin: 4px 0 0; padding: 0; color:var(--round-ink-2); font:400 11px/1.45 "Geist",sans-serif; list-style:none; }
 .atlas-error-notice-next li { position:relative; padding-left: 12px; }
 .atlas-error-notice-next li::before { position:absolute; top:.52em; left:1px; width:4px; height:4px; border-radius:50%; background:var(--round-ink-3); content:""; }
@@ -1148,7 +1148,7 @@ body:has(.atlas-round-shell) {
   background:rgba(250,250,248,.96); backdrop-filter:blur(12px);
 }
 .atlas-card-shell-header .atlas-round-wordmark { flex:none; flex-direction:row; align-items:center; gap: 12px; color:var(--round-ink); text-decoration:none; }
-.atlas-card-shell-header .atlas-round-wordmark strong { color:var(--round-ink); font:500 16px/1 "Geist",sans-serif; letter-spacing:-.01em; }
+.atlas-card-shell-header .atlas-round-wordmark strong { color:var(--round-ink); font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-card-shell-nav { display:flex; min-width:0; align-items:center; justify-content:center; gap: 4px; margin-inline: auto; }
 .atlas-card-shell-navlink {
   display:inline-flex; min-height:40px; align-items:center; justify-content:center; padding: 0 12px;
@@ -1341,13 +1341,16 @@ body:has(.atlas-round-shell) {
 }
 .atlas-round .atlas-reactor-run-console.is-api-down {
   background-color:#BDBDB8;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='8'%3E%3Cpath%20d='M0%204q4-4.5%208%200t8%200'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.3'/%3E%3C/svg%3E");
-  background-size:16px 8px;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.2'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-position:0 0;
+  background-size:64px 24px;
 }
 .atlas-round .atlas-reactor-run-console.is-api-down::before {
   background-color:#BDBDB8;
   background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0);
-  background-size:16px 16px;
+  background-position:0 0;
+  background-size:22px 14px;
 }
 .atlas-round .atlas-reactor-run-console-inner {
   position:relative;
@@ -1380,7 +1383,7 @@ body:has(.atlas-round-shell) {
 .atlas-round-shell .atlas-round-header { min-height:68px; }
 .atlas-round-shell .atlas-round-primary { margin-left: auto; margin-right: auto; padding: 0; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .atlas-round-shell .atlas-round-navlink { min-height:40px; padding: 0 16px; border-radius:6px; font:400 13px/1 "Geist",sans-serif; }
-.atlas-round-shell .atlas-round-navlink.is-active { background:transparent; box-shadow:inset 0 -2px 0 var(--round-red); font-weight:500; }
+.atlas-round-shell .atlas-round-navlink.is-active { background:transparent; box-shadow:none; font-weight:700; }
 .atlas-round-shell .atlas-round-brand-mark { width:22px; height:24.2px; }
 .atlas-round-shell .atlas-round-brand .atlas-round-wordmark { flex-direction:row; align-items:center; gap: 12px; color:var(--round-ink); text-decoration:none; }
 .atlas-round-shell .atlas-round-brand .atlas-round-wordmark strong { font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
@@ -1753,15 +1756,15 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-home-route-empty > p { margin:0; max-width:none; }
 .atlas-round .atlas-home-route-legend {
   display:grid;
-  gap:14px;
+  gap:16px;
   margin:0 16px;
-  padding:16px 0 18px;
+  padding:16px 0 16px;
   border-top:1px solid var(--round-line);
 }
 .atlas-round .atlas-home-route-legend > div {
   grid-template-columns:12px minmax(0,1fr);
-  column-gap:10px;
-  row-gap:3px;
+  column-gap:12px;
+  row-gap:4px;
 }
 .atlas-round .atlas-home-route-legend > div > span:last-child { grid-column:2; }
 .atlas-round .atlas-home-route-legend strong { font:500 12px/1.35 "Geist",sans-serif; }
@@ -1837,7 +1840,7 @@ body:has(.atlas-round-shell) {
   background:var(--round-paper);
   transition:width 180ms ease;
 }
-.atlas-round-sidebar-nav { display:grid; gap:6px; }
+.atlas-round-sidebar-nav { display:grid; gap:4px; }
 .atlas-round-sidebar .atlas-round-navlink {
   display:flex;
   min-width:0;
@@ -1846,22 +1849,22 @@ body:has(.atlas-round-shell) {
   justify-content:flex-start;
   gap:12px;
   padding:0 12px;
-  border-radius:8px;
+  border-radius:6px;
   color:var(--round-ink-2);
   text-decoration:none;
   font:500 13px/1.2 "Geist",sans-serif;
 }
 .atlas-round-sidebar .atlas-round-navlink svg { width:18px; height:18px; flex:0 0 18px; }
 .atlas-round-sidebar .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
-.atlas-round-sidebar .atlas-round-navlink.is-active { background:#fff; color:var(--round-ink); box-shadow:inset 3px 0 0 var(--round-red); }
-.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar { padding-inline:10px; }
+.atlas-round-sidebar .atlas-round-navlink.is-active { background:transparent; color:var(--round-ink); box-shadow:none; font-weight:700; }
+.atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar { padding-inline:12px; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink { justify-content:center; padding-inline:0; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span { display:none; }
 .atlas-round-shell .atlas-round-main { grid-column:2; grid-row:2; min-width:0; }
 .atlas-round-shell .atlas-round-nav-backdrop { display:none; }
 @media (max-width:760px) {
   .atlas-round-shell { display:block; min-height:100dvh; }
-  .atlas-round-shell > .atlas-round-header { min-height:60px; height:60px; gap:10px; padding-inline:14px; }
+  .atlas-round-shell > .atlas-round-header { min-height:60px; height:60px; gap:12px; padding-inline:16px; }
   .atlas-round-shell .atlas-round-sidebar-toggle { order:3; margin-left:4px; }
   .atlas-round-shell .atlas-round-header-status { margin-left:auto; }
   .atlas-round-shell .atlas-round-sidebar {
@@ -1936,7 +1939,7 @@ body:has(.atlas-round-shell) {
   min-width:36px;
   min-height:36px;
   border:1px solid #E4E4DF;
-  border-radius:8px;
+  border-radius:6px;
   background:#fff;
   color:var(--round-ink);
 }
@@ -1968,7 +1971,7 @@ html.light main,
   display:flex;
   width:68px;
   min-width:68px;
-  padding-inline:10px;
+  padding-inline:12px;
   overflow-x:hidden;
 }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink {
@@ -1982,9 +1985,10 @@ html.light main,
 .atlas-round-shell .atlas-round-main { background:var(--round-paper)!important; }
 .atlas-round-sidebar .atlas-round-navlink { color:var(--round-ink-2); }
 .atlas-round-sidebar .atlas-round-navlink.is-active {
-  background:#FFFFFF;
+  background:transparent;
   color:var(--round-ink);
-  box-shadow:inset 3px 0 0 var(--round-red);
+  box-shadow:none;
+  font-weight:700;
 }
 
 /* Home console: the desktop reference places the objective field and CTA
@@ -2003,7 +2007,7 @@ html.light main,
 .atlas-round .atlas-home-board-console .atlas-home-source-status {
   grid-area:sources;
   margin:0;
-  padding:0 0 10px;
+  padding:0 0 12px;
 }
 .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label {
   grid-area:objective;
@@ -2044,7 +2048,7 @@ html.light main,
 .atlas-round .atlas-home-board-console .atlas-launch-depth,
 .atlas-round .atlas-home-board-console .atlas-launch-target-count {
   min-height:40px;
-  padding:3px 8px;
+  padding:4px 8px;
   border:1px solid #E4E4DF;
   border-radius:10px;
   background:#F3F3F0;
@@ -2053,7 +2057,7 @@ html.light main,
   min-height:32px;
   padding:0 12px;
   border:1px solid transparent;
-  border-radius:8px;
+  border-radius:6px;
   background:transparent;
   color:#55555A;
 }
@@ -2069,7 +2073,7 @@ html.light main,
   min-width:32px;
   min-height:32px;
   border:1px solid #E4E4DF;
-  border-radius:8px;
+  border-radius:6px;
   background:#FFFFFF;
 }
 .atlas-round .atlas-home-board-console .atlas-launch-primary-root > .atlas-launch-cta,
@@ -2109,7 +2113,7 @@ html.light main,
   .atlas-round .atlas-home-board-console .atlas-launch-settings {
     align-items:flex-start;
     flex-direction:column;
-    gap:10px;
+    gap:12px;
   }
   .atlas-round .atlas-home-board-console .atlas-launch-depth,
   .atlas-round .atlas-home-board-console .atlas-launch-target-count {
@@ -2141,7 +2145,7 @@ html.light main,
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
   width:46px;
   min-width:46px;
-  padding-inline:1px;
+  padding-inline:4px;
 }
 @media (max-width:760px) {
   .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar {
@@ -2159,9 +2163,9 @@ html.light main,
 .atlas-round .atlas-preview-fixture-note {
   margin:0 0 12px;
   color:#74747A;
-  font:500 10px/1.4 "Geist Mono",ui-monospace,monospace;
-  letter-spacing:.06em;
-  text-transform:uppercase;
+  font:500 11px/1.4 "Geist Mono",ui-monospace,monospace;
+  letter-spacing:0;
+  text-transform:none;
 }
 
 /* Board input chrome: soft raised fill inside white panels, not pure-white fields. */
@@ -2177,4 +2181,323 @@ html.light main,
 .atlas-round textarea::placeholder {
   color:#74747A!important;
   opacity:1;
+}
+
+
+/* -------------------------------------------------------------------------
+   API-down screenshot corrections — current light shell only.
+   ------------------------------------------------------------------------- */
+.atlas-round-shell > .atlas-round-header {
+  background:var(--round-paper)!important;
+  border-bottom:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+
+/* Full-height navigation beneath the header, with text-only active treatment. */
+.atlas-round-shell .atlas-round-sidebar {
+  align-self:stretch;
+  min-height:calc(100dvh - 68px);
+  height:calc(100dvh - 68px);
+  bottom:0;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active {
+  background:transparent!important;
+  color:var(--round-ink)!important;
+  box-shadow:none!important;
+  font-weight:700!important;
+}
+.atlas-round-sidebar .atlas-round-navlink.is-active span { font-weight:700!important; }
+
+/* Longer rectangular checker repeat and wider horizontal wave repeat. */
+.atlas-round .atlas-home-board-console::before,
+.atlas-round .atlas-discover-search-console::before,
+.atlas-round .atlas-ledger-console::before,
+.atlas-round .atlas-board-connections .atlas-connections-console::before {
+  background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)!important;
+  background-size:24px 16px!important;
+  background-position:0 0!important;
+}
+.atlas-round .atlas-home-board-console::after,
+.atlas-round .atlas-discover-search-console::after,
+.atlas-round .atlas-ledger-console::after,
+.atlas-round .atlas-board-connections .atlas-connections-console::after {
+  background-color:#2757C6!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 0!important;
+  background-size:48px 24px!important;
+}
+
+/* Match Reactor's existing neutral frame whenever Home's API is unavailable. */
+.atlas-round .atlas-home-board-console.is-api-down::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:24px 16px!important;
+}
+.atlas-round .atlas-home-board-console.is-api-down::after {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-size:48px 24px!important;
+}
+
+
+/* Mobile drawer occupies the complete area below the shared header. */
+@media (max-width:760px) {
+  .atlas-round-shell .atlas-round-sidebar {
+    top:60px;
+    bottom:0;
+    height:auto!important;
+    min-height:0!important;
+  }
+}
+
+/* Use Reactor's continuous wave field + left heraldic overlay on every framed
+   light-board console. The wave starts at the frame origin instead of restarting
+   at the centre seam, which is the placement visible in the reference. */
+.atlas-round .atlas-home-board-console,
+.atlas-round .atlas-discover-search-console,
+.atlas-round .atlas-ledger-console,
+.atlas-round .atlas-board-connections .atlas-connections-console {
+  background-color:#2757C6!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 0!important;
+  background-size:64px 24px!important;
+}
+.atlas-round .atlas-home-board-console::after,
+.atlas-round .atlas-discover-search-console::after,
+.atlas-round .atlas-ledger-console::after,
+.atlas-round .atlas-board-connections .atlas-connections-console::after {
+  display:none!important;
+}
+.atlas-round .atlas-home-board-console::before,
+.atlas-round .atlas-discover-search-console::before,
+.atlas-round .atlas-ledger-console::before,
+.atlas-round .atlas-board-connections .atlas-connections-console::before {
+  inset:0 50% 0 0;
+  width:auto!important;
+  border-radius:20px 0 0 20px;
+  background-color:#EDB92B!important;
+  background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)!important;
+  background-size:22px 14px!important;
+  background-position:0 0!important;
+}
+
+/* API-down Home: preserve the same continuous geometry, neutralized. */
+.atlas-round .atlas-home-board-console.is-api-down {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-size:64px 24px!important;
+}
+.atlas-round .atlas-home-board-console.is-api-down::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:22px 14px!important;
+}
+
+
+/* A truly offline workspace uses the same neutral frame treatment on every
+   framed console, not only Home. WorkspaceStatus exposes the authoritative
+   offline state in the existing header; no new health request is introduced. */
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-home-board-console,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-discover-search-console,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-ledger-console,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-connections-console {
+  background-color:#BDBDB8!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-repeat:repeat!important;
+  background-position:0 0!important;
+  background-size:64px 24px!important;
+}
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-home-board-console::before,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-discover-search-console::before,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-ledger-console::before,
+.atlas-round-shell:has(.atlas-round-status[data-status="offline"]) .atlas-connections-console::before {
+  background-color:#BDBDB8!important;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)!important;
+  background-size:22px 14px!important;
+}
+
+/* Workspace status popover: quiet paper surfaces, board palette, no neon/glow chrome. */
+.atlas-round .atlas-round-workspace-status-trigger {
+  min-height:44px;
+  min-width:44px;
+  border:1px solid var(--round-line)!important;
+  border-radius:6px!important;
+  background:var(--round-paper)!important;
+  color:var(--round-ink-2)!important;
+  box-shadow:none!important;
+  font:500 12px/1.2 "Geist",sans-serif!important;
+}
+.atlas-round .atlas-round-workspace-status-trigger:hover {
+  border-color:var(--round-line)!important;
+  background:var(--round-raised)!important;
+}
+.atlas-round .atlas-round-workspace-status-trigger[data-status="offline"] { border-color:var(--round-red)!important; }
+.atlas-round .atlas-round-workspace-status-trigger[data-status="degraded"],
+.atlas-round .atlas-round-workspace-status-trigger[data-status="researching-degraded"],
+.atlas-round .atlas-round-workspace-status-trigger[data-status="queued"] { border-color:var(--round-gold)!important; }
+.atlas-round .atlas-round-workspace-status-panel {
+  border:1px solid var(--round-line)!important;
+  border-radius:12px!important;
+  background:var(--round-paper)!important;
+  color:var(--round-ink)!important;
+  box-shadow:0 8px 24px rgba(24,24,26,.10)!important;
+  font-family:"Geist",sans-serif;
+}
+.atlas-round .atlas-round-workspace-status-panel [class*="border-"] { border-color:var(--round-line)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="bg-background"],
+.atlas-round .atlas-round-workspace-status-panel [class*="bg-muted"] { background:var(--round-raised)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="text-muted-foreground"] { color:var(--round-ink-3)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="text-foreground"] { color:var(--round-ink-2)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="uppercase"],
+.atlas-round .atlas-round-workspace-status-panel [class*="tracking-"] { text-transform:none!important; letter-spacing:0!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="font-bold"],
+.atlas-round .atlas-round-workspace-status-panel [class*="font-semibold"] { font-weight:500!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="text-lime"],
+.atlas-round .atlas-round-workspace-status-panel [class*="text-[#9CFF1A]"] { color:var(--round-green)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="text-[#EDB92B]"] { color:var(--round-gold)!important; }
+.atlas-round .atlas-round-workspace-status-panel [class*="text-destructive"] { color:var(--round-red)!important; }
+.atlas-round .atlas-round-workspace-status-scrim { background:rgba(24,24,26,.12)!important; }
+.atlas-round .atlas-round-workspace-status-panel .rounded-md { border-radius:6px!important; }
+.atlas-round .atlas-round-workspace-status-panel .rounded-xl { border-radius:12px!important; }
+
+/* Secondary routes inherit the same board system when the board does not define a dedicated component. */
+.atlas-round [class*="text-[10px]"],
+.atlas-round [class*="text-[9px]"],
+.atlas-round [class*="text-[8px]"] {
+  font-size:11px!important;
+  line-height:1.4!important;
+}
+.atlas-round [class*="uppercase"] { text-transform:none!important; }
+.atlas-round [class*="tracking-"] { letter-spacing:0!important; }
+.atlas-round [class*="font-bold"],
+.atlas-round [class*="font-semibold"] { font-weight:500!important; }
+.atlas-round [class*="text-[#9CFF1A]"],
+.atlas-round [class*="text-[#b8ff4d]"],
+.atlas-round [class*="text-[#d4ff8a]"],
+.atlas-round [class*="text-lime-"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-rose-"],
+.atlas-round [class*="text-red-"],
+.atlas-round [class*="text-destructive"] { color:var(--round-red)!important; }
+.atlas-round [class*="text-emerald-"],
+.atlas-round [class*="text-green-"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-amber-"],
+.atlas-round [class*="text-yellow-"] { color:var(--round-gold)!important; }
+.atlas-round [class*="text-blue-"] { color:var(--round-blue)!important; }
+.atlas-round [class*="text-primary"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-secondary"] { color:var(--round-ink-2)!important; }
+.atlas-round [class*="text-stone-100"],
+.atlas-round [class*="text-white"] { color:var(--round-ink)!important; }
+.atlas-round button [class*="text-white"],
+.atlas-round a[class*="bg-gradient-to-"] [class*="text-white"],
+.atlas-round button[class*="bg-gradient-to-"] [class*="text-white"] { color:#FFFFFF!important; }
+.atlas-round [class*="text-stone-300"],
+.atlas-round [class*="text-stone-400"] { color:var(--round-ink-2)!important; }
+.atlas-round [class*="text-stone-500"],
+.atlas-round [class*="text-muted-foreground"] { color:var(--round-ink-3)!important; }
+.atlas-round [class*="border-[#9CFF1A]"],
+.atlas-round [class*="border-lime-"],
+.atlas-round [class*="border-rose-"],
+.atlas-round [class*="border-red-"],
+.atlas-round [class*="border-destructive"],
+.atlas-round [class*="border-white/"],
+.atlas-round [class*="border-primary"] { border-color:var(--round-line)!important; }
+.atlas-round [class*="bg-[#080C14]"],
+.atlas-round [class*="bg-[#0B0F19]"],
+.atlas-round [class*="bg-[#05070c]"],
+.atlas-round [class*="bg-[#0c1220]"],
+.atlas-round [class*="bg-[#0d1219]"],
+.atlas-round [class*="bg-[#111827]"],
+.atlas-round [class*="bg-lime-950"],
+.atlas-round [class*="bg-rose-950"],
+.atlas-round [class~="bg-black"] { background-color:var(--round-paper)!important; }
+.atlas-round [class*="bg-[#9CFF1A]"],
+.atlas-round [class*="bg-lime-"],
+.atlas-round [class*="bg-emerald-"],
+.atlas-round [class*="bg-green-"] { background-color:rgba(31,138,77,.08)!important; }
+.atlas-round [class*="bg-rose-"],
+.atlas-round [class*="bg-red-"],
+.atlas-round [class*="bg-destructive"] { background-color:rgba(200,50,30,.07)!important; }
+.atlas-round [class*="bg-amber-"],
+.atlas-round [class*="bg-yellow-"] { background-color:rgba(237,185,43,.10)!important; }
+.atlas-round [class*="bg-blue-"] { background-color:rgba(39,87,198,.08)!important; }
+.atlas-round [class*="bg-primary/"] { background-color:rgba(31,138,77,.08)!important; }
+.atlas-round [class*="bg-background"] { background-color:var(--round-paper)!important; }
+.atlas-round [class*="bg-card"] { background-color:var(--round-card)!important; }
+.atlas-round [class*="bg-muted"] { background-color:var(--round-raised)!important; }
+.atlas-round [class~="bg-primary"] { background-color:var(--round-green)!important; color:#FFFFFF!important; }
+.atlas-round [class*="bg-gradient-to-"] {
+  background-image:none!important;
+  background-color:var(--round-raised)!important;
+  color:var(--round-ink)!important;
+}
+.atlas-round button[class*="bg-gradient-to-"],
+.atlas-round a[class*="bg-gradient-to-"] {
+  background-color:var(--round-blue)!important;
+  color:#FFFFFF!important;
+}
+.atlas-round [class*="blur-3xl"],
+.atlas-round [class*="blur-2xl"] { display:none!important; }
+.atlas-round [class*="backdrop-blur"] { backdrop-filter:none!important; }
+.atlas-round [class*="shadow-"] { box-shadow:none!important; }
+.atlas-round [class*="animate-pulse"] { animation:none!important; }
+.atlas-round [class*="rounded-lg"] { border-radius:12px!important; }
+.atlas-round button[class*="rounded-lg"],
+.atlas-round a[class*="rounded-lg"],
+.atlas-round input[class*="rounded-lg"],
+.atlas-round select[class*="rounded-lg"] { border-radius:6px!important; }
+.atlas-round [class~="rounded"],
+.atlas-round [class~="rounded-sm"] { border-radius:6px!important; }
+.atlas-round [class*="rounded-3xl"] { border-radius:16px!important; }
+.atlas-round [class*="gap-1.5"] { gap:8px!important; }
+.atlas-round [class*="gap-2.5"] { gap:12px!important; }
+.atlas-round [class*="space-y-1.5"] > * + * { margin-top:8px!important; }
+.atlas-round [class*="space-x-1.5"] > * + * { margin-left:8px!important; }
+.atlas-round [class*="px-2.5"] { padding-left:8px!important; padding-right:8px!important; }
+.atlas-round [class*="py-1.5"] { padding-top:8px!important; padding-bottom:8px!important; }
+.atlas-round [class*="py-2.5"] { padding-top:12px!important; padding-bottom:12px!important; }
+.atlas-round [class*="p-2.5"] { padding:12px!important; }
+.atlas-round [class*="px-3.5"] { padding-left:16px!important; padding-right:16px!important; }
+.atlas-round [class*="py-3.5"] { padding-top:16px!important; padding-bottom:16px!important; }
+.atlas-round [class*="p-3.5"] { padding:16px!important; }
+.atlas-round input,
+.atlas-round select,
+.atlas-round textarea { border-radius:10px!important; }
+.atlas-round .atlas-launch-cta { border-radius:10px!important; }
+.atlas-round .atlas-round-sidebar .atlas-round-navlink.is-active,
+.atlas-round .atlas-round-sidebar .atlas-round-navlink.is-active span { font-weight:700!important; }
+
+
+/* The second shield is the mobile drawer brand; keep the header brand on desktop. */
+.atlas-round-sidebar-brand { display:none; }
+@media (max-width:760px) {
+  .atlas-round-shell .atlas-round-sidebar-brand {
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    gap:12px;
+    margin-bottom:28px;
+    color:var(--round-ink);
+    text-decoration:none;
+  }
+  .atlas-round-shell .atlas-round-sidebar-brand .atlas-round-brand-mark { width:22px; height:24.2px; }
+  .atlas-round-shell .atlas-round-sidebar-brand strong { font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
+}
+
+
+/* Keep the full-width board layouts stacked at tablet widths after the final page-specific rules. */
+@media (max-width:1000px) and (min-width:761px) {
+  .atlas-round .atlas-discover-layout,
+  .atlas-round .atlas-ledger-layout,
+  .atlas-round .atlas-connections-layout,
+  .atlas-round .atlas-reactor-board-layout {
+    grid-template-columns:minmax(0,1fr);
+    gap:28px;
+  }
+  .atlas-round .atlas-board-profile [class*="grid-cols-2"] {
+    grid-template-columns:minmax(0,1fr);
+  }
 }

@@ -51,18 +51,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // Category colours (priority mapping for HNWI research)
 const CATEGORY_COLOR: Record<string, string> = {
-  public_records:   "text-[#b8ff4d] border-[#9CFF1A]/30 bg-[#b8ff4d]/5",
-  companies:        "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5",
-  people:           "text-lime-400 border-lime-400/30 bg-lime-400/5",
-  transport:        "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5",
-  geolocation_mapping: "text-lime-400 border-lime-400/30 bg-lime-400/5",
-  dark_web_data_breaches: "text-red-400 border-red-400/30 bg-red-400/5",
+  public_records:   "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]",
+  companies:        "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]",
+  people:           "text-[#1F8A4D] border-[#E4E4DF] bg-[#F3F3F0]",
+  transport:        "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]",
+  geolocation_mapping: "text-[#1F8A4D] border-[#E4E4DF] bg-[#F3F3F0]",
+  dark_web_data_breaches: "text-[#C8321E] border-[#E4E4DF] bg-[#F3F3F0]/5",
   social_media:     "text-pink-400 border-pink-400/30 bg-pink-400/5",
-  search:           "text-lime-400 border-[#9CFF1A]/30 bg-lime-400/5",
+  search:           "text-[#1F8A4D] border-[#E4E4DF]/30 bg-[#F3F3F0]",
 };
 
 function categoryColor(cat: string) {
-  return CATEGORY_COLOR[cat] ?? "text-muted-foreground border-border bg-muted/10";
+  return CATEGORY_COLOR[cat] ?? "text-[#74747A] border-border bg-muted/10";
 }
 
 function categoryLabel(cat: string) {
@@ -192,9 +192,9 @@ export default function OsintToolsDirectory() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <BookOpen className="h-5 w-5 text-lime-400 flex-shrink-0" aria-hidden />
+        <BookOpen className="h-5 w-5 text-[#1F8A4D] flex-shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground leading-snug">
+          <p className="text-xs text-[#74747A] leading-snug">
             {totalTools > 0 ? `${totalTools.toLocaleString()} tools` : "Loading…"} · tomvaillant/osint-tool-database · HuggingFace
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function OsintToolsDirectory() {
           href="https://huggingface.co/datasets/tomvaillant/osint-tool-database"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-lime-400 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-[11px] font-mono text-[#74747A] hover:text-[#1F8A4D] transition-colors flex-shrink-0"
         >
           <ExternalLink className="w-3 h-3" />
           HuggingFace
@@ -213,22 +213,22 @@ export default function OsintToolsDirectory() {
       <div className="flex-shrink-0 px-4 md:px-6 py-3 border-b border-border flex flex-wrap gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#74747A] pointer-events-none" />
           <input
             value={query}
             onChange={e => handleQuery(e.target.value)}
             placeholder="Search tools…"
-            className="w-full min-h-[40px] pl-8 pr-3 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-lime-400/50"
+            className="w-full min-h-[40px] pl-8 pr-3 py-2 text-xs font-mono bg-card border border-border rounded-lg text-[#18181A] placeholder:text-[#74747A]/50 focus:outline-none focus:border-[#E4E4DF]"
           />
         </div>
 
         {/* Category filter */}
         <div className="relative">
-          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#74747A] pointer-events-none" />
           <select
             value={category}
             onChange={e => handleCategory(e.target.value)}
-            className="min-h-[40px] pl-8 pr-6 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-lime-400/50 appearance-none cursor-pointer"
+            className="min-h-[40px] pl-8 pr-6 py-2 text-xs font-mono bg-card border border-border rounded-lg text-[#18181A] focus:outline-none focus:border-[#E4E4DF] appearance-none cursor-pointer"
           >
             <option value="">All categories</option>
             {categories.map(c => (
@@ -240,16 +240,16 @@ export default function OsintToolsDirectory() {
         </div>
 
         {/* Category chips (top 7 by count) */}
-        <div className="flex gap-1.5 items-center overflow-x-auto pb-1 scrollbar-none flex-nowrap sm:flex-wrap">
+        <div className="flex gap-2 items-center overflow-x-auto pb-1 scrollbar-none flex-nowrap sm:flex-wrap">
           {categories.slice(0, 7).map(c => (
             <button
               key={c.name}
               onClick={() => handleCategory(category === c.name ? "" : c.name)}
               className={cn(
-                "min-h-[32px] text-[11px] font-mono uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                "min-h-[32px] text-[11px] font-mono   px-2 py-1 rounded border transition-colors",
                 category === c.name
                   ? categoryColor(c.name)
-                  : "text-muted-foreground border-border hover:border-lime-400/30 hover:text-lime-400"
+                  : "text-[#74747A] border-border hover:border-[#E4E4DF] hover:text-[#1F8A4D]"
               )}
             >
               {categoryLabel(c.name)}
@@ -258,7 +258,7 @@ export default function OsintToolsDirectory() {
           {category && (
             <button
               onClick={() => handleCategory("")}
-              className="text-[11px] font-mono text-red-400 hover:text-red-300 transition-colors px-1"
+              className="text-[11px] font-mono text-[#C8321E] hover:text-[#C8321E] transition-colors px-1"
             >
               <><X className="h-3 w-3" /> clear</>
             </button>
@@ -270,18 +270,18 @@ export default function OsintToolsDirectory() {
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <RefreshCw className="w-5 h-5 text-lime-400 animate-spin" />
+            <RefreshCw className="w-5 h-5 text-[#1F8A4D] animate-spin" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 text-sm font-mono text-red-400">
+          <div className="rounded-lg border border-[#E4E4DF] bg-[#F3F3F0]/5 p-4 text-sm font-mono text-[#C8321E]">
             {error}
           </div>
         )}
 
         {!loading && !error && tools.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground font-mono text-sm">
+          <div className="text-center py-16 text-[#74747A] font-mono text-sm">
             No tools found{query ? ` for "${query}"` : ""}{category ? ` in ${categoryLabel(category)}` : ""}.
           </div>
         )}
@@ -297,17 +297,17 @@ export default function OsintToolsDirectory() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-border pt-4 gap-2">
-                <span className="text-xs font-mono text-muted-foreground hidden sm:block shrink-0">
+                <span className="text-xs font-mono text-[#74747A] hidden sm:block shrink-0">
                   Page {page} of {totalPages} · {totalTools.toLocaleString()} tools
                 </span>
-                <span className="text-xs font-mono text-muted-foreground sm:hidden shrink-0">
+                <span className="text-xs font-mono text-[#74747A] sm:hidden shrink-0">
                   {page}/{totalPages}
                 </span>
-                <div className="flex gap-1.5 flex-wrap justify-end">
+                <div className="flex gap-2 flex-wrap justify-end">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-lime-400 hover:border-lime-400/30 disabled:opacity-40 transition-colors"
+                    className="text-[11px] font-mono px-2 py-1 rounded border border-border text-[#74747A] hover:text-[#1F8A4D] hover:border-[#E4E4DF] disabled:opacity-40 transition-colors"
                   >
                     ← Prev
                   </button>
@@ -320,10 +320,10 @@ export default function OsintToolsDirectory() {
                         key={p}
                         onClick={() => setPage(p)}
                         className={cn(
-                          "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
+                          "text-[11px] font-mono px-2 py-1 rounded border transition-colors",
                           p === page
-                            ? "border-lime-400/40 text-lime-400 bg-lime-400/5"
-                            : "border-border text-muted-foreground hover:text-lime-400 hover:border-lime-400/30"
+                            ? "border-[#E4E4DF] text-[#1F8A4D] bg-[#F3F3F0]"
+                            : "border-border text-[#74747A] hover:text-[#1F8A4D] hover:border-[#E4E4DF]"
                         )}
                       >
                         {p}
@@ -333,7 +333,7 @@ export default function OsintToolsDirectory() {
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-lime-400 hover:border-lime-400/30 disabled:opacity-40 transition-colors"
+                    className="text-[11px] font-mono px-2 py-1 rounded border border-border text-[#74747A] hover:text-[#1F8A4D] hover:border-[#E4E4DF] disabled:opacity-40 transition-colors"
                   >
                     Next →
                   </button>
@@ -354,39 +354,39 @@ function ToolCard({ tool }: { tool: OsintTool }) {
   })();
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-2 hover:border-lime-400/30 transition-colors group">
+    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-2 hover:border-[#E4E4DF] transition-colors group">
       {/* Category badge */}
       <div className="flex items-center justify-between gap-2">
         <span className={cn(
-          "text-[11px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border",
+          "text-[11px] font-mono   px-2 py-1 rounded border",
           categoryColor(tool.category)
         )}>
           {categoryLabel(tool.category)}
         </span>
-        <Tag className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
+        <Tag className="w-3 h-3 text-[#74747A]/40 flex-shrink-0" />
       </div>
 
       {/* Tool name */}
-      <div className="font-semibold text-sm text-foreground font-mono leading-tight">
+      <div className="font-medium text-sm text-[#18181A] font-mono leading-tight">
         {tool.tool_name}
       </div>
 
       {/* Description */}
-      <p className="text-xs text-muted-foreground leading-relaxed flex-1 line-clamp-3">
+      <p className="text-xs text-[#74747A] leading-relaxed flex-1 line-clamp-3">
         {tool.short_description || "No description available."}
       </p>
 
       {/* URL + open link */}
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40 mt-auto">
         <div className="flex items-center gap-1 min-w-0">
-          <Globe className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
-          <span className="text-[10px] font-mono text-muted-foreground/60 truncate">{hostname}</span>
+          <Globe className="w-3 h-3 text-[#74747A]/50 flex-shrink-0" />
+          <span className="text-[11px] font-mono text-[#74747A]/60 truncate">{hostname}</span>
         </div>
         <a
           href={tool.tool_url}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 text-[10px] font-mono text-lime-400/60 hover:text-lime-400 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-[11px] font-mono text-[#1F8A4D]/60 hover:text-[#1F8A4D] transition-colors flex-shrink-0"
         >
           Open <ExternalLink className="w-3 h-3" />
         </a>

@@ -42,6 +42,7 @@ async function main() {
       const failedRequests = [];
       let currentPath = "/";
       let routeFixtureMode = false;
+      let apiDownMode = false;
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -52,6 +53,14 @@ async function main() {
       }));
       await page.route("**/api/**", async (route) => {
         const url = route.request().url();
+        if (apiDownMode) {
+          await route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "API unavailable in visual fixture" }),
+          });
+          return;
+        }
         let payload = {};
         if (url.endsWith("/api/healthz")) {
           payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
@@ -100,7 +109,7 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "degraded"), { timeout: 8_000 });
       await page.waitForTimeout(400);
       const workspaceStatusVisible = await page.evaluate(() => {
         const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
@@ -184,10 +193,10 @@ async function main() {
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       if (name === "mobile") {
-        const openNavigation = page.getByRole("button", { name: "Open navigation" });
+        const openNavigation = page.locator(".atlas-round-sidebar-toggle");
         if (await openNavigation.count()) {
           await openNavigation.click();
-          await page.waitForSelector(".atlas-round-sidebar.is-open", { timeout: 3000 });
+          await page.waitForSelector(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar", { timeout: 3000 });
           const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
           console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
         } else {
@@ -209,7 +218,7 @@ async function main() {
       if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
       await routeSelects.nth(0).selectOption("1");
       await routeSelects.nth(1).selectOption("2");
-      await page.getByRole("button", { name: "Find shortest path" }).click();
+      await page.getByRole("button", { name: "Find a shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
       routeFixtureLoaded = true;
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
@@ -239,7 +248,7 @@ async function main() {
           const discoverConsole = document.querySelector(".atlas-discover-search-console");
           const discoverInner = document.querySelector(".atlas-discover-search-console-inner");
           const discoverInput = document.querySelector(".atlas-discover-query-field input");
-          const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
+          const ledgerFrame = document.querySelector(".atlas-ledger-console");
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
           const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
           const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
@@ -249,6 +258,17 @@ async function main() {
               display: discover ? getComputedStyle(discover).display : null,
               columns: discover ? getComputedStyle(discover).gridTemplateColumns : null,
               inputWidth: discoverInput?.getBoundingClientRect().width ?? 0,
+              pageWidth: document.querySelector(".atlas-board-page")?.getBoundingClientRect().width ?? 0,
+              shellWidth: document.querySelector(".atlas-round-shell")?.getBoundingClientRect().width ?? 0,
+              rootWidth: document.querySelector("#root")?.getBoundingClientRect().width ?? 0,
+              bodyWidth: document.body.getBoundingClientRect().width,
+              documentWidth: document.documentElement.getBoundingClientRect().width,
+              mainWidth: document.querySelector(".atlas-round-main")?.getBoundingClientRect().width ?? 0,
+              contentWidth: document.querySelector(".atlas-round-content")?.getBoundingClientRect().width ?? 0,
+              gridWrapperWidth: document.querySelector(".atlas-board-page-grid")?.getBoundingClientRect().width ?? 0,
+              discoverWidth: discover?.getBoundingClientRect().width ?? 0,
+              searchWidth: document.querySelector(".atlas-discover-search")?.getBoundingClientRect().width ?? 0,
+              queryFieldWidth: document.querySelector(".atlas-discover-query-field")?.getBoundingClientRect().width ?? 0,
               innerBackground: discoverInner ? getComputedStyle(discoverInner).backgroundColor : null,
               checky: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::before").backgroundImage : null,
               waves: discover ? getComputedStyle(document.querySelector(".atlas-discover-search-console"), "::after").backgroundImage : null,
@@ -272,10 +292,10 @@ async function main() {
             } : null,
           };
         }, boardPage.label);
-        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("svg") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
+        if (boardPage.label === "discover" && (boardDiagnostics.discover?.display !== "grid" || (boardDiagnostics.discover?.inputWidth ?? 0) < 250 || boardDiagnostics.discover?.innerBackground !== "rgb(255, 255, 255)" || !boardDiagnostics.discover?.checky?.includes("conic-gradient") || !boardDiagnostics.discover?.waves?.includes("svg"))) {
           throw new Error(`Discover search desk layout/patterns failed: ${JSON.stringify(boardDiagnostics.discover)}`);
         }
-        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("svg") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
+        if (boardPage.label === "ledger" && (boardDiagnostics.ledger?.metaDisplay !== "flex" || boardDiagnostics.ledger?.metaDirection !== "column" || !boardDiagnostics.ledger?.checky?.includes("conic-gradient") || !boardDiagnostics.ledger?.waves?.includes("svg"))) {
           throw new Error(`Ledger console frame or register metric hierarchy failed: ${JSON.stringify(boardDiagnostics.ledger)}`);
         }
         if (boardPage.label === "reactor" && (boardDiagnostics.reactor?.display !== "grid" || boardDiagnostics.reactor?.metricsDisplay !== "grid" || boardDiagnostics.reactor?.metricLabels?.join("|") !== "Steps|Sources|Elapsed" || boardDiagnostics.reactor?.lastStepDisplay !== "flex" || boardDiagnostics.reactor?.lastStepDirection !== "column")) {
@@ -285,11 +305,11 @@ async function main() {
           const visibleCardHeadings = await page.getByRole("heading", { name: "Mira Patel" }).count();
           if (visibleCardHeadings !== 1) throw new Error(`Card responsive header is duplicated: ${visibleCardHeadings} visible headings`);
           const cardColors = await page.evaluate(() => ({
-            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-primary/\"]")).color,
-            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile [class*=\"text-secondary/\"]")).color,
+            primaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile .atlas-card-subject-copy h2")).color,
+            secondaryLabel: getComputedStyle(document.querySelector(".atlas-board-profile .atlas-card-subject-score small")).color,
             neonTextCount: Array.from(document.querySelectorAll(".atlas-board-profile [style]")).filter((element) => ["rgb(156, 255, 26)", "rgb(184, 255, 77)"].includes(getComputedStyle(element).color)).length,
           }));
-          if (cardColors.primaryLabel !== "rgb(31, 138, 77)" || cardColors.secondaryLabel === "rgb(212, 255, 138)" || cardColors.neonTextCount !== 0) {
+          if (cardColors.primaryLabel !== "rgb(24, 24, 26)" || cardColors.secondaryLabel !== "rgb(116, 116, 122)" || cardColors.neonTextCount !== 0) {
             throw new Error(`Card profile label contrast regression: ${JSON.stringify(cardColors)}`);
           }
         }
@@ -304,6 +324,88 @@ async function main() {
           browserErrors: browserErrors.slice(0, 20),
         })}`);
         console.log(`APEX_VISUAL_IMAGE_${name}_${boardPage.label}=${boardScreenshot.toString("base64")}`);
+      }
+
+      currentPath = "/status";
+      routeFixtureMode = false;
+      apiDownMode = false;
+      await page.goto(new URL("/status", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector(".atlas-system-status", { timeout: 12000 });
+      await page.getByText("No active search-provider pool keys", { exact: false }).waitFor({ state: "visible", timeout: 12000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(100);
+      const statusScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
+      fs.writeFileSync("/tmp/apex-status-" + name + ".jpg", statusScreenshot);
+      const statusDiagnostics = await page.evaluate(() => ({
+        pageTitle: document.querySelector(".atlas-system-status h1")?.textContent?.trim() ?? null,
+        missingProviderNotice: document.body.innerText.includes("No active search-provider pool keys"),
+        statusHeading: document.body.innerText.includes("System status"),
+      }));
+      console.log("APEX_VISUAL_META_" + name + "_status=" + JSON.stringify(statusDiagnostics));
+      console.log("APEX_VISUAL_IMAGE_" + name + "_status=" + statusScreenshot.toString("base64"));
+
+      apiDownMode = true;
+      routeFixtureMode = false;
+      const offlineRoutes = [
+        { path: "/", label: "home", selector: ".atlas-home-board-console.is-api-down" },
+        { path: "/search", label: "discover", selector: ".atlas-discover-search-console" },
+        { path: "/profiles", label: "ledger", selector: ".atlas-ledger-console" },
+        { path: "/network", label: "connections", selector: ".atlas-connections-console" },
+        { path: "/reactor", label: "reactor", selector: ".atlas-reactor-run-console.is-api-down" },
+      ];
+      for (const offlineRoute of offlineRoutes) {
+        currentPath = offlineRoute.path;
+        await page.goto(new URL(offlineRoute.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForFunction(
+          () => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "offline"),
+          { timeout: 12000 },
+        );
+        await page.waitForSelector(offlineRoute.selector, { timeout: 12000 });
+        await page.waitForTimeout(120);
+        const frameMetrics = await page.evaluate((selector) => {
+          const frame = document.querySelector(selector);
+          if (!frame) return null;
+          const style = getComputedStyle(frame);
+          const checker = getComputedStyle(frame, "::before");
+          const header = document.querySelector(".atlas-round-header");
+          const visibleStatus = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
+          const headerStyle = header ? getComputedStyle(header) : null;
+          return {
+            backgroundColor: style.backgroundColor,
+            backgroundImage: style.backgroundImage,
+            backgroundSize: style.backgroundSize,
+            checkerImage: checker.backgroundImage,
+            checkerSize: checker.backgroundSize,
+            headerBackground: headerStyle?.backgroundColor ?? null,
+            headerBorderBottomWidth: headerStyle?.borderBottomWidth ?? null,
+            headerBoxShadow: headerStyle?.boxShadow ?? null,
+            status: visibleStatus?.getAttribute("data-status") ?? null,
+          };
+        }, offlineRoute.selector);
+        if (
+          !frameMetrics ||
+          frameMetrics.status !== "offline" ||
+          frameMetrics.backgroundColor !== "rgb(189, 189, 184)" ||
+          !frameMetrics.backgroundImage.includes("svg") ||
+          frameMetrics.backgroundSize !== "64px 24px" ||
+          !frameMetrics.checkerImage.includes("conic-gradient") ||
+          frameMetrics.checkerSize !== "22px 14px" ||
+          frameMetrics.headerBackground !== "rgb(250, 250, 248)" ||
+          frameMetrics.headerBorderBottomWidth !== "0px" ||
+          frameMetrics.headerBoxShadow !== "none"
+        ) {
+          throw new Error("Shared API-down frame mismatch on " + offlineRoute.label + ": " + JSON.stringify(frameMetrics));
+        }
+        console.log("APEX_VISUAL_META_" + name + "_api_down_" + offlineRoute.label + "=" + JSON.stringify(frameMetrics));
+        if (name === "mobile") {
+          await page.evaluate(() => window.scrollTo(0, 0));
+          const offlineScreenshot = await page.screenshot({ type: "jpeg", quality: 48, fullPage: true });
+          fs.writeFileSync("/tmp/apex-api-down-" + offlineRoute.label + "-mobile.jpg", offlineScreenshot);
+          console.log("APEX_VISUAL_IMAGE_mobile_api_down_" + offlineRoute.label + "=" + offlineScreenshot.toString("base64"));
+        } else {
+          const offlineScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: false });
+          fs.writeFileSync("/tmp/apex-api-down-" + offlineRoute.label + "-" + name + ".jpg", offlineScreenshot);
+        }
       }
       await page.close();
     }

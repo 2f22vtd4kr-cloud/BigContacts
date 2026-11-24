@@ -64,25 +64,25 @@ type CleanupState = "idle" | "starting" | "running" | "done" | "failed";
 // ─── Persona config ───────────────────────────────────────────────────────────
 
 const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; color: string; bg: string }> = {
-  data_engineer:               { label: "Data Engineer",               Icon: Database,    color: "#3B82F6", bg: "rgba(59,130,246,0.1)"   },
-  data_analyst:                { label: "Data Analyst",                Icon: TrendingUp,  color: "#10B981", bg: "rgba(16,185,129,0.1)"   },
-  intel_systems_analyst:       { label: "Intel Systems Analyst",       Icon: Network,     color: "#A855F7", bg: "rgba(168,85,247,0.1)"   },
-  business_engineer:           { label: "Business Engineer",           Icon: Briefcase,   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"   },
-  ux_designer:                 { label: "UX Designer",                 Icon: Palette,     color: "#EC4899", bg: "rgba(236,72,153,0.1)"   },
-  architect:                   { label: "Architect",                   Icon: Layers,      color: "#06B6D4", bg: "rgba(6,182,212,0.1)"    },
-  data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#EF4444", bg: "rgba(239,68,68,0.1)"    },
-  hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#b8ff4d", bg: "rgba(52,245,160,0.1)"   },
-  user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#F43F5E", bg: "rgba(244,63,94,0.1)"    },
-  development_team:            { label: "Development Team",            Icon: Code2,        color: "#14B8A6", bg: "rgba(20,184,166,0.1)"   },
-  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EAB308", bg: "rgba(156,255,26,0.1)"    },
+  data_engineer:               { label: "Data Engineer",               Icon: Database,    color: "#2757C6", bg: "rgba(39,87,198,0.1)"   },
+  data_analyst:                { label: "Data Analyst",                Icon: TrendingUp,  color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  intel_systems_analyst:       { label: "Intel Systems Analyst",       Icon: Network,     color: "#2757C6", bg: "rgba(39,87,198,0.1)"   },
+  business_engineer:           { label: "Business Engineer",           Icon: Briefcase,   color: "#EDB92B", bg: "rgba(237,185,43,0.1)"   },
+  ux_designer:                 { label: "UX Designer",                 Icon: Palette,     color: "#C8321E", bg: "rgba(200,50,30,0.1)"   },
+  architect:                   { label: "Architect",                   Icon: Layers,      color: "#2757C6", bg: "rgba(39,87,198,0.1)"    },
+  data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#C8321E", bg: "rgba(200,50,30,0.1)"    },
+  hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#C8321E", bg: "rgba(200,50,30,0.1)"    },
+  development_team:            { label: "Development Team",            Icon: Code2,        color: "#1F8A4D", bg: "rgba(31,138,77,0.1)"   },
+  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EDB92B", bg: "rgba(31,138,77,0.1)"    },
 };
 
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
-  high:   { label: "Urgent", color: "#EF4444", bg: "rgba(239,68,68,0.15)"  },
-  medium: { label: "MED",    color: "#F59E0B", bg: "rgba(245,158,11,0.15)" },
-  low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.15)" },
+  high:   { label: "Urgent", color: "#C8321E", bg: "rgba(200,50,30,0.1)"  },
+  medium: { label: "Medium",    color: "#EDB92B", bg: "rgba(237,185,43,0.1)" },
+  low:    { label: "Low",    color: "#74747A", bg: "rgba(116,116,122,0.1)" },
 };
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -149,33 +149,33 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
     <button
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all",
+        "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border p-4 text-left  transition-all",
         isActive
           ? "ring-1 ring-current"
-          : "border-border/70 bg-card/30 hover:border-lime-400/25 hover:bg-card/50"
+          : "border-border/70 bg-card/30 hover:border-[#E4E4DF] hover:bg-card/50"
       )}
       style={isActive ? { borderColor: meta.color, background: meta.bg } : undefined}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/40"
           style={isActive ? { borderColor: meta.color + "55", background: meta.color + "18" } : undefined}
         >
           <meta.Icon className="h-4 w-4" style={{ color: meta.color }} />
         </div>
-        <span className="text-[13px] font-semibold tracking-tight text-foreground">{meta.label}</span>
+        <span className="text-[13px] font-medium  text-[#18181A]">{meta.label}</span>
       </div>
       <div className="flex items-end justify-between gap-2">
-        <span className="font-display text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{total}</span>
+        <span className="font-display text-2xl font-medium " style={{ color: meta.color }}>{total}</span>
         <div className="flex flex-col items-end gap-0.5 pb-0.5">
           {pending > 0 && (
-            <span className="font-mono text-[10px] text-[#d4ff8a]/90">{pending} pending</span>
+            <span className="font-mono text-[11px] text-[#1F8A4D]/90">{pending} pending</span>
           )}
           {applied > 0 && (
-            <span className="font-mono text-[10px] text-[#b8ff4d]/90">{applied} applied</span>
+            <span className="font-mono text-[11px] text-[#1F8A4D]/90">{applied} applied</span>
           )}
           {pending === 0 && applied === 0 && (
-            <span className="font-mono text-[10px] text-muted-foreground/60">idle</span>
+            <span className="font-mono text-[11px] text-[#74747A]/60">idle</span>
           )}
         </div>
       </div>
@@ -187,7 +187,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
   const cfg = PRIORITY_CONFIG[priority];
   return (
     <span
-      className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded"
+      className="text-[11px] font-medium font-mono px-2 py-1 rounded"
       style={{ color: cfg.color, background: cfg.bg }}
     >
       {cfg.label}
@@ -196,9 +196,9 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 function StatusBadge({ status }: { status: LogStatus }) {
-  if (status === "applied")   return <span className="text-[10px] font-mono text-[#b8ff4d] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
-  if (status === "dismissed") return <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3" />Dismissed</span>;
-  return <span className="text-[10px] font-mono text-[#9CFF1A] flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
+  if (status === "applied")   return <span className="text-[11px] font-mono text-[#1F8A4D] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
+  if (status === "dismissed") return <span className="text-[11px] font-mono text-[#74747A] flex items-center gap-1"><XCircle className="h-3 w-3" />Dismissed</span>;
+  return <span className="text-[11px] font-mono text-[#1F8A4D] flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
 }
 
 function LogCard({ log, onStatusChange }: {
@@ -216,7 +216,7 @@ function LogCard({ log, onStatusChange }: {
       log.priority === "high" && log.status === "pending" ? "border-l-2" : ""
     )}
       style={log.priority === "high" && log.status === "pending"
-        ? { borderLeftColor: "#EF4444" }
+        ? { borderLeftColor: "#C8321E" }
         : {}
       }
     >
@@ -232,16 +232,16 @@ function LogCard({ log, onStatusChange }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <PriorityBadge priority={log.priority} />
-            <span className="text-[10px] font-mono text-muted-foreground" style={{ color: meta.color }}>
+            <span className="text-[11px] font-mono text-[#74747A]" style={{ color: meta.color }}>
               {meta.label}
             </span>
             {log.entityName && (
-              <span className="text-[10px] font-mono text-muted-foreground/60 flex items-center gap-1">
+              <span className="text-[11px] font-mono text-[#74747A]/60 flex items-center gap-1">
                 <User className="h-2.5 w-2.5" />{log.entityName}
               </span>
             )}
           </div>
-          <p className="text-sm font-medium text-foreground leading-snug">{log.title}</p>
+          <p className="text-sm font-medium text-[#18181A] leading-snug">{log.title}</p>
           <StatusBadge status={log.status} />
         </div>
 
@@ -250,14 +250,14 @@ function LogCard({ log, onStatusChange }: {
             <>
               <button
                 onClick={e => { e.stopPropagation(); onStatusChange(log.id, "applied"); }}
-                className="text-[#9CFF1A] hover:text-[#b8ff4d] transition-colors p-1"
+                className="text-[#1F8A4D] hover:text-[#1F8A4D] transition-colors p-1"
                 title="Mark applied"
               >
                 <CheckCircle2 className="h-4 w-4" />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onStatusChange(log.id, "dismissed"); }}
-                className="text-muted-foreground hover:text-red-400 transition-colors p-1"
+                className="text-[#74747A] hover:text-[#C8321E] transition-colors p-1"
                 title="Dismiss"
               >
                 <XCircle className="h-4 w-4" />
@@ -265,22 +265,22 @@ function LogCard({ log, onStatusChange }: {
             </>
           )}
           {expanded
-            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ? <ChevronUp className="h-3.5 w-3.5 text-[#74747A]" />
+            : <ChevronDown className="h-3.5 w-3.5 text-[#74747A]" />
           }
         </div>
       </div>
 
       {expanded && (
         <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">{log.description}</p>
+          <p className="text-xs text-[#74747A] leading-relaxed">{log.description}</p>
           {log.actionTaken && (
             <div className="flex items-start gap-2 rounded bg-primary/5 border border-primary/10 p-3">
-              <Zap className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
-              <p className="text-xs font-mono text-primary/80">{log.actionTaken}</p>
+              <Zap className="h-3.5 w-3.5 text-[#2757C6] flex-shrink-0 mt-0.5" />
+              <p className="text-xs font-mono text-[#2757C6]/80">{log.actionTaken}</p>
             </div>
           )}
-          <div className="text-[10px] text-muted-foreground/50 font-mono">
+          <div className="text-[11px] text-[#74747A]/50 font-mono">
             {new Date(log.createdAt).toLocaleString()} · category: {log.category}
           </div>
         </div>
@@ -298,28 +298,28 @@ function JobProgressBar({ job }: { job: JobState }) {
     <div className="border border-border rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isRunning && <RefreshCw className="h-4 w-4 text-primary animate-spin" />}
-          {isDone    && <CheckCircle2 className="h-4 w-4 text-[#9CFF1A]" />}
-          {isFailed  && <AlertTriangle className="h-4 w-4 text-red-500" />}
+          {isRunning && <RefreshCw className="h-4 w-4 text-[#2757C6] animate-spin" />}
+          {isDone    && <CheckCircle2 className="h-4 w-4 text-[#1F8A4D]" />}
+          {isFailed  && <AlertTriangle className="h-4 w-4 text-[#C8321E]" />}
           <span className="text-sm font-medium">
             {isRunning ? "Running persona loop…" : isDone ? "Loop complete" : "Loop failed"}
           </span>
         </div>
-        <span className="text-xs font-mono text-muted-foreground">{job.progress}%</span>
+        <span className="text-xs font-mono text-[#74747A]">{job.progress}%</span>
       </div>
 
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500",
-            isDone ? "bg-[#9CFF1A]" : isFailed ? "bg-red-500" : "bg-primary")}
+            isDone ? "bg-[#1F8A4D]" : isFailed ? "bg-[#F3F3F0]" : "bg-primary")}
           style={{ width: `${job.progress}%` }}
         />
       </div>
 
-      <p className="text-xs text-muted-foreground font-mono">{job.message}</p>
+      <p className="text-xs text-[#74747A] font-mono">{job.message}</p>
 
       {isDone && (
-        <p className="text-xs text-[#b8ff4d] font-mono">
+        <p className="text-xs text-[#1F8A4D] font-mono">
           <><CheckCircle2 className="mr-1 inline-block h-3 w-3" />{job.inserted} suggestions generated</>
           {job.errors > 0 && ` · ${job.errors} errors`}
         </p>
@@ -524,9 +524,9 @@ export default function ImprovementsPage() {
       {/* ── Header ── */}
       <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <Bot className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
+          <Bot className="h-5 w-5 text-[#2757C6] flex-shrink-0" aria-hidden />
           <div className="min-w-0">
-            <p className="text-[12px] text-muted-foreground leading-snug">
+            <p className="text-[12px] text-[#74747A] leading-snug">
               11 personas analyse entities and surface concrete improvements
             </p>
           </div>
@@ -534,9 +534,9 @@ export default function ImprovementsPage() {
 
         <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">
           {stats && stats.total > 0 && (
-            <div className="hidden md:flex items-center gap-3 text-xs font-mono text-muted-foreground mr-2">
+            <div className="hidden md:flex items-center gap-3 text-xs font-mono text-[#74747A] mr-2">
               {highCount > 0 && (
-                <span className="text-red-400 flex items-center gap-1">
+                <span className="text-[#C8321E] flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />{highCount} urgent
                 </span>
               )}
@@ -549,10 +549,10 @@ export default function ImprovementsPage() {
             disabled={isRunning || apiOffline}
             title={apiOffline ? "API offline — cannot start persona jobs" : undefined}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors",
+              "flex min-h-[40px] items-center gap-2 px-4 py-2 text-xs font-medium font-mono rounded-xl transition-colors",
               isRunning
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                ? "bg-muted text-[#74747A] cursor-not-allowed"
+                : "bg-primary text-[#2757C6]-foreground hover:bg-primary/90"
             )}
           >
             {isRunning
@@ -564,10 +564,10 @@ export default function ImprovementsPage() {
             onClick={handleApplySafe}
             disabled={apiOffline || remediationState === "starting" || remediationState === "running"}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-4 py-2 text-xs font-medium font-mono rounded-xl transition-colors border",
               remediationState === "starting" || remediationState === "running"
-                ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-[#9CFF1A]/40 text-[#b8ff4d] hover:bg-[#9CFF1A]/10"
+                ? "border-border text-[#74747A] cursor-not-allowed"
+                : "border-[#E4E4DF]/40 text-[#1F8A4D] hover:bg-[#F3F3F0]"
             )}
             title="Apply only deterministic state fixes supported by stored evidence"
           >
@@ -580,10 +580,10 @@ export default function ImprovementsPage() {
             onClick={handleDeduplicate}
             disabled={cleanupState === "starting" || cleanupState === "running"}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-4 py-2 text-xs font-medium font-mono rounded-xl transition-colors border",
               cleanupState === "starting" || cleanupState === "running"
-                ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-[#9CFF1A]/40 text-[#9CFF1A] hover:bg-[#9CFF1A]/10"
+                ? "border-border text-[#74747A] cursor-not-allowed"
+                : "border-[#E4E4DF]/40 text-[#1F8A4D] hover:bg-[#F3F3F0]"
             )}
             title="Dismiss repeated findings while retaining the newest copy"
           >
@@ -612,22 +612,22 @@ export default function ImprovementsPage() {
         {error && (
           <div
             className={cn(
-              "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 text-xs sm:flex-row sm:items-start",
+              "flex flex-col gap-2 rounded-2xl border px-4 py-4 text-xs sm:flex-row sm:items-start",
               /mock mode/i.test(error)
-                ? "border-lime-400/25 bg-lime-500/[0.06] text-lime-100"
-                : "border-red-800/30 bg-red-950/20 text-red-300"
+                ? "border-[#E4E4DF] bg-[#1F8A4D]/[0.06] text-[#1F8A4D]"
+                : "border-[#E4E4DF] bg-[#F3F3F0]/20 text-[#C8321E]"
             )}
             role="alert"
             data-testid="alert-persona-api"
           >
-            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-lime-300" : "text-red-400")} aria-hidden />
+            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-[#1F8A4D]" : "text-[#C8321E]")} aria-hidden />
             <div className="min-w-0 space-y-1">
-              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-lime-50" : "text-red-200")}>
+              <div className={cn("font-medium", /mock mode/i.test(error) ? "text-[#1F8A4D]" : "text-[#C8321E]")}>
                 {/mock mode/i.test(error) ? "Demo mode — persona loop runs on api-server" : "Persona review needs the research API"}
               </div>
-              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-lime-100/80" : "text-red-300/90")}>{error}</p>
+              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-[#1F8A4D]/80" : "text-[#C8321E]/90")}>{error}</p>
               {apiOffline && (
-                <p className="leading-relaxed text-red-300/70">
+                <p className="leading-relaxed text-[#C8321E]/70">
                   In production, <span className="font-mono">api-server</span> runs deterministic personas, writes improvement logs, and applies safe fixes via the job queue. The static UI only triggers and displays that work — it does not run LLMs in the browser.
                 </p>
               )}
@@ -638,16 +638,16 @@ export default function ImprovementsPage() {
         {/* ── Empty state (no data ingested yet) ── */}
         {!loading && stats?.total === 0 && runState === "idle" && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-            <Bot className="h-12 w-12 text-muted-foreground/30" />
+            <Bot className="h-12 w-12 text-[#74747A]/30" />
             <div>
-              <p className="text-sm font-medium text-muted-foreground">No improvement logs yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
+              <p className="text-sm font-medium text-[#74747A]">No improvement logs yet</p>
+              <p className="text-xs text-[#74747A]/60 mt-1">
                 Run the Persona Loop to analyse all entities and surface enrichment opportunities.
               </p>
             </div>
             <button
               onClick={handleRun}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-[#2757C6]-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               <Play className="h-4 w-4" />
               Run First Loop
@@ -659,7 +659,7 @@ export default function ImprovementsPage() {
         {stats && stats.total > 0 && (
           <>
             <div>
-              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-3">Personas</p>
+              <p className="text-xs font-mono text-[#74747A]   mb-3">Personas</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {ALL_PERSONAS.map(pid => (
                   <PersonaCard
@@ -675,7 +675,7 @@ export default function ImprovementsPage() {
 
             {/* ── Filters row ── */}
             <div className="flex items-center gap-2 flex-wrap">
-              <Filter className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <Filter className="h-3.5 w-3.5 text-[#74747A] flex-shrink-0" />
 
               {/* Status filter */}
               <div className="flex gap-1">
@@ -684,10 +684,10 @@ export default function ImprovementsPage() {
                     key={s}
                     onClick={() => setActiveStatus(s)}
                     className={cn(
-                      "px-2.5 py-1 text-[11px] font-mono rounded transition-colors",
+                      "px-2 py-1 text-[11px] font-mono rounded transition-colors",
                       activeStatus === s
-                        ? "bg-primary/20 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-primary/20 text-[#2757C6]"
+                        : "text-[#74747A] hover:text-[#18181A] hover:bg-muted"
                     )}
                   >
                     {s === "all" ? "All status" : s}
@@ -704,10 +704,10 @@ export default function ImprovementsPage() {
                     key={p}
                     onClick={() => setActivePriority(p)}
                     className={cn(
-                      "px-2.5 py-1 text-[11px] font-mono rounded transition-colors",
+                      "px-2 py-1 text-[11px] font-mono rounded transition-colors",
                       activePriority === p
-                        ? "bg-primary/20 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-primary/20 text-[#2757C6]"
+                        : "text-[#74747A] hover:text-[#18181A] hover:bg-muted"
                     )}
                   >
                     {p === "all" ? "All priority" : p}
@@ -718,13 +718,13 @@ export default function ImprovementsPage() {
               {(activePersona || activeStatus !== "all" || activePriority !== "all") && (
                 <button
                   onClick={() => { setActivePersona(null); setActiveStatus("all"); setActivePriority("all"); }}
-                  className="text-[11px] font-mono text-muted-foreground hover:text-red-400 transition-colors ml-1"
+                  className="text-[11px] font-mono text-[#74747A] hover:text-[#C8321E] transition-colors ml-1"
                 >
                   <><XCircle className="mr-1 inline-block h-3 w-3" />Clear filters</>
                 </button>
               )}
 
-              <span className="ml-auto text-xs font-mono text-muted-foreground">
+              <span className="ml-auto text-xs font-mono text-[#74747A]">
                 {logs.length} result{logs.length !== 1 ? "s" : ""}
               </span>
             </div>
@@ -733,11 +733,11 @@ export default function ImprovementsPage() {
             {loading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 rounded-lg bg-muted/30 animate-pulse" />
+                  <div key={i} className="h-16 rounded-lg bg-muted/30 " />
                 ))}
               </div>
             ) : logs.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground text-sm">
+              <div className="text-center py-12 text-[#74747A] text-sm">
                 No logs match the current filters.
               </div>
             ) : (

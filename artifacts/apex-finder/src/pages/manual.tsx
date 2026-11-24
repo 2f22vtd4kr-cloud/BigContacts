@@ -29,21 +29,21 @@ function Callout({
   title?: string;
   tone?: "primary" | "warn";
 }) {
-  const border = tone === "warn" ? "border-[#9CFF1A]" : "border-primary";
-  const bg = tone === "warn" ? "bg-[#9CFF1A]/5" : "bg-primary/5";
-  const titleColor = tone === "warn" ? "text-[#9CFF1A]" : "text-primary";
+  const border = tone === "warn" ? "border-[#E4E4DF]" : "border-primary";
+  const bg = tone === "warn" ? "bg-[#F3F3F0]" : "bg-primary/5";
+  const titleColor = tone === "warn" ? "text-[#1F8A4D]" : "text-[#2757C6]";
   return (
     <div className={cn(
-      "border-l-2 p-4 rounded-r-2xl my-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+      "border-l-2 p-4 rounded-r-2xl my-6 ",
       border,
       bg,
     )}>
       {title && (
-        <div className={cn("font-mono text-xs font-bold mb-1 uppercase tracking-wider", titleColor)}>
+        <div className={cn("font-mono text-xs font-medium mb-1  ", titleColor)}>
           {title}
         </div>
       )}
-      <div className="text-sm text-foreground/80 leading-relaxed">{children}</div>
+      <div className="text-sm text-[#18181A]/80 leading-relaxed">{children}</div>
     </div>
   );
 }
@@ -59,9 +59,9 @@ function StatusRow({
 }) {
   return (
     <li className="flex gap-3">
-      <Icon className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden />
+      <Icon className="w-4 h-4 text-[#2757C6] shrink-0 mt-0.5" aria-hidden />
       <span>
-        <strong className="text-foreground">{title}</strong>{" "}
+        <strong className="text-[#18181A]">{title}</strong>{" "}
         {children}
       </span>
     </li>
@@ -74,27 +74,27 @@ const SECTIONS = [
     title: "1. What Apex Atlas is",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          Apex Atlas is a <strong className="text-foreground">model-led public-web research bureau</strong>.
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
+          Apex Atlas is a <strong className="text-[#18181A]">model-led public-web research bureau</strong>.
           Its job is to identify people, organizations, ownership relationships, and public contact routes
           that can be justified from evidence. It is not a deterministic enrichment script and it is not
           a list generator that fills gaps with guesses.
         </p>
         <div className="grid gap-2 sm:grid-cols-3 my-4">
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
-            <div className="text-[10px] font-mono uppercase text-primary">Boss</div>
-            <div className="text-sm font-semibold mt-1">Groq</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Case direction and Investigator selection.</div>
+            <div className="text-[11px] font-mono  text-[#2757C6]">Boss</div>
+            <div className="text-sm font-medium mt-1">Groq</div>
+            <div className="text-[11px] text-[#74747A] mt-1">Case direction and Investigator selection.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
-            <div className="text-[10px] font-mono uppercase text-primary">Right-hand</div>
-            <div className="text-sm font-semibold mt-1">Groq</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Independent bounded oversight.</div>
+            <div className="text-[11px] font-mono  text-[#2757C6]">Right-hand</div>
+            <div className="text-sm font-medium mt-1">Groq</div>
+            <div className="text-[11px] text-[#74747A] mt-1">Independent bounded oversight.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
-            <div className="text-[10px] font-mono uppercase text-primary">Investigator</div>
-            <div className="text-sm font-semibold mt-1">Groq capability</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Owns the research trajectory and selects tools.</div>
+            <div className="text-[11px] font-mono  text-[#2757C6]">Investigator</div>
+            <div className="text-sm font-medium mt-1">Groq capability</div>
+            <div className="text-[11px] text-[#74747A] mt-1">Owns the research trajectory and selects tools.</div>
           </div>
         </div>
         <Callout title="The central rule">
@@ -109,7 +109,7 @@ const SECTIONS = [
     title: "2. How research actually runs",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Apex does not force an identity → company → contact recipe. Search, browser/fetch, registries,
           domain inspection, footprint tools, and other approved executors are capabilities the Investigator
           can choose when they are useful.
@@ -118,7 +118,7 @@ const SECTIONS = [
           Groq Boss → Groq Right-hand review → selected Groq Investigator
           → model-selected action → validated capability → observation + provenance → next act
         </div>
-        <ul className="space-y-3 text-sm text-muted-foreground">
+        <ul className="space-y-3 text-sm text-[#74747A]">
           <StatusRow icon={Cpu} title="Investigator chooses the next act.">
             It may search, visit, pivot, verify, disprove, revisit, narrow, broaden, or stop.
           </StatusRow>
@@ -130,7 +130,7 @@ const SECTIONS = [
           </StatusRow>
         </ul>
         <Callout title="Live activity">
-          Open the <Link href="/reactor" className="text-primary underline">Intelligence Reactor</Link> to
+          Open the <Link href="/reactor" className="text-[#2757C6] underline">Intelligence Reactor</Link> to
           watch the canonical event stream for an active run.
         </Callout>
       </>
@@ -141,19 +141,19 @@ const SECTIONS = [
     title: "3. Evidence graph & identity",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Apex treats the evidence graph as research state, not merely a final report. Durable state includes
           observations, claims, competing identity hypotheses, contradictions, contacts, negative findings,
           open questions, and source provenance.
         </p>
         <div className="rounded-xl border border-primary/12 bg-card/50 p-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-mono"><Search className="w-4 h-4 text-primary" /> raw observation</div>
-          <div className="pl-6 text-muted-foreground">↓</div>
-          <div className="flex items-center gap-2 text-xs font-mono"><Fingerprint className="w-4 h-4 text-primary" /> claim / identity hypothesis</div>
-          <div className="pl-6 text-muted-foreground">↓</div>
-          <div className="flex items-center gap-2 text-xs font-mono"><Network className="w-4 h-4 text-primary" /> attribution + provenance + scope validation</div>
-          <div className="pl-6 text-muted-foreground">↓</div>
-          <div className="flex items-center gap-2 text-xs font-mono"><Database className="w-4 h-4 text-primary" /> durable evidence event / projection</div>
+          <div className="flex items-center gap-2 text-xs font-mono"><Search className="w-4 h-4 text-[#2757C6]" /> raw observation</div>
+          <div className="pl-6 text-[#74747A]">↓</div>
+          <div className="flex items-center gap-2 text-xs font-mono"><Fingerprint className="w-4 h-4 text-[#2757C6]" /> claim / identity hypothesis</div>
+          <div className="pl-6 text-[#74747A]">↓</div>
+          <div className="flex items-center gap-2 text-xs font-mono"><Network className="w-4 h-4 text-[#2757C6]" /> attribution + provenance + scope validation</div>
+          <div className="pl-6 text-[#74747A]">↓</div>
+          <div className="flex items-center gap-2 text-xs font-mono"><Database className="w-4 h-4 text-[#2757C6]" /> durable evidence event / projection</div>
         </div>
         <Callout title="Evidence law" tone="warn">
           A search snippet, model statement, copied directory, guessed email pattern, or inherited target name
@@ -167,11 +167,11 @@ const SECTIONS = [
     title: "4. Corroboration, source quality & failure signals",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Different URLs are not automatically different evidence. Apex tracks source families/classes so
           syndicated or copied pages do not create false corroboration.
         </p>
-        <ul className="space-y-3 text-sm text-muted-foreground">
+        <ul className="space-y-3 text-sm text-[#74747A]">
           <StatusRow icon={Globe} title="Independent source families">
             Regulatory, official company/governance, reputable news, professional directories, social profiles,
             search results, aggregators, and scraped directories are treated differently.
@@ -182,7 +182,7 @@ const SECTIONS = [
             errors, and system failures.
           </StatusRow>
         </ul>
-        <p className="text-sm text-muted-foreground leading-relaxed mt-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mt-4">
           Failure diagnostics are telemetry. They do not silently rewrite the research result.
         </p>
       </>
@@ -193,11 +193,11 @@ const SECTIONS = [
     title: "5. Adaptive discovery & independent research",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Discovery is no longer a static weighted list. Historical lane feedback can influence future
           allocation while diversity floors prevent one successful lane from monopolizing the portfolio.
         </p>
-        <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground mb-4 pl-2">
+        <ul className="list-disc list-inside space-y-2 text-sm text-[#74747A] mb-4 pl-2">
           <li>Geography</li>
           <li>Occupation / operator type</li>
           <li>Wealth mechanism</li>
@@ -218,19 +218,19 @@ const SECTIONS = [
     title: "6. Contacts, completeness & scores",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Contactability and wealth signal are separate dimensions.
         </p>
         <div className="flex gap-2 my-4">
           <AccessScoreBadge score={0.87} />
           <ScoreBadge score={0.95} />
         </div>
-        <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground mb-4 pl-2">
-          <li><strong className="text-foreground">Access Score</strong> reflects evidence-backed public reachability.</li>
-          <li><strong className="text-foreground">Signal Score</strong> reflects strength of the wealth/ownership footprint.</li>
-          <li><strong className="text-foreground">FULL</strong> means a strong attributable direct/role contact path is present.</li>
-          <li><strong className="text-foreground">PARTIAL</strong> means the person is identified but the public contact route is limited.</li>
-          <li><strong className="text-foreground">INCOMPLETE</strong> means the attributable path is not established.</li>
+        <ul className="list-disc list-inside space-y-2 text-sm text-[#74747A] mb-4 pl-2">
+          <li><strong className="text-[#18181A]">Access Score</strong> reflects evidence-backed public reachability.</li>
+          <li><strong className="text-[#18181A]">Signal Score</strong> reflects strength of the wealth/ownership footprint.</li>
+          <li><strong className="text-[#18181A]">Full</strong> means a strong attributable direct/role contact path is present.</li>
+          <li><strong className="text-[#18181A]">Partial</strong> means the person is identified but the public contact route is limited.</li>
+          <li><strong className="text-[#18181A]">Incomplete</strong> means the attributable path is not established.</li>
         </ul>
         <Callout title="Organization vs personal" tone="warn">
           info@, sales@, contact@, office@ and similar generic inboxes remain organization-scoped unless
@@ -245,11 +245,11 @@ const SECTIONS = [
     title: "7. Structured model decisions & working memory",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Investigator decisions use provider-aware structured response contracts where supported, followed by
           semantic validation. Reasoning content is kept separate from the action payload where the provider supports it.
         </p>
-        <ul className="space-y-3 text-sm text-muted-foreground">
+        <ul className="space-y-3 text-sm text-[#74747A]">
           <StatusRow icon={Cpu} title="Groq">
             Uses structured JSON/schema output on supported models and keeps reasoning separate from the action payload.
           </StatusRow>
@@ -272,22 +272,22 @@ const SECTIONS = [
     title: "8. Runtime, jobs & persistence",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Long-running work belongs on the API server. The browser starts work and observes status; durable
           state belongs in the server-side database/Redis control plane.
         </p>
         <div className="rounded-xl border border-primary/12 bg-muted/20 p-4 my-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-mono text-primary">UI trigger</span>
-            <span className="text-xs text-muted-foreground">→</span>
-            <span className="text-xs font-mono text-primary">api-server</span>
-            <span className="text-xs text-muted-foreground">→</span>
-            <span className="text-xs font-mono text-primary">Redis job / lease</span>
-            <span className="text-xs text-muted-foreground">→</span>
-            <span className="text-xs font-mono text-primary">Postgres evidence state</span>
+            <span className="text-xs font-mono text-[#2757C6]">UI trigger</span>
+            <span className="text-xs text-[#74747A]">→</span>
+            <span className="text-xs font-mono text-[#2757C6]">api-server</span>
+            <span className="text-xs text-[#74747A]">→</span>
+            <span className="text-xs font-mono text-[#2757C6]">Redis job / lease</span>
+            <span className="text-xs text-[#74747A]">→</span>
+            <span className="text-xs font-mono text-[#2757C6]">Postgres evidence state</span>
           </div>
         </div>
-        <ul className="space-y-3 text-sm text-muted-foreground">
+        <ul className="space-y-3 text-sm text-[#74747A]">
           <StatusRow icon={ListOrdered} title="Job status">
             Poll the canonical job endpoint until terminal state; keep the job/run identifiers for audit.
           </StatusRow>
@@ -306,10 +306,10 @@ const SECTIONS = [
     title: "9. Providers & deployment secrets",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Provider credentials belong in Replit Secrets or the deployment secret store, never in source control or the browser. The active model roles use separate Groq credentials.
         </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px] font-mono text-muted-foreground mb-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px] font-mono text-[#74747A] mb-4">
           {[
             "COMPANIES_HOUSE_API_KEY",
             "EXA_API_KEY",
@@ -327,8 +327,8 @@ const SECTIONS = [
             <div key={key} className="border border-primary/12 rounded p-2">{key}</div>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-          Optional numbered credential slots are supported for the Groq roles and search providers. The Replit preflight script is the source of truth for required presence checks; it reports names only, never values. <span className="font-mono text-foreground">DATABASE_URL</span> is supplied by the platform.
+        <p className="text-sm text-[#74747A] leading-relaxed mb-3">
+          Optional numbered credential slots are supported for the Groq roles and search providers. The Replit preflight script is the source of truth for required presence checks; it reports names only, never values. <span className="font-mono text-[#18181A]">DATABASE_URL</span> is supplied by the platform.
         </p>
         <Callout title="Separate Python worker contract">
           SpiderFoot, Maigret, Sherlock, Holehe and theHarvester require the dedicated isolated worker URL/token, exact pinned worker and egress-proxy image digests, and a fresh signed attestation. Installing a Python package in the app workspace alone does not make network execution available.
@@ -341,12 +341,12 @@ const SECTIONS = [
     title: "10. Research quality & release standard",
     content: (
       <>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+        <p className="text-sm text-[#74747A] leading-relaxed mb-4">
           Architecture checks tell us whether the bureau is structurally behaving as designed. They do not prove
           that research quality is good. That requires controlled real investigations.
         </p>
-        <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground mb-4 pl-2">
-          <li>Current grounded Gauntlet registry: <strong className="text-foreground">38 cases</strong>.</li>
+        <ul className="list-disc list-inside space-y-2 text-sm text-[#74747A] mb-4 pl-2">
+          <li>Current grounded Gauntlet registry: <strong className="text-[#18181A]">38 cases</strong>.</li>
           <li>Schema: <span className="font-mono">research-gauntlet-v1</span>, version <span className="font-mono">1.1.1</span>.</li>
           <li>Ground truth frozen as of 2026-09-18.</li>
           <li>Unknown / insufficient evidence is valid.</li>
@@ -365,24 +365,24 @@ const SECTIONS = [
     title: "11. Operator workflow",
     content: (
       <>
-        <ol className="list-decimal list-inside space-y-3 text-sm text-muted-foreground mb-4 pl-1">
-          <li><strong className="text-foreground">Start from a precise objective.</strong> Give Apex the question to answer, not a desired conclusion.</li>
-          <li><strong className="text-foreground">Watch the Reactor.</strong> Confirm the run is producing real observations and provenance.</li>
-          <li><strong className="text-foreground">Inspect evidence.</strong> Check identity support, source independence, contradictions, and contact scope.</li>
-          <li><strong className="text-foreground">Treat incomplete as incomplete.</strong> Do not convert a weak public footprint into a confident contact.</li>
-          <li><strong className="text-foreground">Stop when evidence warrants it.</strong> Unknown is better than an unsupported answer.</li>
+        <ol className="list-decimal list-inside space-y-3 text-sm text-[#74747A] mb-4 pl-1">
+          <li><strong className="text-[#18181A]">Start from a precise objective.</strong> Give Apex the question to answer, not a desired conclusion.</li>
+          <li><strong className="text-[#18181A]">Watch the Reactor.</strong> Confirm the run is producing real observations and provenance.</li>
+          <li><strong className="text-[#18181A]">Inspect evidence.</strong> Check identity support, source independence, contradictions, and contact scope.</li>
+          <li><strong className="text-[#18181A]">Treat incomplete as incomplete.</strong> Do not convert a weak public footprint into a confident contact.</li>
+          <li><strong className="text-[#18181A]">Stop when evidence warrants it.</strong> Unknown is better than an unsupported answer.</li>
         </ol>
         <div className="bg-muted/30 border border-primary/12 p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono text-muted-foreground">Research loop:</span>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Objective</span>
-          <span className="text-xs text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Hypothesis</span>
-          <span className="text-xs text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Evidence</span>
-          <span className="text-xs text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Discriminate / pivot</span>
-          <span className="text-xs text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Promote or abstain</span>
+          <span className="text-xs font-mono text-[#74747A]">Research loop:</span>
+          <span className="text-xs font-mono text-[#2757C6] bg-primary/10 px-2 py-1 rounded">Objective</span>
+          <span className="text-xs text-[#74747A]">→</span>
+          <span className="text-xs font-mono text-[#2757C6] bg-primary/10 px-2 py-1 rounded">Hypothesis</span>
+          <span className="text-xs text-[#74747A]">→</span>
+          <span className="text-xs font-mono text-[#2757C6] bg-primary/10 px-2 py-1 rounded">Evidence</span>
+          <span className="text-xs text-[#74747A]">→</span>
+          <span className="text-xs font-mono text-[#2757C6] bg-primary/10 px-2 py-1 rounded">Discriminate / pivot</span>
+          <span className="text-xs text-[#74747A]">→</span>
+          <span className="text-xs font-mono text-[#2757C6] bg-primary/10 px-2 py-1 rounded">Promote or abstain</span>
         </div>
       </>
     ),
@@ -392,7 +392,7 @@ const SECTIONS = [
     title: "12. Safety floors & honesty",
     content: (
       <>
-        <ul className="space-y-3 text-sm text-muted-foreground">
+        <ul className="space-y-3 text-sm text-[#74747A]">
           <StatusRow icon={AlertTriangle} title="No synthetic contacts.">
             Missing data stays missing. Guessed emails, phones, roles, and relationships are not acceptable evidence.
           </StatusRow>
@@ -422,26 +422,26 @@ export default function ManualPage() {
   return (
     <div className="atlas-page max-w-3xl py-8 sm:py-10">
       <div className="flex items-start gap-3 mb-4">
-        <BookOpen className="w-5 h-5 text-primary mt-0.5 shrink-0" aria-hidden />
+        <BookOpen className="w-5 h-5 text-[#2757C6] mt-0.5 shrink-0" aria-hidden />
         <div>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+          <p className="text-sm text-[#74747A] leading-relaxed max-w-2xl">
             How Apex Atlas works today: model-led research, durable evidence, independent corroboration,
             adaptive discovery, and strict honesty about what is actually proven.
           </p>
-          <p className="text-[11px] text-muted-foreground/70 mt-2">
+          <p className="text-[11px] text-[#74747A]/70 mt-2">
             This manual describes the current engineering contract. It does not claim production certification.
           </p>
         </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2" data-testid="manual-quick-links">
-        <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-lime-400/25 bg-lime-400/10 px-3 py-1.5 text-[11px] font-semibold text-lime-100 hover:border-yellow-300/40">
+        <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-2 rounded-lg border border-[#E4E4DF] bg-[#F3F3F0] px-3 py-2 text-[11px] font-medium text-[#1F8A4D] hover:border-yellow-300/40">
           <Cpu className="h-3.5 w-3.5" /> Live reactor
         </Link>
-        <Link href="/search" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-primary/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+        <Link href="/search" className="inline-flex min-h-[36px] items-center gap-2 rounded-lg border border-primary/12 bg-card/50 px-3 py-2 text-[11px] font-medium text-[#18181A] hover:border-primary/40">
           Discover
         </Link>
-        <Link href="/profiles" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-primary/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+        <Link href="/profiles" className="inline-flex min-h-[36px] items-center gap-2 rounded-lg border border-primary/12 bg-card/50 px-3 py-2 text-[11px] font-medium text-[#18181A] hover:border-primary/40">
           Entity ledger
         </Link>
       </div>
@@ -454,13 +454,13 @@ export default function ManualPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search sections…"
-        className="mb-5 w-full rounded-xl border border-primary/10 bg-background/80 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-lime-400/30 focus-visible:border-lime-400/40"
+        className="mb-5 w-full rounded-xl border border-primary/10 bg-background/80 px-4 py-3 text-sm text-[#18181A] placeholder:text-[#74747A]/50 outline-none focus-visible:ring-2 focus-visible:ring-[#2757C6]/30 focus-visible:border-[#E4E4DF]"
         autoComplete="off"
       />
 
       <div className="space-y-2" role="list">
         {visible.length === 0 && (
-          <div className="rounded-lg border border-primary/12 bg-card px-4 py-8 text-center text-sm text-muted-foreground" data-testid="manual-search-empty">
+          <div className="rounded-lg border border-primary/12 bg-card px-4 py-8 text-center text-sm text-[#74747A]" data-testid="manual-search-empty">
             No sections match “{query.trim()}”.
           </div>
         )}
@@ -477,8 +477,8 @@ export default function ManualPage() {
                 className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 data-testid={`manual-section-${section.id}`}
               >
-                <span className="text-sm font-semibold text-foreground">{section.title}</span>
-                {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden />}
+                <span className="text-sm font-medium text-[#18181A]">{section.title}</span>
+                {open ? <ChevronUp className="w-4 h-4 text-[#74747A] shrink-0" aria-hidden /> : <ChevronDown className="w-4 h-4 text-[#74747A] shrink-0" aria-hidden />}
               </button>
               {open && (
                 <div
@@ -495,7 +495,7 @@ export default function ManualPage() {
         })}
       </div>
 
-      <div className="mt-10 text-[11px] text-muted-foreground/70 leading-relaxed">
+      <div className="mt-10 text-[11px] text-[#74747A]/70 leading-relaxed">
         Apex Atlas · public evidence only · never invent contacts · organization inboxes stay scoped · unknown is valid
       </div>
     </div>
