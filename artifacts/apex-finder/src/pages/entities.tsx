@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
+import { getListEntitiesQueryKey, useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries, displayEntityType, hasPersonalWealthEvidence } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
@@ -215,6 +215,7 @@ function RerunButton({ entityId, discoveryCaseId, targetCaseId, researchDepth }:
 
   const handleRerun = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isMockMode()) return;
     if (state === "running") return;
     setState("running");
     try {
@@ -688,7 +689,7 @@ export default function EntityLedger() {
   const isSpecialFilter = hotOnly || hideBillionaires;
   const anyContactFilter = contactRichness !== null || minConfidence > 0;
 
-  const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
+  const entityListParams = {
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
     limit: isSpecialFilter ? 500 : 50,
@@ -700,13 +701,18 @@ export default function EntityLedger() {
     contactOutcome: (contactRichness === "direct" || contactRichness === "verified")
       ? contactRichness : undefined,
     minContactConfidence: minConfidence > 0 ? minConfidence : undefined,
-  } as Parameters<typeof useListEntities>[0]);
+  };
+  const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities(
+    entityListParams as Parameters<typeof useListEntities>[0],
+    { query: { enabled: !isMockMode(), queryKey: getListEntitiesQueryKey(entityListParams) } },
+  );
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
   // Star/hide toggle helpers
   const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
   const handleToggleStar = async (entity: any) => {
+    if (isMockMode()) return;
     const newVal = !(localOverrides.get(entity.id)?.isStarred ?? entity.isStarred ?? false);
     setLocalOverrides((prev) => { const m = new Map(prev); m.set(entity.id, { ...m.get(entity.id), isStarred: newVal }); return m; });
     try {
@@ -717,6 +723,7 @@ export default function EntityLedger() {
     } catch { /* non-fatal */ }
   };
   const handleToggleHide = async (entity: any) => {
+    if (isMockMode()) return;
     const newVal = !(localOverrides.get(entity.id)?.isHidden ?? entity.isHidden ?? false);
     setLocalOverrides((prev) => { const m = new Map(prev); m.set(entity.id, { ...m.get(entity.id), isHidden: newVal }); return m; });
     try {
