@@ -70,6 +70,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </header>
       <button type="button" className="atlas-round-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} tabIndex={mobileOpen ? 0 : -1} />
       <aside id="atlas-round-sidebar" className="atlas-round-sidebar" aria-label="Main navigation">
+        <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-sidebar-brand atlas-round-wordmark">
+          <ApexAtlasMark /><strong>Apex Atlas</strong>
+        </Link>
         <nav className="atlas-round-sidebar-nav">{navItems}</nav>
       </aside>
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
