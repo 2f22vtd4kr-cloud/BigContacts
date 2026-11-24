@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, ChevronDown, ExternalLink, Loader2, Radio, Shi
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { fetchSystemStatus, summarizeApiKeys, type SystemStatus } from "@/lib/system-status";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_INTERVAL_MS = 45_000;
@@ -106,6 +107,7 @@ function phaseLabel(atlas: AtlasStatus | null): string {
 }
 
 export function WorkspaceStatus({ compact = false, className }: { compact?: boolean; className?: string }) {
+  const demoPreview = isMockMode();
   const [atlas, setAtlas] = useState<AtlasStatus | null>(null);
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (demoPreview) { setError(true); setLoading(false); return; }
     let mounted = true;
     const controller = new AbortController();
     const refresh = async () => {
@@ -150,7 +153,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
       controller.abort();
       window.clearInterval(interval);
     };
-  }, []);
+  }, [demoPreview]);
 
   useEffect(() => {
     if (!open) return;
@@ -215,7 +218,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
           : !servicesHealthy || providerDegraded
             ? "degraded"
             : "ready";
-  const copy = STATE_COPY[state];
+  const copy = demoPreview ? { ...STATE_COPY.offline, detail: "Demo preview only; live service status is not checked." } : STATE_COPY[state];
   const Icon = state === "researching" || state === "researching-degraded"
     ? Radio
     : state === "degraded"
@@ -231,7 +234,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   const refreshedNow = now;
   const compactKeyCount = summary.active;
   const compactKeys = compactKeyCount > 0 ? `, ${compactKeyCount} ${compactKeyCount === 1 ? "key" : "keys"} live` : "";
-  const compactFullLabel = state === "ready"
+  const compactFullLabel = demoPreview ? "Demo preview only" : state === "ready"
     ? `Ready${compactKeys}`
     : state === "researching"
       ? `Research running${compactKeys}`
@@ -244,7 +247,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
             : state === "offline"
               ? "API unreachable"
               : "Checking status";
-  const compactShortLabel = state === "ready"
+  const compactShortLabel = demoPreview ? "DEMO" : state === "ready"
     ? "Ready"
     : state === "researching"
       ? "Research live"

@@ -115,9 +115,10 @@ export const MOCK_ENTITIES: MockEntity[] = [
 ];
 
 export function isMockMode(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return import.meta.env.DEV;
   const q = new URLSearchParams(window.location.search);
-  return q.get("mock") === "1" || q.get("demo") === "1";
+  if (q.get("mock") === "0" || q.get("demo") === "0") return false;
+  return q.get("mock") === "1" || q.get("demo") === "1" || import.meta.env.DEV;
 }
 
 export function mockHotLeads() {

@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
+import { getGetDashboardStatsQueryKey, getGetHotLeadsQueryKey, useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
@@ -410,10 +410,11 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
 
 export default function Dashboard() {
   const mock = isMockMode();
-  const statsQuery = useGetDashboardStats();
-  const leadsQuery = useGetHotLeads({ limit: 8 });
+  const statsQuery = useGetDashboardStats({ query: { enabled: !mock, queryKey: getGetDashboardStatsQueryKey() } });
+  const leadsQuery = useGetHotLeads({ limit: 8 }, { query: { enabled: !mock, queryKey: getGetHotLeadsQueryKey({ limit: 8 }) } });
   const reviewLeadsQuery = useQuery({
     queryKey: ["dashboard", "research-leads"],
+    enabled: !mock,
     queryFn: async () => {
       const response = await fetch("/api/dashboard/research-leads?limit=8", {
         credentials: "include",
@@ -437,7 +438,7 @@ export default function Dashboard() {
   return (
     <div className="atlas-page w-full min-w-0 max-w-full pb-12">
       <div className="px-0 pt-2 md:pt-4">
-        <ScoreboardStrip className="mb-2" />
+        {!mock && <ScoreboardStrip className="mb-2" />}
       </div>
       <section className="atlas-enter atlas-dashboard-hero atlas-ambient-gold relative flex flex-col gap-8 py-8 lg:flex-row lg:items-end lg:justify-between lg:py-12">
         {/* Wash only — must not mask headline or Launch */}

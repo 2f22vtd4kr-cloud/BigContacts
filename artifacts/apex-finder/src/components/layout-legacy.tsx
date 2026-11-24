@@ -50,7 +50,7 @@ const toolsNav = [
 
 const allNav = [...mainNav, ...referenceNav, ...toolsNav];
 
-export function Layout({ children, onSwitchToRound }: { children: React.ReactNode; onSwitchToRound?: () => void }) {
+export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -184,7 +184,7 @@ export function Layout({ children, onSwitchToRound }: { children: React.ReactNod
   };
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <aside className={cn(
+    <aside id={mobile ? "atlas-mobile-sidebar" : "atlas-desktop-sidebar"} className={cn(
       "flex flex-col bg-[#111827]",
       mobile ? "h-full w-[min(300px,86vw)]" : "h-full w-[250px] shrink-0",
     )}>
@@ -244,10 +244,14 @@ export function Layout({ children, onSwitchToRound }: { children: React.ReactNod
         )}
       </nav>
 
-      <div className="border-t border-white/[0.04] px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-t border-white/[0.04] px-5 py-4">
         <div className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
           Public records workspace
         </div>
+        <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} aria-pressed={theme === "light"} title={theme === "dark" ? "Light mode" : "Dark mode"} data-testid="button-sidebar-theme-toggle" className="atlas-pressable flex min-h-[36px] shrink-0 items-center gap-2 rounded-lg border border-white/10 px-2.5 text-[11px] text-stone-300 hover:bg-white/[0.06]">
+          {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          <span>{theme === "dark" ? "Light theme" : "Dark theme"}</span>
+        </button>
       </div>
     </aside>
   );
@@ -390,13 +394,18 @@ export function Layout({ children, onSwitchToRound }: { children: React.ReactNod
       >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
         <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 lg:h-16 lg:pr-6", desktopNavOpen ? "lg:pl-[274px]" : "lg:pl-6")}>
-          {/* Mobile: menu first so Launch/status never collide with it */}
+          <Link href="/" aria-label="Apex Atlas home" data-testid="link-mobile-apex-atlas-home" className="flex min-w-0 shrink-0 items-center gap-2 rounded-md focus-visible:ring-2 focus-visible:ring-primary/50 lg:hidden">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#9CFF1A] text-black shadow-[0_0_18px_rgba(156,255,26,0.25)]"><Crosshair className="h-[17px] w-[17px]" /></span>
+            <span className="hidden truncate font-display text-[12px] font-bold tracking-[0.12em] text-foreground min-[390px]:block">APEX ATLAS</span>
+          </Link>
           <button
             ref={mobileMenuButtonRef}
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
+            aria-expanded={sidebarOpen}
+            aria-controls="atlas-mobile-sidebar"
             data-testid="button-open-menu"
-            className="atlas-pressable order-first flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 lg:hidden"
+            className="atlas-pressable order-last ml-1 flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -423,12 +432,11 @@ export function Layout({ children, onSwitchToRound }: { children: React.ReactNod
               aria-pressed={theme === "light"}
               title={theme === "dark" ? "Light mode" : "Dark mode"}
               data-testid="button-theme-toggle"
-              className="atlas-theme-toggle atlas-pressable shrink-0"
+              className="atlas-theme-toggle atlas-pressable hidden shrink-0"
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
             </button>
-            {onSwitchToRound && <button type="button" onClick={onSwitchToRound} className="atlas-pressable shrink-0 rounded-lg border border-white/10 px-2 py-2 text-[10px] text-stone-300 hover:bg-white/[0.06] sm:px-3">Flat Round UI</button>}
             <WorkspaceStatus />
             <ApiKeyHealth />
           </div>

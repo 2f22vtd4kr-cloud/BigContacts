@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 type Row = {
   id: number;
@@ -29,6 +30,7 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
   const [integrity, setIntegrity] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [authBlocked, setAuthBlocked] = useState(false);
+  const demoPreview = isMockMode();
 
   const load = useCallback(async () => {
     try {
@@ -61,12 +63,13 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
   }, []);
 
   useEffect(() => {
+    if (demoPreview) return;
     load();
     const id = window.setInterval(load, 60_000);
     return () => window.clearInterval(id);
-  }, [load, refreshKey]);
+  }, [load, refreshKey, demoPreview]);
 
-  if (authBlocked && !data) return null;
+  if (demoPreview || (authBlocked && !data)) return null;
   if (err && !data) {
     return (
       <div className={cn("text-[10px] font-mono text-slate-500", className)} data-testid="scoreboard-strip">
