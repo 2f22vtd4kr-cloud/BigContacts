@@ -38,8 +38,8 @@ export function ConnectionPathFinder() {
   return (
     <section className="atlas-connections-path-finder" aria-labelledby="atlas-connections-path-finder-title">
       <div className="atlas-connections-path-finder-heading">
-        <h3 id="atlas-connections-path-finder-title">Find a shortest path</h3>
-        <p>Calculate a route between two records in Atlas’s relationship graph</p>
+        <h3 id="atlas-connections-path-finder-title">Routes through recorded relationships</h3>
+        <p>Choose two records to inspect a path through Atlas’s relationship graph.</p>
       </div>
       <div className="atlas-home-route-finder">
         <label>
@@ -93,9 +93,11 @@ export function ConnectionPathFinder() {
               <ol className="atlas-home-route-nodes">
                 {routeQuery.data.path.map((node, index) => (
                   <li key={node.id}>
-                    <span>{node.label}</span>
-                    <small>{node.nodeType}</small>
-                    {index < routeQuery.data.path.length - 1 && <span className="atlas-home-route-node-arrow" aria-hidden="true">↓</span>}
+                    <span className="atlas-home-route-node">
+                      <span>{node.label}</span>
+                      <small>{node.nodeType}</small>
+                    </span>
+                    {index < routeQuery.data.path.length - 1 && <span className="atlas-home-route-node-arrow" aria-hidden="true">→</span>}
                   </li>
                 ))}
               </ol>
