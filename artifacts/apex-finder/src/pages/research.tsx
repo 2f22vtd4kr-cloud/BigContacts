@@ -131,8 +131,8 @@ function roleLabel(role: string) {
 }
 
 function actionLabel(action: string) {
-  if (action === "Gatekeeper locked") return "Gatekeeper locked";
-  if (action === "Target identified") return "Target identified";
+  if (action === "GATEKEEPER LOCKED") return "Gatekeeper locked";
+  if (action === "TARGET IDENTIFIED") return "Target identified";
   return action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -186,8 +186,8 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
                   {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#1F8A4D] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-[#C8321E]" : rejected ? "text-[#55555A]" : "text-[#1F8A4D]")} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12px]   font-mono text-[#74747A]">{item.claimType}</span>
-                      <span className={cn("text-[12px]   font-mono", statusColor)}>{item.status}</span>
+                      <span className="text-[12px]   font-mono text-[#74747A]">{item.claimType.replaceAll("_", " ").toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
+                      <span className={cn("text-[12px]   font-mono", statusColor)}>{item.status.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
                       <span className="text-[12px] font-mono text-[#74747A]">{Math.round(item.confidence * 100)}% confidence</span>
                     </div>
                     <p className="text-xs text-[#18181A]/90 mt-1 leading-relaxed">{item.claim}</p>
@@ -338,7 +338,7 @@ function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null })
       ) : (
         <div className="rounded border border-[#E4E4DF]/30 bg-[#F3F3F0] p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px]   font-mono text-[#1F8A4D]">{candidate.routeKind.replaceAll("_", " ")}</span>
+            <span className="text-[12px]   font-mono text-[#1F8A4D]">{candidate.routeKind.replaceAll("_", " ").toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())}</span>
             <span className="text-xs font-medium text-[#18181A]">{candidate.route.label}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
@@ -521,9 +521,9 @@ export default function IntelTerminal() {
           setIsComputing(false);
           setTerminalLog([{
             step: 0,
-            action: "CRITICAL FAILURE",
-            registry: "SYS",
-            target: "ERR",
+            action: "Critical failure",
+            registry: "System",
+            target: "Error",
             targetType: "System",
             uctScore: 0,
             warmthScore: 0,
