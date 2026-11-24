@@ -135,7 +135,7 @@ async function main() {
         throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
-      if (await page.locator(".atlas-round-brand-mark").count() !== 2) throw new Error("The heraldic Apex Atlas shield must appear in desktop and mobile navigation.");
+      if (await page.locator(".atlas-round-brand-mark").count() !== 1 || !(await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count()) || await page.locator(".atlas-round-sidebar-brand").count()) throw new Error("The heraldic Apex Atlas shield must appear once in the shared header and never be duplicated inside the mobile drawer.");
       const diagnostics = await page.evaluate(() => ({
         documentTitle: document.title,
         readyState: document.readyState,
@@ -197,6 +197,9 @@ async function main() {
         if (await openNavigation.count()) {
           await openNavigation.click();
           await page.waitForSelector(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar", { timeout: 3000 });
+          if (await page.locator(".atlas-round-sidebar-brand").count() !== 0 || await page.locator(".atlas-round-sidebar-nav a").count() !== 5) {
+            throw new Error("The open mobile drawer must contain only the five navigation destinations, with no duplicate Apex Atlas branding.");
+          }
           const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
           console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
         } else {
@@ -220,6 +223,13 @@ async function main() {
       await routeSelects.nth(1).selectOption("2");
       await page.getByRole("button", { name: "Find a shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
+      const evidenceRails = await page.locator(".atlas-home-route-evidence .atlas-evidence-pattern").evaluateAll((elements) => elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      }));
+      if (evidenceRails.length !== 2 || evidenceRails.some((rail) => Math.abs(rail.width - 10) > 0.5 || Math.abs(rail.height - 44) > 0.5)) {
+        throw new Error(`Supported, corroborated and review evidence markers must render as 10x44px vertical rails; received: ${JSON.stringify(evidenceRails)}`);
+      }
       routeFixtureLoaded = true;
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
         url: page.url(),
