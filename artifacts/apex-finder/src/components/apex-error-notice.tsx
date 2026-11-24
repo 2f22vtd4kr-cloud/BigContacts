@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X, ArrowUpRight } from "lucide-react";
 import { classifyApexError, type ApexUserError } from "@/lib/apex-errors";
 import { Link } from "wouter";
@@ -10,8 +10,37 @@ function Icon({ severity }: { severity: ApexUserError["severity"] }) {
   return <CheckCircle2 className="h-5 w-5" />;
 }
 
+const DISMISSED_ERRORS_KEY = "apex:dismissed-user-errors:v1";
+
+function errorFingerprint(error: ApexUserError): string {
+  return [error.code, error.provider ?? "", error.title, error.message].join(":");
+}
+
+function readDismissedErrors(): Set<string> {
+  try {
+    if (typeof window === "undefined") return new Set();
+    const parsed: unknown = JSON.parse(window.sessionStorage.getItem(DISMISSED_ERRORS_KEY) ?? "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function ApexErrorNotice() {
   const [error, setError] = useState<ApexUserError | null>(null);
+  const dismissedErrors = useRef<Set<string>>(readDismissedErrors());
+
+  const dismissError = () => {
+    if (error) {
+      dismissedErrors.current.add(errorFingerprint(error));
+      try {
+        window.sessionStorage.setItem(DISMISSED_ERRORS_KEY, JSON.stringify([...dismissedErrors.current]));
+      } catch {
+        // Dismissal still applies for this mounted app if storage is unavailable.
+      }
+    }
+    setError(null);
+  };
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
@@ -21,6 +50,7 @@ export function ApexErrorNotice() {
         /Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message) ||
         /^API returned non-JSON \(\d{3}\)/i.test(next.message);
       if (onReactor && isInlineReactorApiError) return;
+      if (dismissedErrors.current.has(errorFingerprint(next))) return;
       setError(next);
     };
 
@@ -63,12 +93,12 @@ export function ApexErrorNotice() {
                   Try again
                 </button>
               )}
-              <Link href="/status" onClick={() => setError(null)} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
+              <Link href="/status" onClick={dismissError} className="atlas-error-notice-action min-h-[44px] min-w-[44px]">
                 System Status <ArrowUpRight aria-hidden="true" />
               </Link>
             </div>
           </div>
-          <button type="button" onClick={() => setError(null)} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
+          <button type="button" onClick={dismissError} aria-label="Dismiss message" className="atlas-error-notice-close min-h-[44px] min-w-[44px]">
             <X aria-hidden="true" />
           </button>
         </div>
