@@ -3,7 +3,7 @@
 ## Scope and safety
 
 - Repository: `2f22vtd4kr-cloud/BigContacts`
-- Base branch: `ui/design-board-faithful-2026-11-23` (latest tip when this work branch was created)
+- Base branch: `ui/design-board-faithful-2026-11-23` at `1f98abdd08f490b168643d898929e6deb68a609a`
 - Work branch: `agent/reactor-board-finish-2026-11-24-v2`
 - Page: `/reactor`; preserve `/reactor/topology` as its existing utility route.
 - Design reference: `https://design-board-812905.netlify.app/`
@@ -186,3 +186,12 @@ A second literal-escaping review found that the status-code expression must use 
 ```
 
 This ensures only a three-digit HTTP status response is matched.
+
+### Latest branch and CI observation — 2026-11-24
+
+- Stacked draft PR: [#949 — Finish Reactor design-board console framing](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/949), targeting the design-board feature branch rather than `main`.
+- Latest recorded source/audit commit at this check: `3e443c05012adcf91b96475f0a9be87330ab7f20`.
+- GitHub compare confirms the work branch is 14 commits ahead of, and 0 commits behind, its base branch. The diff is limited to this audit, the shield component, Reactor markup/CSS, and the Reactor-only error notice.
+- The first PR-triggered responsive-contract workflow started. Its responsive frontend contract, Reactor Live integrity contract, Home UI contract, and frontend polish contract steps completed successfully. The job was cancelled during dependency installation after the branch was updated; build, browser capture, and Reactor page projection steps were therefore skipped. Do not count this as a passing build.
+- Vercel reported a pending deployment for the latest source update at the time of this check. No completed preview verification is claimed.
+- Rendered Reactor desktop/390px mobile comparison remains a required manual gate.
