@@ -22,6 +22,7 @@ import { ReactorLiveSurface } from "../components/reactor-live-surface";
 import { useReactorLiveTelemetry, type LiveActivity } from "../lib/reactor-live-store";
 import { classifyReactorMethod } from "../lib/reactor-live-model";
 import { ReactorMark } from "../components/reactor-mark";
+import { ApexAtlasMark } from "../components/apex-atlas-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -1679,10 +1680,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         })()
       : "No step recorded yet";
     return (
-      <div className="atlas-reactor-board-layout">
-        <aside className="atlas-reactor-run-console" aria-labelledby="atlas-reactor-run-console-title">
+      <>
+        <aside className={"atlas-reactor-run-console" + (apiAvailable === false ? " is-api-down" : "")} aria-labelledby="atlas-reactor-run-console-title">
+          <div className="atlas-reactor-run-console-inner">
           <div className="atlas-reactor-board-heading">
-            <div><h2 id="atlas-reactor-run-console-title">Run console</h2><p>Canonical run state</p></div>
+            <div><h2 id="atlas-reactor-run-console-title" className="atlas-reactor-board-title"><ApexAtlasMark /><span>Run console</span></h2><p>Canonical run state</p></div>
             <div className="atlas-reactor-run-status-group">
               <span className={"atlas-reactor-run-status is-" + statusLabel.toLowerCase().replace(/\s+/g, "-")}>{statusLabel}</span>
               {apiAvailable === false && onRetryApi && <button type="button" onClick={() => void onRetryApi()}>Retry</button>}
@@ -1705,7 +1707,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             <div><dt>Progress</dt><dd>{atlasState ? atlasState.phase + " / " + atlasState.phaseTotal : "—"}</dd></div>
             <div><dt>Source step</dt><dd>{atlasState?.sourceStep != null && atlasState?.sourceTotal != null ? atlasState.sourceStep + " / " + atlasState.sourceTotal : "—"}</dd></div>
           </dl>
-          <p className="atlas-reactor-last-step"><span>Last step recorded</span><strong>{lastStepLabel}</strong></p>
+          <p className="atlas-reactor-last-step">Last step recorded {lastStepLabel}</p>
           {latestNarration && <div className="atlas-reactor-live-note" role="status"><span>Right-hand · live</span>{latestNarration}</div>}
           {runInFlight ? (
             <div className="atlas-reactor-run-actions">
@@ -1720,6 +1722,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             />
           )}
           <a className="atlas-reactor-topology-link" href="/reactor/topology">Open full Reactor topology</a>
+          </div>
         </aside>
 
         <section className="atlas-reactor-logbook" aria-labelledby="atlas-reactor-logbook-title">
@@ -1755,7 +1758,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             </div>
           )}
         </section>
-      </div>
+      </>
     );
   }
 

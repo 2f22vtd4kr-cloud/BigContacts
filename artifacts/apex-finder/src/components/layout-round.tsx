@@ -17,18 +17,19 @@ const primaryNav = [
 ];
 export function Layout({ children }: { children: React.ReactNode; onSwitchToLegacy?: () => void }) {
   const [location] = useLocation();
-  const active = (href: string) => href === "/" ? location === "/" : location === href || location.startsWith(href + "/");
+  const isCardPage = location.startsWith("/profile/");
+  const active = (href: string) => href === "/" ? location === "/" : (href === "/profiles" && isCardPage) || location === href || location.startsWith(href + "/");
   const title = primaryNav.find((item) => active(item.href))?.name ?? (location.startsWith("/profile/") ? "Card" : "Apex Atlas");
   useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
   const navItems = (mobile: boolean) => <>{primaryNav.map((item) => { const Icon = item.icon; return <Link key={item.href} href={item.href}
     aria-current={active(item.href) ? "page" : undefined} aria-label={item.name} title={mobile ? item.name : undefined}
-    className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""}`}><Icon aria-hidden="true" /> <span>{item.name}</span></Link>; })}</>;
+    className={`${isCardPage ? "atlas-card-shell-navlink" : "atlas-round-navlink"} ${active(item.href) ? "is-active" : ""}`}>{!isCardPage && <Icon aria-hidden="true" />} <span>{item.name}</span></Link>; })}</>;
   return <div className="atlas-round atlas-round-shell min-h-[100dvh]">
     <a href="#main-content" className="atlas-round-skip">Skip to main content</a>
-    <header className="atlas-round-header">
+    <header className={isCardPage ? "atlas-card-shell-header" : "atlas-round-header"}>
       <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark atlas-round-header-brand"><ApexAtlasMark /><strong>Apex Atlas</strong></Link>
-      <nav className="atlas-round-primary" aria-label="Primary navigation">{navItems(false)}</nav>
-      <div className="atlas-round-header-status"><WorkspaceStatus compact /></div>
+      <nav className={isCardPage ? "atlas-card-shell-nav" : "atlas-round-primary"} aria-label="Primary navigation">{navItems(false)}</nav>
+      <div className={isCardPage ? "atlas-card-shell-status" : "atlas-round-header-status"}><WorkspaceStatus compact /></div>
     </header>
     <main id="main-content" tabIndex={-1} className="atlas-round-main"><div className="atlas-round-content">{children}</div></main>
     <nav className="atlas-round-mobile-tabbar" aria-label="Primary navigation">{navItems(true)}</nav>

@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { useGetConnectionPath, useListEntities } from "@workspace/api-client-react";
+import {
+  getGetConnectionPathQueryKey,
+  getListEntitiesQueryKey,
+  useGetConnectionPath,
+  useListEntities,
+} from "@workspace/api-client-react";
 import { CircleAlert } from "lucide-react";
 import { isMockMode } from "@/lib/dev-mock-data";
 
@@ -16,8 +21,11 @@ function routeEvidenceLabel(status: RouteEvidenceStatus) {
   return status === "review" ? "In review" : status === "unclassified" ? "Status unavailable" : status[0].toUpperCase() + status.slice(1);
 }
 
-function routePatternStatus(edges: Array<{ evidenceStatus?: unknown }>): "supported" | "corroborated" | "disputed" | "review" {
-  const statuses = edges.map((edge) => routeEvidenceStatus(edge.evidenceStatus));
+function routePatternStatus(edges: unknown[]): "supported" | "corroborated" | "disputed" | "review" {
+  const statuses = edges.map((edge) => {
+    if (typeof edge !== "object" || edge === null || !("evidenceStatus" in edge)) return routeEvidenceStatus(undefined);
+    return routeEvidenceStatus((edge as { evidenceStatus?: unknown }).evidenceStatus);
+  });
   if (statuses.length === 0 || statuses.some((status) => ["review", "rejected", "unclassified"].includes(status))) return "review";
   if (statuses.includes("disputed")) return "disputed";
   if (statuses.includes("corroborated")) return "corroborated";
@@ -26,20 +34,27 @@ function routePatternStatus(edges: Array<{ evidenceStatus?: unknown }>): "suppor
 
 export function ConnectionPathFinder() {
   const mock = isMockMode();
-  const entitiesQuery = useListEntities({ limit: 500 }, { query: { enabled: !mock, staleTime: 30_000 } });
+  const entityParams = { limit: 500 };
+  const entitiesQuery = useListEntities(entityParams, {
+    query: { queryKey: getListEntitiesQueryKey(entityParams), enabled: !mock, staleTime: 30_000 },
+  });
   const [sourceId, setSourceId] = useState(0);
   const [targetId, setTargetId] = useState(0);
   const [findPath, setFindPath] = useState(false);
-  const routeQuery = useGetConnectionPath({ sourceId, targetId }, {
-    query: { enabled: findPath && sourceId > 0 && targetId > 0 && sourceId !== targetId },
+  const pathParams = { sourceId, targetId };
+  const routeQuery = useGetConnectionPath(pathParams, {
+    query: {
+      queryKey: getGetConnectionPathQueryKey(pathParams),
+      enabled: findPath && sourceId > 0 && targetId > 0 && sourceId !== targetId,
+    },
   });
   const entities = Array.isArray(entitiesQuery.data) ? entitiesQuery.data : [];
 
   return (
     <section className="atlas-connections-path-finder" aria-labelledby="atlas-connections-path-finder-title">
       <div className="atlas-connections-path-finder-heading">
-        <h3 id="atlas-connections-path-finder-title">Find a shortest path</h3>
-        <p>Calculate a route between two records in Atlas’s relationship graph</p>
+        <h3 id="atlas-connections-path-finder-title">Routes through recorded relationships</h3>
+        <p>Choose two records to inspect a path through Atlas’s relationship graph.</p>
       </div>
       <div className="atlas-home-route-finder">
         <label>
@@ -93,9 +108,11 @@ export function ConnectionPathFinder() {
               <ol className="atlas-home-route-nodes">
                 {routeQuery.data.path.map((node, index) => (
                   <li key={node.id}>
-                    <span>{node.label}</span>
-                    <small>{node.nodeType}</small>
-                    {index < routeQuery.data.path.length - 1 && <span className="atlas-home-route-node-arrow" aria-hidden="true">↓</span>}
+                    <span className="atlas-home-route-node">
+                      <span>{node.label}</span>
+                      <small>{node.nodeType}</small>
+                    </span>
+                    {index < routeQuery.data.path.length - 1 && <span className="atlas-home-route-node-arrow" aria-hidden="true">→</span>}
                   </li>
                 ))}
               </ol>
