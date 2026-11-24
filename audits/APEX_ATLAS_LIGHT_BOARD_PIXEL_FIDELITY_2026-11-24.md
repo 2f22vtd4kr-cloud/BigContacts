@@ -190,3 +190,48 @@ A regression assertion now checks all four real frame selectors and the neutral 
 ## Regression contract alignment
 
 The first CI rerun confirmed the responsive frontend contract had hard-coded the superseded horizontal desktop navigation and mobile tab bar. Its assertions were updated to verify the requested full-height sidebar, mobile drawer below the header, Escape dismissal, and bold text-only active destination. The rerun passed all 27 responsive checks. The Home UI contract contained two additional stale horizontal-navigation/tabbar assertions; those are now updated to verify the same sidebar/drawer contract. The final Home UI contract rerun is pending.
+
+## Design direction and unslop audit — 2026-11-24
+
+### Five-line design direction
+
+1. **Purpose:** Apex Atlas is a research workspace that turns a target into sourced, verified leads and relationship context.
+2. **Character:** precise, calm, evidence-first, and quietly technical; never flashy or ornamental.
+3. **World:** warm paper surfaces, restrained ink, a disciplined grid, evidence ledgers, and a cartographic launch console.
+4. **Moments:** a clear launch action, legible active/limited/offline states, and a neutral API-down frame that preserves the page structure.
+5. **Signature:** one continuous wave field with a rectangular checker overlay; the selected destination is communicated by bold text alone.
+
+### Reference hierarchy
+
+- The live design board at https://design-board-812905.netlify.app/ is authoritative for its documented values and components.
+- Where the board is silent, use the same tokens and hierarchy rather than introducing a new visual language.
+- The additional quality review follows the public [heydamir/unslop](https://github.com/heydamir/unslop) design-audit approach. It supplements the board; it never overrides an explicit board rule or the user navigation requirements.
+
+### Board tokens and defaults
+
+- Paper `#FAFAF8`; card `#FFFFFF`; raised surface `#F3F3F0`; border `#E4E4DF`.
+- Primary ink `#18181A`; secondary ink `#55555A`; muted ink `#74747A`.
+- Red `#C8321E`; green `#1F8A4D`; blue `#2757C6`; gold `#EDB92B`.
+- Spacing follows the 4px grid. The source contract rejects off-grid padding, margins, and gaps.
+- Corner radii use the documented 6/10/12/16/20px scale; the stray 8px control radii were corrected.
+- Geist and Geist Mono remain the type families. Small interface text has an 11px minimum. Small labels are sentence case and untracked; 700 weight is reserved for the selected sidebar destination as explicitly requested.
+- Icons use the existing Lucide set. No emoji, neon glow, pulsing status dots, decorative blobs, or unrelated gradients are introduced. The wave/checker field is the intentional product motif, not generic decoration.
+
+### Additional surfaces brought into the same system
+
+- Workspace status popover now uses paper/raised surfaces, restrained green/gold/red state colours, sentence-case labels, and no neon/glow/pulse treatment.
+- System status now uses the board palette and type scale, identifies canonical provider-secret names, distinguishes active keys from rate-limited keys, and avoids describing configured model-role credentials as missing search-provider keys.
+- API-key health distinguishes `No keys` from `API offline`; the public health bit remains coarse and the authenticated status endpoint remains the detailed source.
+- The API-down shell uses a single 64×24px continuous wave tile and 22×14px neutral checker cells across Home, Discover, Ledger, and Connections. The header and page share one paper surface with no divider or shadow. The sidebar reaches the viewport bottom; the selected item has no red stripe or filled highlight.
+
+### Automated contract coverage
+
+The board spacing contract now checks the canonical palette, 4px spacing grid, approved radius scale, 11px text floor, continuous wave/checker dimensions, uninterrupted header surface, full-height sidebar, text-only active state, and status-popover restraint. The frontend polish contract no longer encodes the retired horizontal navigation or mobile tab bar.
+
+### Remaining evidence required before sign-off
+
+- Run the updated frontend, API regression, and complete CI suites against the current branch head.
+- Capture Home, Discover, Ledger, Connections, Reactor, and System status at mobile, tablet, and desktop sizes, including API-down and key-missing states.
+- Compare the captures against the live board. A successful static build or source assertion is not a substitute for the final rendered visual review.
+
+No backend routes, API contracts, database, worker, Bureau, research, or provider-routing behavior was changed by these visual/status corrections. The provider-secret reference documents existing server-side names only; it does not provision secrets.
