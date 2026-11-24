@@ -1347,7 +1347,7 @@ function MassSeedOperationsPanel() {
                   }}
                   className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-[#18181A] outline-none focus:border-primary"
                 />
-                <span className="mt-1 block text-[11px] normal-case tracking-normal text-[#74747A]/70">
+                <span className="mt-1 block text-[11px] normal-case  text-[#74747A]/70">
                   {config.min.toLocaleString()}–{config.max.toLocaleString()} per run
                 </span>
               </label>
