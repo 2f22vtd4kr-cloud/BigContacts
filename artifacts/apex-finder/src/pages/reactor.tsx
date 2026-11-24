@@ -2622,7 +2622,7 @@ export default function IntelligenceReactorPage({ boardMode = false }: { boardMo
   const isMobile = useIsMobile();
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
   const checkApi = useCallback(async () => {
-    if (!boardMode) return;
+    if (!boardMode || isMockMode()) { setApiAvailable(false); return; }
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     try {
       const response = await fetch(base + "/api/healthz", { credentials: "include", cache: "no-store" });
