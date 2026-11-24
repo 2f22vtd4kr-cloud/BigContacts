@@ -138,7 +138,7 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("--round-blue: #2757C6");
     expect(boardCss).toContain("--round-gold: #EDB92B");
     expect(boardCss).toContain("box-shadow:0 8px 24px rgba(24,24,26,.10)!important;");
-    expect(boardCss).not.toMatch(/font-size:\\s*(?:8|9|10)px|font:\\s*\\d+\\s*(?:8|9|10)px/);
+    expect(boardCss).not.toMatch(/font-size:\s*(?:8|9|10)px|font:\s*\d+\s*(?:8|9|10)px/);
     expect(workspaceStatusSource).not.toMatch(/text-\[10px\]|uppercase|tracking-|font-bold|font-semibold|shadow-\[0_0_8px|animate-pulse/);
     expect(launchAtlasButtonSource).not.toContain("text-[10px]");
     expect(launchAtlasButtonSource).not.toContain("text-rose-300");
