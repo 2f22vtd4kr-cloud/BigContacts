@@ -81,9 +81,11 @@ describe("Flat Round four-pixel spacing grid", () => {
   });
 
   it("renders global errors using the board's paper alert surface", () => {
-    expect(errorNoticeSource).toContain('className="atlas-error-notice"');
+    expect(errorNoticeSource).toContain('className="atlas-error-notice max-h-[38dvh] sm:max-h-[min(52dvh,360px)]"');
     expect(errorNoticeSource).toContain('className="atlas-error-notice-card"');
     expect(errorNoticeSource).toContain("data-severity={error.severity}");
+    expect(errorNoticeSource.match(/min-h-\\[44px\\]/g)).toHaveLength(3);
+    expect(errorNoticeSource.match(/min-w-\\[44px\\]/g)).toHaveLength(3);
     expect(errorNoticeSource).not.toMatch(/bg-(?:sky|amber|lime|orange|rose)-950/);
     expect(boardCss).toContain(".atlas-error-notice-card {");
   });
