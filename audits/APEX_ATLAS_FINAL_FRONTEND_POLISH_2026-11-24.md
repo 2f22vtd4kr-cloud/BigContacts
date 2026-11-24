@@ -46,6 +46,13 @@ The Card-specific phone rule overrode the shared 112px content clearance with on
 
 A new visible audit is stored at `audits/APEX_ATLAS_FINAL_FRONTEND_POLISH_2026-11-24.md`.
 
+
+### 4. Final responsive-contract follow-up (CI)
+
+The first PR check exposed two precise source-contract misses in the shared global error notice: the component's markup did not expose the responsive max-height utilities expected by the mobile/desktop contract, and its action controls did not declare explicit 44px minimum dimensions in the component source. The stylesheet already constrained the fixed notice and its close control; the markup now declares the same 38dvh phone / min(52dvh, 360px) larger-screen cap and explicit 44px minimum height/width for Retry, System Status and Dismiss. This preserves the existing CSS placement, scrolling, actions and safe-area behavior while making the touch-size contract explicit to Tailwind and source checks.
+
+**Follow-up commit:** `b1656a86c735adba02200f383e539d60849bfebe`.
+
 ## Guardrails preserved
 
 - The five existing primary destinations remain Overview, Ledger, Discover, Connections and Reactor.
