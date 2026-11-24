@@ -2180,7 +2180,8 @@ html.light main,
 }
 
 
-/* Screenshot fidelity corrections — current light Atlas only. */
+
+/* Current light Atlas fidelity corrections. Legacy/dark UI is intentionally untouched. */
 .atlas-round-shell {
   grid-template-rows:68px minmax(0,1fr);
 }
@@ -2208,48 +2209,8 @@ html.light main,
   font-weight:700;
 }
 
-/* Keep the longer board pattern rhythm on every launch-console frame. */
-.atlas-round .atlas-home-board-console::before {
-  background-size:22px 14px;
-}
-.atlas-round .atlas-home-board-console::after {
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
-  background-size:64px 24px;
-}
-
-/* API-down is a deliberate neutral frame state, matching the board specimen. */
-.atlas-round .atlas-home-board-console[data-api-state="down"]::before {
-  background-color:#BFC0BB;
-  background-image:conic-gradient(#BFC0BB 25%,#E3E4DF 0 50%,#BFC0BB 0 75%,#E3E4DF 0);
-  background-size:22px 14px;
-  background-position:0 0;
-}
-.atlas-round .atlas-home-board-console[data-api-state="down"]::after {
-  background-color:#BFC0BB;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:repeat;
-  background-position:0 0;
-  background-size:64px 24px;
-}
-
-@media (max-width:760px) {
-  .atlas-round-shell > .atlas-round-header {
-    grid-column:auto;
-    grid-row:auto;
-    background:var(--round-paper);
-    border-bottom:0;
-    backdrop-filter:none;
-  }
-  .atlas-round-shell .atlas-round-sidebar {
-    grid-column:auto;
-    grid-row:auto;
-    top:60px;
-    height:calc(100dvh - 60px);
-  }
-}
-
-
-/* Align Home's frame origin with Reactor: one continuous wave field, checker overlay on the left. */
+/* Home uses Reactor's continuous-wave field with a checker overlay on the left.
+   The longer tile rhythm prevents the compact square/checker appearance. */
 .atlas-round .atlas-home-board-console {
   background-color:#2757C6!important;
   background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
@@ -2267,6 +2228,8 @@ html.light main,
   background-size:22px 14px;
   background-position:0 0;
 }
+
+/* The design-board API-down specimen uses the same geometry in neutral grey. */
 .atlas-round .atlas-home-board-console[data-api-state="down"] {
   background-color:#BDBDB8!important;
   background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
@@ -2278,4 +2241,23 @@ html.light main,
   background-color:#BDBDB8;
   background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0);
   background-size:22px 14px;
+}
+
+@media (max-width:760px) {
+  .atlas-round-shell > .atlas-round-header {
+    grid-column:auto;
+    grid-row:auto;
+    background:var(--round-paper);
+    border-bottom:0;
+    backdrop-filter:none;
+  }
+  .atlas-round-shell .atlas-round-sidebar {
+    grid-column:auto;
+    grid-row:auto;
+    top:60px;
+    height:calc(100dvh - 60px);
+  }
+  .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span {
+    display:inline;
+  }
 }
