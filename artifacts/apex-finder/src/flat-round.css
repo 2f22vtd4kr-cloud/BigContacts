@@ -2471,23 +2471,6 @@ html.light main,
 .atlas-round .atlas-round-sidebar .atlas-round-navlink.is-active span { font-weight:700!important; }
 
 
-/* The second shield is the mobile drawer brand; keep the header brand on desktop. */
-.atlas-round-sidebar-brand { display:none; }
-@media (max-width:760px) {
-  .atlas-round-shell .atlas-round-sidebar-brand {
-    display:flex;
-    flex-direction:row;
-    align-items:center;
-    gap:12px;
-    margin-bottom:28px;
-    color:var(--round-ink);
-    text-decoration:none;
-  }
-  .atlas-round-shell .atlas-round-sidebar-brand .atlas-round-brand-mark { width:22px; height:24.2px; }
-  .atlas-round-shell .atlas-round-sidebar-brand strong { font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
-}
-
-
 /* Keep the full-width board layouts stacked at tablet widths after the final page-specific rules. */
 @media (max-width:1000px) and (min-width:761px) {
   .atlas-round .atlas-discover-layout,
