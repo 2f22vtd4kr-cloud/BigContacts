@@ -2440,7 +2440,7 @@ html.light main,
 .atlas-round [class*="backdrop-blur"] { backdrop-filter:none!important; }
 .atlas-round [class*="shadow-"] { box-shadow:none!important; }
 .atlas-round [class*="animate-pulse"] { animation:none!important; }
-.atlas-round [class*="rounded-lg"][class*="border"] { border-radius:12px!important; }
+.atlas-round [class*="rounded-lg"] { border-radius:12px!important; }
 .atlas-round button[class*="rounded-lg"],
 .atlas-round a[class*="rounded-lg"],
 .atlas-round input[class*="rounded-lg"],
