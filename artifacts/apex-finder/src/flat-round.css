@@ -2360,3 +2360,112 @@ html.light main,
 .atlas-round .atlas-round-workspace-status-scrim { background:rgba(24,24,26,.12)!important; }
 .atlas-round .atlas-round-workspace-status-panel .rounded-md { border-radius:6px!important; }
 .atlas-round .atlas-round-workspace-status-panel .rounded-xl { border-radius:12px!important; }
+
+/* Secondary routes inherit the same board system when the board does not define a dedicated component. */
+.atlas-round [class*="text-[10px]"],
+.atlas-round [class*="text-[9px]"],
+.atlas-round [class*="text-[8px]"] {
+  font-size:11px!important;
+  line-height:1.4!important;
+}
+.atlas-round [class*="uppercase"] { text-transform:none!important; }
+.atlas-round [class*="tracking-"] { letter-spacing:0!important; }
+.atlas-round [class*="font-bold"],
+.atlas-round [class*="font-semibold"] { font-weight:500!important; }
+.atlas-round [class*="text-[#9CFF1A]"],
+.atlas-round [class*="text-[#b8ff4d]"],
+.atlas-round [class*="text-[#d4ff8a]"],
+.atlas-round [class*="text-lime-"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-rose-"],
+.atlas-round [class*="text-red-"],
+.atlas-round [class*="text-destructive"] { color:var(--round-red)!important; }
+.atlas-round [class*="text-emerald-"],
+.atlas-round [class*="text-green-"] { color:var(--round-green)!important; }
+.atlas-round [class*="text-amber-"],
+.atlas-round [class*="text-yellow-"] { color:var(--round-gold)!important; }
+.atlas-round [class*="text-blue-"],
+.atlas-round [class*="text-primary"] { color:var(--round-blue)!important; }
+.atlas-round [class*="text-stone-100"],
+.atlas-round [class*="text-white"] { color:var(--round-ink)!important; }
+.atlas-round button [class*="text-white"],
+.atlas-round a[class*="bg-gradient-to-"] [class*="text-white"],
+.atlas-round button[class*="bg-gradient-to-"] [class*="text-white"] { color:#FFFFFF!important; }
+.atlas-round [class*="text-stone-300"],
+.atlas-round [class*="text-stone-400"] { color:var(--round-ink-2)!important; }
+.atlas-round [class*="text-stone-500"],
+.atlas-round [class*="text-muted-foreground"] { color:var(--round-ink-3)!important; }
+.atlas-round [class*="border-[#9CFF1A]"],
+.atlas-round [class*="border-lime-"],
+.atlas-round [class*="border-rose-"],
+.atlas-round [class*="border-red-"],
+.atlas-round [class*="border-destructive"],
+.atlas-round [class*="border-white/"],
+.atlas-round [class*="border-primary"] { border-color:var(--round-line)!important; }
+.atlas-round [class*="bg-[#080C14]"],
+.atlas-round [class*="bg-[#0B0F19]"],
+.atlas-round [class*="bg-[#05070c]"],
+.atlas-round [class*="bg-[#0c1220]"],
+.atlas-round [class*="bg-[#0d1219]"],
+.atlas-round [class*="bg-[#111827]"],
+.atlas-round [class*="bg-lime-950"],
+.atlas-round [class*="bg-rose-950"],
+.atlas-round [class~="bg-black"] { background-color:var(--round-paper)!important; }
+.atlas-round [class*="bg-[#9CFF1A]"],
+.atlas-round [class*="bg-lime-"],
+.atlas-round [class*="bg-emerald-"],
+.atlas-round [class*="bg-green-"] { background-color:rgba(31,138,77,.08)!important; }
+.atlas-round [class*="bg-rose-"],
+.atlas-round [class*="bg-red-"],
+.atlas-round [class*="bg-destructive"] { background-color:rgba(200,50,30,.07)!important; }
+.atlas-round [class*="bg-amber-"],
+.atlas-round [class*="bg-yellow-"] { background-color:rgba(237,185,43,.10)!important; }
+.atlas-round [class*="bg-blue-"],
+.atlas-round [class*="bg-primary/"] { background-color:rgba(39,87,198,.08)!important; }
+.atlas-round [class*="bg-background"] { background-color:var(--round-paper)!important; }
+.atlas-round [class*="bg-card"] { background-color:var(--round-card)!important; }
+.atlas-round [class*="bg-muted"] { background-color:var(--round-raised)!important; }
+.atlas-round [class~="bg-primary"] { background-color:var(--round-blue)!important; color:#FFFFFF!important; }
+.atlas-round [class*="bg-gradient-to-"] {
+  background-image:none!important;
+  background-color:var(--round-raised)!important;
+  color:var(--round-ink)!important;
+}
+.atlas-round button[class*="bg-gradient-to-"],
+.atlas-round a[class*="bg-gradient-to-"] {
+  background-color:var(--round-blue)!important;
+  color:#FFFFFF!important;
+}
+.atlas-round [class*="blur-3xl"],
+.atlas-round [class*="blur-2xl"] { display:none!important; }
+.atlas-round [class*="backdrop-blur"] { backdrop-filter:none!important; }
+.atlas-round [class*="shadow-2xl"],
+.atlas-round [class*="shadow-xl"],
+.atlas-round [class*="shadow-lg"],
+.atlas-round [class*="shadow-[inset"],
+.atlas-round [class*="shadow-[0_0_"] { box-shadow:none!important; }
+.atlas-round [class*="animate-pulse"] { animation:none!important; }
+.atlas-round [class*="rounded-lg"][class*="border"] { border-radius:12px!important; }
+.atlas-round button[class*="rounded-lg"],
+.atlas-round a[class*="rounded-lg"],
+.atlas-round input[class*="rounded-lg"],
+.atlas-round select[class*="rounded-lg"] { border-radius:6px!important; }
+.atlas-round [class~="rounded"],
+.atlas-round [class~="rounded-sm"] { border-radius:6px!important; }
+.atlas-round [class*="rounded-3xl"] { border-radius:16px!important; }
+.atlas-round [class*="gap-1.5"] { gap:8px!important; }
+.atlas-round [class*="gap-2.5"] { gap:12px!important; }
+.atlas-round [class*="space-y-1.5"] > * + * { margin-top:8px!important; }
+.atlas-round [class*="space-x-1.5"] > * + * { margin-left:8px!important; }
+.atlas-round [class*="px-2.5"] { padding-left:8px!important; padding-right:8px!important; }
+.atlas-round [class*="py-1.5"] { padding-top:8px!important; padding-bottom:8px!important; }
+.atlas-round [class*="py-2.5"] { padding-top:12px!important; padding-bottom:12px!important; }
+.atlas-round [class*="p-2.5"] { padding:12px!important; }
+.atlas-round [class*="px-3.5"] { padding-left:16px!important; padding-right:16px!important; }
+.atlas-round [class*="py-3.5"] { padding-top:16px!important; padding-bottom:16px!important; }
+.atlas-round [class*="p-3.5"] { padding:16px!important; }
+.atlas-round input,
+.atlas-round select,
+.atlas-round textarea { border-radius:10px!important; }
+.atlas-round .atlas-launch-cta { border-radius:10px!important; }
+.atlas-round .atlas-round-sidebar .atlas-round-navlink.is-active,
+.atlas-round .atlas-round-sidebar .atlas-round-navlink.is-active span { font-weight:700!important; }
