@@ -248,7 +248,7 @@ async function main() {
           const discoverConsole = document.querySelector(".atlas-discover-search-console");
           const discoverInner = document.querySelector(".atlas-discover-search-console-inner");
           const discoverInput = document.querySelector(".atlas-discover-query-field input");
-          const ledgerFrame = document.querySelector(".atlas-ledger-board-console");
+          const ledgerFrame = document.querySelector(".atlas-ledger-console");
           const ledgerMeta = document.querySelector(".atlas-ledger-register-meta");
           const reactorGrid = document.querySelector(".atlas-reactor-board-layout");
           const reactorMetrics = document.querySelector(".atlas-reactor-run-metrics");
