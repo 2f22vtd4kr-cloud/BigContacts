@@ -1853,7 +1853,7 @@ body:has(.atlas-round-shell) {
 }
 .atlas-round-sidebar .atlas-round-navlink svg { width:18px; height:18px; flex:0 0 18px; }
 .atlas-round-sidebar .atlas-round-navlink:hover { background:var(--round-raised); color:var(--round-ink); }
-.atlas-round-sidebar .atlas-round-navlink.is-active { background:#fff; color:var(--round-ink); box-shadow:inset 3px 0 0 var(--round-red); }
+.atlas-round-sidebar .atlas-round-navlink.is-active { background:transparent; color:var(--round-ink); box-shadow:none; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar { padding-inline:10px; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink { justify-content:center; padding-inline:0; }
 .atlas-round-shell.is-sidebar-collapsed .atlas-round-sidebar .atlas-round-navlink span { display:none; }
