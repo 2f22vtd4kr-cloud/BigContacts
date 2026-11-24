@@ -241,3 +241,68 @@ Exact changed closing:
 ```
 
 No run data or backend behavior was introduced. Screenshot verification remains pending.
+
+### Patch 3 — add the patterned console frame and responsive inset
+
+Appended Reactor-scoped rules to `artifacts/apex-finder/src/flat-round.css`:
+- The left half uses the board's red/gold checky field; the right half uses the blue wave field.
+- The inner white console retains all existing content and controls.
+- When the existing API state is unavailable, the frame changes to neutral grey patterns, not fake live/active colors.
+- The shield is sized beside the console title; the title is reduced to the board's compact console-heading scale.
+- The inner inset tightens on phone widths.
+
+Exact CSS added:
+
+```css
+/* Reactor board console frame: heraldic checky and corroboration waves. */
+.atlas-round .atlas-reactor-run-console {
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+  padding:8px;
+  border:0;
+  border-radius:20px;
+  overflow:hidden;
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%204%20-8%204%200%2012%20S8%2020%2016%2012%20S24%204%2032%2012%20S40%2020%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  background-size:32px 24px;
+}
+.atlas-round .atlas-reactor-run-console::before {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:0 50% 0 0;
+  border-radius:20px 0 0 20px;
+  background-color:#EDB92B;
+  background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0);
+  background-size:16px 16px;
+  pointer-events:none;
+}
+.atlas-round .atlas-reactor-run-console.is-api-down {
+  background-color:#BDBDB8;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='8'%3E%3Cpath%20d='M0%204q4-4.5%208%200t8%200'%20fill='none'%20stroke='%23E6E6E2'%20stroke-width='1.3'/%3E%3C/svg%3E");
+  background-size:16px 8px;
+}
+.atlas-round .atlas-reactor-run-console.is-api-down::before {
+  background-color:#BDBDB8;
+  background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0);
+  background-size:16px 16px;
+}
+.atlas-round .atlas-reactor-run-console-inner {
+  position:relative;
+  z-index:0;
+  min-width:0;
+  padding:20px;
+  border-radius:12px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-reactor-board-title { display:flex; align-items:center; gap:8px; }
+.atlas-round .atlas-reactor-board-mark { display:block; width:16px; height:17.6px; flex:none; }
+.atlas-round .atlas-reactor-run-console .atlas-reactor-board-heading h2 { font-size:15px!important; }
+@media (max-width:760px) {
+  .atlas-round .atlas-reactor-run-console-inner { padding:16px; }
+}
+```
+
+No execution-state or evidence-status semantics were added. Screenshot verification remains pending.
