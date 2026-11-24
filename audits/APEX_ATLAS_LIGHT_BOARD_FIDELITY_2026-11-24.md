@@ -76,3 +76,10 @@ Extended `board-spacing-grid-contract.test.ts` to assert:
 - Verify sidebar viewport height, collapsed/expanded states, and mobile drawer behavior.
 - Trigger the same missing-credential error more than once, dismiss it, and confirm it stays dismissed for the session; verify a different error still appears.
 - Confirm the API-down frame state updates from actual existing API health state, not a hard-coded preview flag.
+
+
+### Follow-up found during browser rendering
+
+- The first live browser render showed the Home frame still colorful in `?mock=1`. This is because that safe local mode deliberately skips API-health polling, so the dashboard's API-unavailable boolean is false even though no API is running.
+- Corrected the frame's visual state binding to treat local mock mode as API-down (`apiUnavailable || mock`). This changes only the frame's truthful presentation in the offline preview; mock fixtures remain local and no API call or backend behavior is added.
+- Added a regression assertion for this case.
