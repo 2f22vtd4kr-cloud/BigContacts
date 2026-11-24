@@ -42,6 +42,7 @@ async function main() {
       const failedRequests = [];
       let currentPath = "/";
       let routeFixtureMode = false;
+      let apiDownMode = false;
       page.on("console", (message) => {
         if (message.type() === "error") browserErrors.push(message.text());
       });
@@ -52,6 +53,14 @@ async function main() {
       }));
       await page.route("**/api/**", async (route) => {
         const url = route.request().url();
+        if (apiDownMode) {
+          await route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "API unavailable in visual fixture" }),
+          });
+          return;
+        }
         let payload = {};
         if (url.endsWith("/api/healthz")) {
           payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
@@ -100,7 +109,7 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "degraded"), { timeout: 8_000 });
       await page.waitForTimeout(400);
       const workspaceStatusVisible = await page.evaluate(() => {
         const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
@@ -304,6 +313,81 @@ async function main() {
           browserErrors: browserErrors.slice(0, 20),
         })}`);
         console.log(`APEX_VISUAL_IMAGE_${name}_${boardPage.label}=${boardScreenshot.toString("base64")}`);
+      }
+
+      currentPath = "/status";
+      routeFixtureMode = false;
+      apiDownMode = false;
+      await page.goto(new URL("/status", baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector(".atlas-system-status", { timeout: 12000 });
+      await page.getByText("No active search-provider pool keys", { exact: false }).waitFor({ state: "visible", timeout: 12000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(100);
+      const statusScreenshot = await page.screenshot({ type: "jpeg", quality: 42, fullPage: name === "mobile" });
+      fs.writeFileSync("/tmp/apex-status-" + name + ".jpg", statusScreenshot);
+      const statusDiagnostics = await page.evaluate(() => ({
+        pageTitle: document.querySelector(".atlas-system-status h1")?.textContent?.trim() ?? null,
+        missingProviderNotice: document.body.innerText.includes("No active search-provider pool keys"),
+        statusHeading: document.body.innerText.includes("System status"),
+      }));
+      console.log("APEX_VISUAL_META_" + name + "_status=" + JSON.stringify(statusDiagnostics));
+      console.log("APEX_VISUAL_IMAGE_" + name + "_status=" + statusScreenshot.toString("base64"));
+
+      apiDownMode = true;
+      routeFixtureMode = false;
+      const offlineRoutes = [
+        { path: "/", label: "home", selector: ".atlas-home-board-console.is-api-down" },
+        { path: "/search", label: "discover", selector: ".atlas-discover-search-console" },
+        { path: "/profiles", label: "ledger", selector: ".atlas-ledger-board-console" },
+        { path: "/network", label: "connections", selector: ".atlas-connections-console" },
+        { path: "/reactor", label: "reactor", selector: ".atlas-reactor-run-console.is-api-down" },
+      ];
+      for (const offlineRoute of offlineRoutes) {
+        currentPath = offlineRoute.path;
+        await page.goto(new URL(offlineRoute.path, baseUrl).toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.waitForFunction(
+          () => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "offline"),
+          { timeout: 12000 },
+        );
+        await page.waitForSelector(offlineRoute.selector, { timeout: 12000 });
+        await page.waitForTimeout(120);
+        const frameMetrics = await page.evaluate((selector) => {
+          const frame = document.querySelector(selector);
+          if (!frame) return null;
+          const style = getComputedStyle(frame);
+          const checker = getComputedStyle(frame, "::before");
+          const header = document.querySelector(".atlas-round-header");
+          return {
+            backgroundColor: style.backgroundColor,
+            backgroundImage: style.backgroundImage,
+            backgroundSize: style.backgroundSize,
+            checkerImage: checker.backgroundImage,
+            checkerSize: checker.backgroundSize,
+            headerBackground: header ? getComputedStyle(header).backgroundColor : null,
+            status: document.querySelector(".atlas-round-status")?.getAttribute("data-status") ?? null,
+          };
+        }, offlineRoute.selector);
+        if (
+          !frameMetrics ||
+          frameMetrics.status !== "offline" ||
+          frameMetrics.backgroundColor !== "rgb(189, 189, 184)" ||
+          !frameMetrics.backgroundImage.includes("svg") ||
+          frameMetrics.backgroundSize !== "64px 24px" ||
+          !frameMetrics.checkerImage.includes("conic-gradient") ||
+          frameMetrics.checkerSize !== "22px 14px"
+        ) {
+          throw new Error("Shared API-down frame mismatch on " + offlineRoute.label + ": " + JSON.stringify(frameMetrics));
+        }
+        console.log("APEX_VISUAL_META_" + name + "_api_down_" + offlineRoute.label + "=" + JSON.stringify(frameMetrics));
+        if (name === "mobile") {
+          await page.evaluate(() => window.scrollTo(0, 0));
+          const offlineScreenshot = await page.screenshot({ type: "jpeg", quality: 48, fullPage: true });
+          fs.writeFileSync("/tmp/apex-api-down-" + offlineRoute.label + "-mobile.jpg", offlineScreenshot);
+          console.log("APEX_VISUAL_IMAGE_mobile_api_down_" + offlineRoute.label + "=" + offlineScreenshot.toString("base64"));
+        } else {
+          const offlineScreenshot = await page.screenshot({ type: "jpeg", quality: 38, fullPage: false });
+          fs.writeFileSync("/tmp/apex-api-down-" + offlineRoute.label + "-" + name + ".jpg", offlineScreenshot);
+        }
       }
       await page.close();
     }
