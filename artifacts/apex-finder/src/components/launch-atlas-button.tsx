@@ -201,7 +201,7 @@ export function LaunchAtlasButton({
             onChange={(event) => setLaunchObjective(event.target.value)}
             maxLength={objectiveLimit ?? undefined}
             placeholder="Describe who you want to reach"
-            rows={3}
+            rows={2}
             disabled={busy || stopping || apiUnavailable}
             className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
           />
