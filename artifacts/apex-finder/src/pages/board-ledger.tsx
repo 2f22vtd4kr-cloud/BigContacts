@@ -11,6 +11,11 @@ type ContactOutcome = "direct_contact_verified" | "direct_contact_candidate" | "
 
 function contactOutcome(entity: any): ContactOutcome {
   const outcome = String(entity.contactOutcome ?? "").toLowerCase();
+  if (isMockMode()) {
+    if (outcome === "verified") return "direct_contact_verified";
+    if (outcome === "direct" || outcome === "partial") return "direct_contact_candidate";
+    if (outcome === "none") return "evidence_only";
+  }
   return ["direct_contact_verified", "direct_contact_candidate", "organization_contact", "social_only", "evidence_only"].includes(outcome)
     ? outcome as ContactOutcome : "unclassified";
 }
