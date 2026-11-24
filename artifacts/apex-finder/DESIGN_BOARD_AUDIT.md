@@ -112,3 +112,24 @@ This pass follows Unslop by Damir Sokolovsky, licensed CC BY 4.0: https://github
 ```
 - This was a CSS-only deduplication; no visual behavior or data logic changed.
 - Previous run `45329026111` passed: responsive, Reactor Live, Home UI and frontend polish contracts; frontend build; board spacing/radius contract; Reactor page job-poll tests (19 tests total).
+
+
+## Follow-up correction — match the board's exact console patterns
+- Replaced the provisional red check tint and blue dotted field with the exact repeating heraldic check and corroboration wave treatments already used by the approved Home console.
+- Left console edge: gold ground with quartered red/gold 24×24 SVG tile.
+- Right console edge: cobalt ground with the 32×24 repeating white wave SVG tile.
+```css
+.atlas-round .atlas-ledger-console::before {
+  left:0; border-radius:20px 0 0 20px;
+  background-color:#EDB92B;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20y='12'%20width='12'%20height='12'%20fill='%23C8321E'/%3E%3Crect%20x='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3Crect%20y='12'%20width='12'%20height='12'%20fill='%23EDB92B'/%3E%3C/svg%3E");
+  background-repeat:repeat; background-size:24px 24px;
+}
+.atlas-round .atlas-ledger-console::after {
+  right:0; border-radius:0 20px 20px 0;
+  background-color:#2757C6;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='24'%20viewBox='0%200%2032%2024'%3E%3Cpath%20d='M-16%2012%20C-8%204%20-8%204%200%2012%20S8%2020%2016%2012%20S24%204%2032%2012%20S40%2020%2048%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.35'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:repeat; background-position:0 0; background-size:32px 24px;
+}
+```
+- These patterns reuse the design-board treatment; no new palette or data state was introduced.
