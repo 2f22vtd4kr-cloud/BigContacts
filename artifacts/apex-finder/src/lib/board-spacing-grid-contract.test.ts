@@ -97,4 +97,9 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain("background-color: #F8E8B7;");
   });
 
+  it("keeps the Discover rail inside the phone viewport after final desktop sizing", () => {
+    expect(boardCss).toContain("@media (max-width:760px) {\n  .atlas-round .atlas-discover-layout { grid-template-columns:minmax(0,1fr); gap:24px; }");
+    expect(boardCss).toContain(".atlas-round .atlas-discover-rail,\n  .atlas-round .atlas-discover-panel { min-width:0; max-width:100%; }");
+  });
+
 });
