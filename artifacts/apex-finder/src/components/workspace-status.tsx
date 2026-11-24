@@ -41,7 +41,7 @@ const STATE_COPY: Record<WorkspaceState, {
     label: "Check",
     shortLabel: "Check",
     detail: "Checking whether Atlas and services are online…",
-    className: "text-muted-foreground",
+    className: "text-[#74747A]",
     dotClassName: "bg-muted-foreground/60",
   },
   researching: {
@@ -323,7 +323,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         <span
           className={cn(
             "hidden shrink-0 font-mono text-[13px] font-medium tabular-nums sm:inline sm:text-[14px]",
-            servicesHealthy ? "text-primary" : copy.className,
+            servicesHealthy ? "text-[#1F8A4D]" : copy.className,
           )}
           title={databaseDetail}
         >
@@ -380,7 +380,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
             <div className="rounded-md border border-[#E5E5E1] bg-[#F3F3F0] px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[13px] text-[#74747A]">Research engine</span>
-                  <span className={cn("font-mono text-[14px] font-medium", active ? (providerDegraded ? "text-[#d4ff8a]" : "text-lime-300") : schedulerEnabled ? "text-[#d4ff8a]" : "text-muted-foreground")}>
+                  <span className={cn("font-mono text-[14px] font-medium", active ? (providerDegraded ? "text-[#EDB92B]" : "text-[#1F8A4D]") : schedulerEnabled ? "text-[#EDB92B]" : "text-[#74747A]")}>
                   {active ? (providerDegraded ? "Active · partial coverage" : "Discovering and enriching") : schedulerEnabled ? "Queued" : "Ready"}
                 </span>
               </div>
@@ -392,21 +392,21 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md border border-[#E5E5E1] px-3 py-2">
                 <div className="font-mono text-[13px] text-[#74747A]">Services</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-medium", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
+                <div className={cn("mt-1 font-mono text-[11px] font-medium", servicesHealthy ? "text-[#1F8A4D]" : "text-[#EDB92B]")}>
                   {servicesHealthy ? "API · DB · Redis ready" : "Needs attention"}
                 </div>
               </div>
               <div className="rounded-md border border-[#E5E5E1] px-3 py-2">
                 <div className="font-mono text-[13px] text-[#74747A]">Bureau capacity</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-medium", summary.active > 0 ? "text-primary" : "text-[#d4ff8a]")}>
-                  READY {summary.active}/{summary.configured || "—"}
+                <div className={cn("mt-1 font-mono text-[11px] font-medium", summary.active > 0 ? "text-[#1F8A4D]" : "text-[#EDB92B]")}>
+                  Ready {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
             </div>
             <div className="rounded-md border border-[#E5E5E1] bg-[#F3F3F0] px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[13px] text-[#74747A]">Database / persistence</span>
-                <span className={cn("font-mono text-[14px] font-medium", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
+                <span className={cn("font-mono text-[14px] font-medium", servicesHealthy ? "text-[#1F8A4D]" : "text-[#EDB92B]")}>
                   {databaseState}
                 </span>
               </div>
