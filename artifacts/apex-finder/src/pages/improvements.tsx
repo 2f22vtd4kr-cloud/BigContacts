@@ -80,9 +80,9 @@ const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; colo
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
-  high:   { label: "Urgent", color: "#C8321E", bg: "rgba(239,68,68,0.15)"  },
+  high:   { label: "Urgent", color: "#C8321E", bg: "rgba(200,50,30,0.1)"  },
   medium: { label: "Medium",    color: "#EDB92B", bg: "rgba(237,185,43,0.1)" },
-  low:    { label: "Low",    color: "#74747A", bg: "rgba(107,114,128,0.15)" },
+  low:    { label: "Low",    color: "#74747A", bg: "rgba(116,116,122,0.1)" },
 };
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
