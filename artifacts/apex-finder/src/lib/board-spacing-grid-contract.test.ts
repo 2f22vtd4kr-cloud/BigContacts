@@ -102,4 +102,22 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain(".atlas-round .atlas-discover-rail,\n  .atlas-round .atlas-discover-panel { min-width:0; max-width:100%; }");
   });
 
+
+  it("uses the current light-shell collapsible sidebar instead of horizontal or bottom navigation", () => {
+    expect(layoutSource).toContain('className="atlas-round-sidebar-toggle"');
+    expect(layoutSource).toContain('id="atlas-round-sidebar"');
+    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
+    expect(layoutSource).toContain('setSidebarCollapsed((collapsed) => !collapsed)');
+    expect(layoutSource).toContain('setMobileOpen((open) => !open)');
+    expect(boardCss).toContain(".atlas-round-shell.is-sidebar-collapsed");
+    expect(boardCss).toContain(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar");
+    expect(boardCss).toContain(".atlas-round-mobile-tabbar { display:none; }");
+  });
+
+  it("contains the Home route empty state and restores the split patterned console frame", () => {
+    expect(boardCss).toContain(".atlas-round .atlas-home-route-card");
+    expect(boardCss).toContain("border-radius:12px");
+    expect(boardCss).toContain("background-image:repeating-conic-gradient(#EDB92B 0% 25%,#C8321E 0% 50%)");
+    expect(boardCss).toContain("background-size:32px 24px");
+  });
 });
