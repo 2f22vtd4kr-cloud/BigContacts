@@ -609,3 +609,48 @@ export default function BoardConnectionsPage() {
   font:400 16px/1 "Geist Mono",ui-monospace,monospace;
 }
 ```
+### Change 5 — generated query keys and conservative edge typing
+- Mismatch: The generated React Query hooks return a query key and the imported type signatures require explicit query keys in the workspace. The generated `GraphEdge` type does not declare `evidenceStatus`, so the aggregate route-status helper must not pretend every edge has that property.
+- Files changed: `artifacts/apex-finder/src/pages/board-connections.tsx` and `artifacts/apex-finder/src/components/connection-path-finder.tsx`.
+- Exact implementation: imported `getListRelationshipsQueryKey`, `getListEntitiesQueryKey`, and `getGetConnectionPathQueryKey`; each existing GET query now uses its generated key with the same parameters. `routePatternStatus` accepts unknown edges and only reads `evidenceStatus` after a runtime property guard.
+- Safety: query paths and request parameters are unchanged. These are generated cache keys for existing GET requests. No mutation, endpoint, generated API contract, or backend code changed. Missing edge evidence continues to map to the conservative review/unavailable behavior.
+- Verification: generated source was inspected to confirm the three key helpers exist and map to `/api/relationships`, `/api/entities`, and `/api/graph/path`. Runtime typecheck remains pending.
+- Exact relationship hook change:
+```tsx
+import { getListRelationshipsQueryKey, useListRelationships, type Relationship } from "@workspace/api-client-react";
+// ...
+query: { queryKey: getListRelationshipsQueryKey(), staleTime: 10_000, refetchOnWindowFocus: true },
+```
+- Exact path-finder query/key logic:
+```tsx
+import {
+  getGetConnectionPathQueryKey,
+  getListEntitiesQueryKey,
+  useGetConnectionPath,
+  useListEntities,
+} from "@workspace/api-client-react";
+
+function routePatternStatus(edges: unknown[]): "supported" | "corroborated" | "disputed" | "review" {
+  const statuses = edges.map((edge) => {
+    if (typeof edge !== "object" || edge === null || !("evidenceStatus" in edge)) return routeEvidenceStatus(undefined);
+    return routeEvidenceStatus((edge as { evidenceStatus?: unknown }).evidenceStatus);
+  });
+  if (statuses.length === 0 || statuses.some((status) => ["review", "rejected", "unclassified"].includes(status))) return "review";
+  if (statuses.includes("disputed")) return "disputed";
+  if (statuses.includes("corroborated")) return "corroborated";
+  return "supported";
+}
+
+const entityParams = { limit: 500 };
+const entitiesQuery = useListEntities(entityParams, {
+  query: { queryKey: getListEntitiesQueryKey(entityParams), enabled: !mock, staleTime: 30_000 },
+});
+
+const pathParams = { sourceId, targetId };
+const routeQuery = useGetConnectionPath(pathParams, {
+  query: {
+    queryKey: getGetConnectionPathQueryKey(pathParams),
+    enabled: findPath && sourceId > 0 && targetId > 0 && sourceId !== targetId,
+  },
+});
+```
