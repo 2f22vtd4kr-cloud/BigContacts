@@ -1033,7 +1033,7 @@ body:has(.atlas-round-shell) {
 .atlas-round .atlas-discover-rail { gap: 24px; }
 
 /* Ledger's search/filter console uses the same split heraldic frame as Overview. */
-.atlas-round .atlas-ledger-board-console {
+.atlas-round .atlas-ledger-console {
   position:relative;
   isolation:isolate;
   padding: 8px;
@@ -1042,8 +1042,8 @@ body:has(.atlas-round-shell) {
   border-radius:20px;
   background:transparent;
 }
-.atlas-round .atlas-ledger-board-console::before,
-.atlas-round .atlas-ledger-board-console::after {
+.atlas-round .atlas-ledger-console::before,
+.atlas-round .atlas-ledger-console::after {
   content:"";
   position:absolute;
   top:0;
@@ -1052,7 +1052,7 @@ body:has(.atlas-round-shell) {
   width:50%;
   pointer-events:none;
 }
-.atlas-round .atlas-ledger-board-console::before {
+.atlas-round .atlas-ledger-console::before {
   left:0;
   border-radius:20px 0 0 20px;
   background-color:#EDB92B;
@@ -1060,7 +1060,7 @@ body:has(.atlas-round-shell) {
   background-repeat:repeat;
   background-size:24px 24px;
 }
-.atlas-round .atlas-ledger-board-console::after {
+.atlas-round .atlas-ledger-console::after {
   right:0;
   border-radius:0 20px 20px 0;
   background-color:#2757C6;
@@ -2208,7 +2208,7 @@ html.light main,
 /* Longer rectangular checker repeat and wider horizontal wave repeat. */
 .atlas-round .atlas-home-board-console::before,
 .atlas-round .atlas-discover-search-console::before,
-.atlas-round .atlas-ledger-board-console::before,
+.atlas-round .atlas-ledger-console::before,
 .atlas-round .atlas-board-connections .atlas-connections-console::before {
   background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)!important;
   background-size:24px 16px!important;
@@ -2216,7 +2216,7 @@ html.light main,
 }
 .atlas-round .atlas-home-board-console::after,
 .atlas-round .atlas-discover-search-console::after,
-.atlas-round .atlas-ledger-board-console::after,
+.atlas-round .atlas-ledger-console::after,
 .atlas-round .atlas-board-connections .atlas-connections-console::after {
   background-color:#2757C6!important;
   background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
