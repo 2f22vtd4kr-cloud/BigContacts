@@ -128,6 +128,8 @@ describe("Flat Round four-pixel spacing grid", () => {
   it("keeps the sidebar full-height and uses text-only active emphasis", () => {
     expect(boardCss).toContain("grid-row:1 / -1");
     expect(boardCss).toContain("height:100dvh");
+    expect(boardCss).toContain("position:fixed");
+    expect(boardCss).toContain("height:calc(100dvh - 60px)");
     expect(boardCss).toContain(".atlas-round-sidebar .atlas-round-navlink.is-active { background:transparent; color:var(--round-ink); box-shadow:none; }");
     expect(boardCss).toContain("font-weight:700");
     expect(boardCss).not.toContain("box-shadow:inset 3px 0 0 var(--round-red)");
