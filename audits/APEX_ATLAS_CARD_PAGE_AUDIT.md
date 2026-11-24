@@ -246,3 +246,14 @@ if (boardMode) {
 - Subject tabs remain the existing backend-derived entities; no new tabs or routes were introduced.
 
 **Verification:** Both GitHub content updates succeeded. Responsive runtime verification remains pending.
+
+### 4. Card page responsive shell, tabs, and dossier styling
+
+**File:** `artifacts/apex-finder/src/flat-round.css`
+
+- Added Card-only shell/header sizing, horizontal desktop navigation, and phone status treatment.
+- Added Ledger breadcrumb and subject-tab styles, including neutral dashed classification marks.
+- Added a responsive two-column desktop dossier and one-column mobile reading order, with route/claims/contact sections styled using the board's paper, ink, and raised-surface palette.
+- Kept the existing subject tab data and all card values API-backed. The mobile subject tab strip remains horizontally scrollable; it does not truncate the list to a fixed number of tabs.
+
+**Verification:** CSS update succeeded. Visual screenshot comparison and build verification are still pending; no browser or Replit session was started.
