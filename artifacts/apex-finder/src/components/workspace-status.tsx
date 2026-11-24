@@ -38,53 +38,53 @@ const STATE_COPY: Record<WorkspaceState, {
   dotClassName: string;
 }> = {
   loading: {
-    label: "CHECK",
-    shortLabel: "CHECK",
+    label: "Check",
+    shortLabel: "Check",
     detail: "Checking whether Atlas and services are online…",
     className: "text-muted-foreground",
     dotClassName: "bg-muted-foreground/60",
   },
   researching: {
-    label: "LIVE",
-    shortLabel: "LIVE",
+    label: "Live",
+    shortLabel: "Live",
     detail: "Live research is running on a target.",
-    className: "text-lime-300",
-    dotClassName: "bg-lime-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
+    className: "text-[#2757C6]",
+    dotClassName: "bg-[#2757C6]",
   },
   "researching-degraded": {
-    label: "LIMITED",
-    shortLabel: "LIVE",
+    label: "Limited",
+    shortLabel: "Live",
     detail: "Research is running; some AI/search keys are rate-limited or offline.",
-    className: "text-[#d4ff8a]",
-    dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
+    className: "text-[#EDB92B]",
+    dotClassName: "bg-[#EDB92B]",
   },
   queued: {
-    label: "QUEUE",
-    shortLabel: "QUEUE",
+    label: "Queue",
+    shortLabel: "Queue",
     detail: "Next research cycle is queued.",
-    className: "text-[#d4ff8a]",
-    dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
+    className: "text-[#EDB92B]",
+    dotClassName: "bg-[#EDB92B]",
   },
   ready: {
-    label: "READY",
-    shortLabel: "READY",
+    label: "Ready",
+    shortLabel: "Ready",
     detail: "Services are healthy. Atlas is ready to research.",
-    className: "text-primary",
-    dotClassName: "bg-primary shadow-[0_0_8px_rgba(96,165,250,0.65)]",
+    className: "text-[#1F8A4D]",
+    dotClassName: "bg-[#1F8A4D]",
   },
   degraded: {
-    label: "WARN",
-    shortLabel: "WARN",
+    label: "Attention",
+    shortLabel: "Attention",
     detail: "App is up, but one or more research services need attention.",
-    className: "text-[#d4ff8a]",
-    dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
+    className: "text-[#EDB92B]",
+    dotClassName: "bg-[#EDB92B]",
   },
   offline: {
-    label: "OFF",
-    shortLabel: "OFF",
+    label: "Offline",
+    shortLabel: "Off",
     detail: "Could not reach the API. Check connection or server status.",
-    className: "text-destructive",
-    dotClassName: "bg-destructive shadow-[0_0_8px_rgba(248,113,113,0.55)]",
+    className: "text-[#C8321E]",
+    dotClassName: "bg-[#C8321E]",
   },
 };
 
@@ -287,34 +287,34 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
     (slot) => slot.status === "ready" || slot.status === "ok",
   ).length ?? 0;
   const databaseState = !system
-    ? "DB —"
+    ? "Database —"
     : persistentRedisTotal > 0
       ? `DB ${persistentRedisHealthy}/${persistentRedisTotal}`
       : servicesHealthy
-        ? "DB OK"
-        : "DB !";
+        ? "DB ready"
+        : "Database needs attention";
   const databaseDetail = !system
     ? "Database status is still loading."
     : `PostgreSQL and local Redis are ${servicesHealthy ? "healthy" : "available"}; persistent Redis capacity is ${persistentRedisHealthy}/${persistentRedisTotal || "—"} slots healthy.`;
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="atlas-round-workspace-status relative">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls="workspace-status-panel"
         aria-label={`${copy.label}. Open whole workspace status.`}
-        data-testid="button-workspace-status"
+        data-testid="button-workspace-status"\n        data-status={state}
         className={cn(
-          "group flex min-h-[44px] min-w-[44px] h-auto max-w-full items-center gap-1 rounded-lg border px-1.5 transition-colors sm:min-h-[44px] sm:max-w-none sm:gap-1.5 sm:px-2",
-          "border-[#9CFF1A]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
-          (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#9CFF1A]/30",
+          "atlas-round-workspace-status-trigger group flex min-h-[44px] min-w-[44px] h-auto max-w-full items-center gap-2 rounded-md border px-2 transition-colors sm:min-h-[44px] sm:max-w-none sm:gap-2 sm:px-2",
+          "border-[#E5E5E1] bg-[#FAFAF8] hover:border-[#BDBDB8] hover:bg-[#F3F3F0]",
+          
         )}
       >
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
-        <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
-        <span className={cn("shrink-0 font-mono text-[11px] font-bold tracking-[0.06em] sm:text-[13px]", copy.className)}>
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", copy.dotClassName)} />
+        <Icon className={cn("h-4 w-4 shrink-0", copy.className, state === "loading" && "animate-spin")} />
+        <span className={cn("shrink-0 font-mono text-[11px] font-medium sm:text-[13px]", copy.className)}>
           {copy.shortLabel}
         </span>
         <span className="hidden text-stone-600 font-mono text-[13px] sm:inline sm:text-[14px]" aria-hidden>
@@ -322,14 +322,14 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         </span>
         <span
           className={cn(
-            "hidden shrink-0 font-mono text-[13px] font-bold tabular-nums sm:inline sm:text-[14px]",
+            "hidden shrink-0 font-mono text-[13px] font-medium tabular-nums sm:inline sm:text-[14px]",
             servicesHealthy ? "text-primary" : copy.className,
           )}
           title={databaseDetail}
         >
           {databaseState}
         </span>
-        <ChevronDown className={cn("h-3 w-3 shrink-0 text-muted-foreground/70 transition-transform sm:h-3.5 sm:w-3.5", open && "rotate-180")} />
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-[#74747A] transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
@@ -337,7 +337,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         {/* Opaque scrim — never glass-through to Reactor (LIVE-17) */}
         <button
           type="button"
-          className="fixed inset-0 z-[70] bg-[#05070c]/85 sm:bg-black/50"
+          className="atlas-round-workspace-status-scrim fixed inset-0 z-[70]"
           aria-label="Close workspace status"
           onClick={() => setOpen(false)}
         />
@@ -345,84 +345,84 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
           id="workspace-status-panel"
           role="dialog"
           aria-label="Whole workspace status"
-          className="fixed left-3 right-3 top-[max(3.5rem,env(safe-area-inset-top))] z-[80] max-h-[min(75dvh,560px)] overflow-y-auto rounded-xl border border-[#9CFF1A]/25 bg-[#0c1220] p-4 shadow-2xl shadow-black/80 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.4rem)] sm:w-[min(390px,calc(100vw-1rem))] sm:max-h-[min(70dvh,520px)]"
+          className="atlas-round-workspace-status-panel fixed left-3 right-3 top-[max(3.5rem,env(safe-area-inset-top))] z-[80] max-h-[min(75dvh,560px)] overflow-y-auto rounded-xl border border-[#E5E5E1] bg-[#FAFAF8] p-4 text-[#18181A] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(70dvh,520px)]"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
-            <div className="flex min-w-0 items-start gap-2.5">
-              <div className={cn("mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted/70", copy.className)}>
+            <div className="flex min-w-0 items-start gap-2">
+              <div className={cn("mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md bg-muted/70", copy.className)}>
                 <Icon className={cn("h-3.5 w-3.5", state === "loading" && "animate-spin")} />
               </div>
               <div className="min-w-0">
-                <div className="font-mono text-[14px] uppercase tracking-[0.2em] text-muted-foreground/60">Whole workspace</div>
-                <div className={cn("mt-1 font-mono text-[12px] font-bold tracking-wide", copy.className)}>{copy.label}</div>
-                <p className="mt-1 max-w-[260px] text-[11px] leading-4 text-muted-foreground">{copy.detail}</p>
+                <div className="font-mono text-[14px] text-[#74747A]">Whole workspace</div>
+                <div className={cn("mt-1 font-mono text-[12px] font-medium", copy.className)}>{copy.label}</div>
+                <p className="mt-1 max-w-[260px] text-[11px] leading-4 text-[#55555A]">{copy.detail}</p>
               </div>
             </div>
             <button
               type="button"
-              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md px-2 py-1 font-mono text-[14px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md px-2 py-2 font-mono text-[14px] text-[#55555A] hover:bg-[#F3F3F0] hover:text-[#18181A]"
               onClick={() => setOpen(false)}
               aria-label="Close"
             >
               Close
             </button>
             <div className="shrink-0 text-right">
-              <div className={cn("font-mono text-xl font-bold", copy.className)}>
-                {active ? phaseLabel(atlas) : schedulerEnabled ? "AUTO" : "—"}
+              <div className={cn("font-mono text-xl font-medium", copy.className)}>
+                {active ? phaseLabel(atlas) : schedulerEnabled ? "Auto" : "—"}
               </div>
-              <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/60">
+              <div className="font-mono text-[13px] text-[#74747A]">
                 {active ? "current operation" : schedulerEnabled ? "continuous cycle" : "atlas state"}
               </div>
             </div>
           </div>
 
           <div className="mt-3 space-y-2">
-            <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
+            <div className="rounded-md border border-[#E5E5E1] bg-[#F3F3F0] px-3 py-2">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[13px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
-                  <span className={cn("font-mono text-[14px] font-bold", active ? (providerDegraded ? "text-[#d4ff8a]" : "text-lime-300") : schedulerEnabled ? "text-[#d4ff8a]" : "text-muted-foreground")}>
-                  {active ? (providerDegraded ? "ACTIVE · PARTIAL COVERAGE" : "DISCOVERING + ENRICHING") : schedulerEnabled ? "QUEUED" : "READY"}
+                <span className="font-mono text-[13px] text-[#74747A]">Research engine</span>
+                  <span className={cn("font-mono text-[14px] font-medium", active ? (providerDegraded ? "text-[#d4ff8a]" : "text-lime-300") : schedulerEnabled ? "text-[#d4ff8a]" : "text-muted-foreground")}>
+                  {active ? (providerDegraded ? "Active · partial coverage" : "Discovering and enriching") : schedulerEnabled ? "Queued" : "Ready"}
                 </span>
               </div>
-              <div className="mt-1 truncate text-[11px] text-foreground/80">
+              <div className="mt-1 truncate text-[11px] text-[#55555A]">
                 {active ? atlas?.message || atlas?.phaseJ?.message || "Processing the current target…" : nextCycle ? `Next cycle in ${nextCycle}` : atlas?.message || "No active Atlas target"}
               </div>
-              {active && atlas?.jobId && <div className="mt-1 truncate font-mono text-[13px] text-muted-foreground/50">run {atlas.jobId}</div>}
+              {active && atlas?.jobId && <div className="mt-1 truncate font-mono text-[13px] text-[#74747A]">run {atlas.jobId}</div>}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-lg border border-border/60 px-3 py-2">
-                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">Services</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
-                  {servicesHealthy ? "API · DB · REDIS OK" : "ATTENTION NEEDED"}
+              <div className="rounded-md border border-[#E5E5E1] px-3 py-2">
+                <div className="font-mono text-[13px] text-[#74747A]">Services</div>
+                <div className={cn("mt-1 font-mono text-[11px] font-medium", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
+                  {servicesHealthy ? "API · DB · Redis ready" : "Needs attention"}
                 </div>
               </div>
-              <div className="rounded-lg border border-border/60 px-3 py-2">
-                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">Bureau capacity</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#d4ff8a]")}>
+              <div className="rounded-md border border-[#E5E5E1] px-3 py-2">
+                <div className="font-mono text-[13px] text-[#74747A]">Bureau capacity</div>
+                <div className={cn("mt-1 font-mono text-[11px] font-medium", summary.active > 0 ? "text-primary" : "text-[#d4ff8a]")}>
                   READY {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
+            <div className="rounded-md border border-[#E5E5E1] bg-[#F3F3F0] px-3 py-2">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[13px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
-                <span className={cn("font-mono text-[14px] font-bold", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
+                <span className="font-mono text-[13px] text-[#74747A]">Database / persistence</span>
+                <span className={cn("font-mono text-[14px] font-medium", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
                   {databaseState}
                 </span>
               </div>
-              <div className="mt-1 text-[11px] leading-4 text-foreground/80">{databaseDetail}</div>
+              <div className="mt-1 text-[11px] leading-4 text-[#55555A]">{databaseDetail}</div>
             </div>
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-            <div className="font-mono text-[13px] uppercase tracking-wider text-muted-foreground/55">
+            <div className="font-mono text-[13px] text-[#74747A]">
               {atlas?.scheduler?.cycles ? `${atlas.scheduler.cycles} cycles · live poll` : `Updated ${new Date(refreshedNow).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </div>
             <div className="flex items-center gap-1">
-              <Link href="/reactor" onClick={() => setOpen(false)} data-testid="link-workspace-reactor" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[14px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/10">
+              <Link href="/reactor" onClick={() => setOpen(false)} data-testid="link-workspace-reactor" className="flex items-center gap-2 rounded-md px-2 py-2 font-mono text-[14px] font-medium text-[#2757C6] hover:bg-[#F3F3F0]">
                 Reactor <ExternalLink className="h-3 w-3" />
               </Link>
-              <Link href="/status" onClick={() => setOpen(false)} data-testid="link-workspace-status" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[14px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted">
+              <Link href="/status" onClick={() => setOpen(false)} data-testid="link-workspace-status" className="flex items-center gap-2 rounded-md px-2 py-2 font-mono text-[14px] font-medium text-[#55555A] hover:bg-[#F3F3F0]">
                 Details
               </Link>
             </div>
