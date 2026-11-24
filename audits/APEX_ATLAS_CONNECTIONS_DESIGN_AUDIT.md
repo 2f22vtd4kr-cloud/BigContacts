@@ -79,3 +79,46 @@ function ApexAtlasMark() {
 </svg>
 
 ```
+### Change 2 — shared horizontal navigation shell
+- Mismatch: Desktop used a persistent 240px sidebar; the design board uses a horizontal header with the existing five destinations. The phone keeps the same destinations in an accessible drawer.
+- Files changed: `artifacts/apex-finder/src/components/layout-round.tsx` and `artifacts/apex-finder/src/flat-round.css`.
+- Exact implementation: the header now contains the shield/wordmark, a text-only horizontal nav, and the existing live `WorkspaceStatus`; the five hrefs remain `/`, `/profiles`, `/search`, `/network`, and `/reactor`. The desktop sidebar is hidden. On phones, the horizontal nav is hidden and the existing Escape/backdrop/close behavior drives the same five-link drawer.
+- Safety: only presentation and placement changed. No route was added/removed; the existing `useLocation`, active-route detection, mobile open state, focus return, and live status component remain.
+- Verification: source-level JSX and CSS review completed. Runtime build and desktop/390px capture remain pending.
+- Exact navigation data and header replacement are now present in `layout-round.tsx`; CSS override appended to `flat-round.css`:
+```css
+/* Connections design-board shell: horizontal desktop navigation, accessible mobile drawer. */
+.atlas-round-shell { display:block; min-height:100dvh; min-width:0; background:var(--round-paper); }
+.atlas-round-shell .atlas-round-header { min-height:68px; }
+.atlas-round-shell .atlas-round-primary { margin-left:auto; margin-right:auto; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.atlas-round-shell .atlas-round-navlink { min-height:40px; padding:0 14px; border-radius:6px; font:400 13px/1 "Geist",sans-serif; }
+.atlas-round-shell .atlas-round-navlink.is-active { background:transparent; box-shadow:inset 0 -2px 0 var(--round-red); font-weight:500; }
+.atlas-round-shell .atlas-round-brand-mark { width:22px; height:24.2px; }
+.atlas-round-shell .atlas-round-brand .atlas-round-wordmark { flex-direction:row; align-items:center; gap:10px; color:var(--round-ink); text-decoration:none; }
+.atlas-round-shell .atlas-round-brand .atlas-round-wordmark strong { font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
+.atlas-round-shell .atlas-round-sidebar { display:none; }
+.atlas-round-shell .atlas-round-main-column { width:100%; min-width:0; }
+.atlas-round-shell .atlas-round-main { min-height:calc(100dvh - 68px); }
+.atlas-round-shell .atlas-round-desktop-status { position:static; display:flex; }
+.atlas-round-shell .atlas-round-mobile-toggle { display:none; }
+@media (max-width:1100px) {
+  .atlas-round-shell .atlas-round-header { gap:12px; }
+  .atlas-round-shell .atlas-round-navlink { padding-inline:9px; }
+}
+@media (max-width:760px) {
+  .atlas-round-shell .atlas-round-header { min-height:60px; padding-inline:16px; gap:12px; }
+  .atlas-round-shell .atlas-round-brand-mark { width:20px; height:22px; }
+  .atlas-round-shell .atlas-round-brand .atlas-round-wordmark strong { font:500 18px/1 "Geist",sans-serif; }
+  .atlas-round-shell .atlas-round-primary { display:none; }
+  .atlas-round-shell .atlas-round-actions { margin-left:auto; gap:10px; }
+  .atlas-round-shell .atlas-round-desktop-status { position:static; display:flex; }
+  .atlas-round-shell .atlas-round-mobile-toggle { display:grid; place-items:center; width:40px; height:40px; border:1px solid var(--round-line); border-radius:8px; background:#fff; color:var(--round-ink); }
+  .atlas-round-shell .atlas-round-sidebar { position:fixed; top:0; bottom:0; left:0; z-index:120; display:flex; width:min(288px,calc(100vw - 56px)); min-width:0; height:100dvh; flex-direction:column; padding:calc(20px + env(safe-area-inset-top)) 16px 20px; border-right:1px solid var(--round-line); background:var(--round-paper); transform:translateX(-102%); visibility:hidden; transition:transform .18s ease,visibility .18s ease; }
+  .atlas-round-shell .atlas-round-sidebar.is-open { transform:translateX(0); visibility:visible; box-shadow:8px 0 28px #18181a18; }
+  .atlas-round-shell .atlas-round-sidebar-brand { display:flex; margin-bottom:28px; }
+  .atlas-round-shell .atlas-round-sidebar-nav { display:flex; flex-direction:column; gap:6px; }
+  .atlas-round-shell .atlas-round-sidebar-nav .atlas-round-navlink { justify-content:flex-start; min-height:44px; padding:0 12px; }
+  .atlas-round-shell .atlas-round-sidebar-backdrop { position:fixed; inset:0; z-index:110; display:block; width:100%; height:100%; border:0; background:#18181a55; }
+  .atlas-round-shell .atlas-round-main { min-height:calc(100dvh - 60px); }
+}
+```
