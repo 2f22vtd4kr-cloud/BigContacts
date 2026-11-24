@@ -357,14 +357,18 @@ async function main() {
           const style = getComputedStyle(frame);
           const checker = getComputedStyle(frame, "::before");
           const header = document.querySelector(".atlas-round-header");
+          const visibleStatus = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
+          const headerStyle = header ? getComputedStyle(header) : null;
           return {
             backgroundColor: style.backgroundColor,
             backgroundImage: style.backgroundImage,
             backgroundSize: style.backgroundSize,
             checkerImage: checker.backgroundImage,
             checkerSize: checker.backgroundSize,
-            headerBackground: header ? getComputedStyle(header).backgroundColor : null,
-            status: document.querySelector(".atlas-round-status")?.getAttribute("data-status") ?? null,
+            headerBackground: headerStyle?.backgroundColor ?? null,
+            headerBorderBottomWidth: headerStyle?.borderBottomWidth ?? null,
+            headerBoxShadow: headerStyle?.boxShadow ?? null,
+            status: visibleStatus?.getAttribute("data-status") ?? null,
           };
         }, offlineRoute.selector);
         if (
@@ -374,7 +378,10 @@ async function main() {
           !frameMetrics.backgroundImage.includes("svg") ||
           frameMetrics.backgroundSize !== "64px 24px" ||
           !frameMetrics.checkerImage.includes("conic-gradient") ||
-          frameMetrics.checkerSize !== "22px 14px"
+          frameMetrics.checkerSize !== "22px 14px" ||
+          frameMetrics.headerBackground !== "rgb(250, 250, 248)" ||
+          frameMetrics.headerBorderBottomWidth !== "0px" ||
+          frameMetrics.headerBoxShadow !== "none"
         ) {
           throw new Error("Shared API-down frame mismatch on " + offlineRoute.label + ": " + JSON.stringify(frameMetrics));
         }
