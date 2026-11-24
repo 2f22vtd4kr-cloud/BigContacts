@@ -2163,3 +2163,18 @@ html.light main,
   letter-spacing:.06em;
   text-transform:uppercase;
 }
+
+/* Board input chrome: soft raised fill inside white panels, not pure-white fields. */
+.atlas-round input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.atlas-round select,
+.atlas-round textarea {
+  background-color:#F3F3F0!important;
+  border-color:#E4E4DF!important;
+  color:#18181A!important;
+  border-radius:10px;
+}
+.atlas-round input:not([type="checkbox"]):not([type="radio"]):not([type="range"])::placeholder,
+.atlas-round textarea::placeholder {
+  color:#74747A!important;
+  opacity:1;
+}
