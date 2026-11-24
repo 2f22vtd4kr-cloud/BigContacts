@@ -81,7 +81,7 @@ const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
   high:   { label: "Urgent", color: "#C8321E", bg: "rgba(239,68,68,0.15)"  },
-  medium: { label: "MED",    color: "#EDB92B", bg: "rgba(245,158,11,0.15)" },
+  medium: { label: "Medium",    color: "#EDB92B", bg: "rgba(245,158,11,0.15)" },
   low:    { label: "Low",    color: "#74747A", bg: "rgba(107,114,128,0.15)" },
 };
 
