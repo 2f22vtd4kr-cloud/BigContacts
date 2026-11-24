@@ -844,8 +844,8 @@ function GraphViewerInner() {
           nodeRelSize={6}
           linkColor={(link: any) => {
             const status = link.evidenceStatus as string | undefined;
-            if (status === "disputed" || status === "rejected") return "rgba(248, 113, 113, 0.35)";
-            if (status === "supported") return "rgba(52, 211, 153, 0.28)";
+            if (status === "disputed" || status === "rejected") return "rgba(200, 50, 30, 0.28)";
+            if (status === "supported") return "rgba(31, 138, 77, 0.24)";
             return "rgba(255, 255, 255, 0.18)";
           }}
           linkWidth={(link: any) => {
