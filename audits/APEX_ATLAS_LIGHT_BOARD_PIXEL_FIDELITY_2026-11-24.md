@@ -185,3 +185,8 @@ No API service, worker, Bureau, research operation, database, or persistent fixt
 A further review of the shared shell found that the neutral frame was applied only to Home. The header's existing WorkspaceStatus already exposes data-status="offline", so the current light shell now uses that existing state to neutralize the decorative frames on Home, Discover, Ledger, and Connections together. Each keeps the same long 64×24px continuous wave and 22×14px rectangular checker geometry; only the palette changes to grey while the workspace is offline. No extra API request or backend behavior is introduced.
 
 A regression assertion now checks all four real frame selectors and the neutral pattern dimensions. The existing Reactor page remains unchanged.
+
+
+## Regression contract alignment
+
+The first CI rerun confirmed the responsive frontend contract had hard-coded the superseded horizontal desktop navigation and mobile tab bar. Its assertions were updated to verify the requested full-height sidebar, mobile drawer below the header, Escape dismissal, and bold text-only active destination. The rerun passed all 27 responsive checks. The Home UI contract contained two additional stale horizontal-navigation/tabbar assertions; those are now updated to verify the same sidebar/drawer contract. The final Home UI contract rerun is pending.
