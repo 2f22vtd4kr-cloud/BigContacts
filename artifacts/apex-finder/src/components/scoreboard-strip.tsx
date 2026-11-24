@@ -26,7 +26,6 @@ type Snapshot = {
 };
 
 export function ScoreboardStrip({ className, refreshKey }: { className?: string; refreshKey?: number | string }) {
-  if (isMockMode()) return null;
   const [data, setData] = useState<Snapshot | null>(null);
   const [integrity, setIntegrity] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -63,9 +62,12 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
   }, []);
 
   useEffect(() => {
+    if (isMockMode()) return;
     load();
     const id = window.setInterval(load, 60_000);
-    return () => window.clearInterval(id);
+    if (isMockMode()) return null;
+
+  return () => window.clearInterval(id);
   }, [load, refreshKey]);
 
   if (authBlocked && !data) return null;
