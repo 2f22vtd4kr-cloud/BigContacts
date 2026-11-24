@@ -1906,3 +1906,41 @@ body:has(.atlas-round-shell) {
 @media (prefers-reduced-motion:reduce) {
   .atlas-round-sidebar,.atlas-round-nav-backdrop { transition:none!important; }
 }
+
+
+/* Disabled launch controls use the board's quiet raised-gray control surfaces. */
+.atlas-round .atlas-home-board-console textarea:disabled {
+  background:#F3F3F0!important;
+  border-color:#E4E4DF!important;
+  color:#74747A!important;
+  opacity:1;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-cta:disabled {
+  background:#F3F3F0!important;
+  border-color:#E4E4DF!important;
+  color:#74747A!important;
+  box-shadow:none!important;
+  text-shadow:none!important;
+  animation:none!important;
+  cursor:not-allowed;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-depth,
+.atlas-round .atlas-home-board-console .atlas-launch-target-count {
+  min-height:40px;
+  padding:4px 8px;
+  border:1px solid #E4E4DF;
+  border-radius:10px;
+  background:#F3F3F0;
+}
+.atlas-round .atlas-home-board-console .atlas-launch-target-count button {
+  min-width:36px;
+  min-height:36px;
+  border:1px solid #E4E4DF;
+  border-radius:8px;
+  background:#fff;
+  color:var(--round-ink);
+}
+.atlas-round .atlas-home-board-console .atlas-launch-target-count button:disabled {
+  color:var(--round-ink-3);
+  background:#F3F3F0;
+}
