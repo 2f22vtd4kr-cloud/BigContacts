@@ -392,7 +392,7 @@ export default function ApexProfile({ boardMode = false }: { boardMode?: boolean
 
   useEffect(() => {
     if (isMockMode()) { setContactEvidence([]); setContactEvidenceLoading(false); return; }
-    if (!entityId) return;
+    if (!entityId || isMockMode()) return;
     let cancelled = false;
     setContactEvidenceLoading(true);
     fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
