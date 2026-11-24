@@ -28,6 +28,14 @@ export function ApexErrorNotice() {
 
   useEffect(() => {
     const showError = (next: ApexUserError) => {
+      const key = dismissalKey(next);
+      if (dismissedKeys.current.has(key)) return;
+      try {
+        if (window.sessionStorage.getItem(`apex:dismissed-error:${encodeURIComponent(key)}`) === "1") {
+          dismissedKeys.current.add(key);
+          return;
+        }
+      } catch { /* Continue with in-memory deduplication when storage is unavailable. */ }
       const onReactor = window.location.pathname === "/reactor" || window.location.pathname.startsWith("/reactor/");
       const isInlineReactorApiError =
         next.title === "The Apex research service is unavailable" ||
