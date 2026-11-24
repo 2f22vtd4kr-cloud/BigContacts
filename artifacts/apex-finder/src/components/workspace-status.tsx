@@ -200,13 +200,11 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
   );
   const schedulerEnabled = Boolean(atlas?.scheduler?.enabled);
   const schedulerActive = Boolean(atlas?.scheduler?.active);
-  const noAiCapacity = Boolean(system && summary.configured > 0 && summary.active === 0);
-  // Only treat keys as "degraded" when every configured slot is cooling — partial
-  // rate-limits while some keys are still LIVE should not WARN the whole desk.
-  const allKeysCooling = Boolean(
-    summary.configured > 0 && summary.active === 0 && summary.rateLimited >= summary.configured,
-  );
-  const providerDegraded = allKeysCooling || noAiCapacity;
+  const noActiveProviderCapacity = Boolean(system && summary.active === 0);
+  const noKeysConfigured = Boolean(system && summary.configured === 0);
+  // One active search-provider key is enough to keep the desk operational.
+  // Zero active keys means no research capacity, whether keys are missing or cooling.
+  const providerDegraded = noActiveProviderCapacity;
   const state: WorkspaceState = loading && !atlas && !system
     ? "loading"
     : error && !atlas && !system
@@ -221,7 +219,25 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
           : !servicesHealthy || providerDegraded
             ? "degraded"
             : "ready";
-  const copy = STATE_COPY[state];
+  const copy = state === "degraded" && noKeysConfigured
+    ? {
+        ...STATE_COPY.degraded,
+        label: "No keys",
+        shortLabel: "No keys",
+        detail: "The API is reachable, but no search-provider keys are configured.",
+        className: "text-[#C8321E]",
+        dotClassName: "bg-[#C8321E]",
+      }
+    : state === "degraded" && noActiveProviderCapacity
+      ? {
+          ...STATE_COPY.degraded,
+          label: "Limited",
+          shortLabel: "Limited",
+          detail: "All configured search-provider keys are rate-limited or unavailable.",
+          className: "text-[#EDB92B]",
+          dotClassName: "bg-[#EDB92B]",
+        }
+      : STATE_COPY[state];
   const Icon = state === "researching" || state === "researching-degraded"
     ? Radio
     : state === "degraded"
@@ -246,7 +262,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         : state === "queued"
           ? `Queued${compactKeys}`
           : state === "degraded"
-            ? "Services need attention"
+            ? (noKeysConfigured ? "No search-provider keys configured" : "Search providers need attention")
             : state === "offline"
               ? "API unreachable"
               : "Checking status";
@@ -259,7 +275,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         : state === "queued"
           ? "Queued"
           : state === "degraded"
-            ? "Attention"
+            ? copy.shortLabel
             : state === "offline"
               ? "API down"
               : "Checking";
@@ -380,8 +396,8 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
             <div className="rounded-md border border-[#E5E5E1] bg-[#F3F3F0] px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[13px] text-[#74747A]">Research engine</span>
-                  <span className={cn("font-mono text-[14px] font-medium", active ? (providerDegraded ? "text-[#EDB92B]" : "text-[#1F8A4D]") : schedulerEnabled ? "text-[#EDB92B]" : "text-[#74747A]")}>
-                  {active ? (providerDegraded ? "Active · partial coverage" : "Discovering and enriching") : schedulerEnabled ? "Queued" : "Ready"}
+                  <span className={cn("font-mono text-[14px] font-medium", active ? (providerDegraded ? "text-[#EDB92B]" : "text-[#1F8A4D]") : schedulerEnabled ? "text-[#EDB92B]" : summary.active > 0 ? "text-[#1F8A4D]" : summary.configured > 0 ? "text-[#EDB92B]" : "text-[#C8321E]")}>
+                  {active ? (providerDegraded ? "Active · limited capacity" : "Discovering and enriching") : schedulerEnabled ? "Queued" : summary.active > 0 ? "Ready" : summary.configured > 0 ? "Cooling down" : "No keys configured"}
                 </span>
               </div>
               <div className="mt-1 truncate text-[11px] text-[#55555A]">
@@ -398,8 +414,12 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
               </div>
               <div className="rounded-md border border-[#E5E5E1] px-3 py-2">
                 <div className="font-mono text-[13px] text-[#74747A]">Bureau capacity</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-medium", summary.active > 0 ? "text-[#1F8A4D]" : "text-[#EDB92B]")}>
-                  Ready {summary.active}/{summary.configured || "—"}
+                <div className={cn("mt-1 font-mono text-[11px] font-medium", summary.active > 0 ? "text-[#1F8A4D]" : summary.configured > 0 ? "text-[#EDB92B]" : "text-[#C8321E]")}>
+                  {summary.active > 0
+                    ? "Ready " + summary.active + "/" + summary.configured
+                    : summary.configured > 0
+                      ? "Limited " + summary.rateLimited + "/" + summary.configured
+                      : "No keys configured"}
                 </div>
               </div>
             </div>
