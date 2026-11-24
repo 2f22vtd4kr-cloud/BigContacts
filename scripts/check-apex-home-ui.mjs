@@ -35,7 +35,7 @@ require(dashboard.includes("atlas-home-board-grid"), "Home must use the approved
 require(dashboard.includes("atlas-home-board-console"), "Home must use the framed launch console");
 require(dashboard.includes("All connections") && dashboard.includes('aria-label="Open all connections"'), "Home must link to the relationship register without mislabelling raw edges as routes");
 require(dashboard.includes("Strongest routes") && dashboard.includes("No routes yet") && dashboard.includes("no personal contact routes to rank yet") && dashboard.includes("atlas-home-route-legend") && dashboard.includes("<strong>Supported</strong>") && dashboard.includes("<strong>Corroborated</strong>") && dashboard.includes("<strong>Disputed</strong>") && dashboard.includes("CircleAlert") && !dashboard.includes("useGetConnectionPath") && !dashboard.includes("useListEntities"), "Home must match the board's real-data empty state without inventing strongest-route records");
-require(pathFinder.includes("useGetConnectionPath") && pathFinder.includes("useListEntities") && pathFinder.includes("Find shortest path") && pathFinder.includes("routePatternStatus") && pathFinder.includes("atlas-route-pattern-card"), "The real shortest-path API remains available in Connections with evidence-patterned results");
+require(pathFinder.includes("useGetConnectionPath") && pathFinder.includes("useListEntities") && pathFinder.includes("Find a shortest path") && pathFinder.includes("routePatternStatus") && pathFinder.includes("atlas-route-pattern-card"), "The real shortest-path API remains available in Connections with evidence-patterned results");
 require(dashboard.includes("Bureau figures"), "Home must show the three bureau figures");
 require(dashboard.includes('label="People"') && dashboard.includes('label="Relationships"') && dashboard.includes('label="Assets"'), "Home figures must use the backend's actual entity, relationship and asset counts");
 require(!dashboard.includes("atlas-stat-icon") && !dashboard.includes("icon: Users") && !dashboard.includes("icon: Network"), "Home figures must remain typographic, not decorative icon tiles");
@@ -56,15 +56,15 @@ require(launch.includes("launchTargetCount"), "launch console must expose the ta
 require(launch.includes("Math.min(25"), "target-count control must cap at 25");
 require(launch.includes('targetCount: opts?.targetCount ?? (variant === "primary" ? launchTargetCount : undefined)'), "target-count control must pass its value to the canonical launch function");
 require(launch.includes("button-depth-"), "depth choices must be real interactive controls");
-require(launch.includes("Web search") && launch.includes("Registries") && launch.includes("Footprint tools unavailable"), "Home console must expose the board source-kind row");
+require(launch.includes('sourceLabel("Web search"') && launch.includes('sourceLabel("Registries"') && launch.includes('sourceLabel("Footprint tools"') && launch.includes("sourceStatuses.footprint"), "Home console must expose the board source-kind row");
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
-require(roundLayout.includes("atlas-round-sidebar") && roundLayout.includes("primaryNav.map") && roundLayout.includes('aria-label="Primary navigation"'), "board navigation must be a persistent sidebar with only the five designed destinations");
-require(roundLayout.includes('aria-controls="atlas-round-sidebar"') && roundLayout.includes("aria-expanded={mobileOpen}") && roundLayout.includes("atlas-round-sidebar-backdrop"), "mobile sidebar must be an accessible off-canvas drawer with a dismissible backdrop");
+require(roundLayout.includes("atlas-round-primary") && roundLayout.includes("primaryNav.map") && roundLayout.includes('aria-label="Primary navigation"'), "board navigation must use the five designed horizontal destinations");
+require(roundLayout.includes("atlas-round-mobile-tabbar") && css.includes(".atlas-round-mobile-tabbar") && css.includes("safe-area-inset-bottom"), "mobile navigation must use the accessible fixed tabbar with safe-area spacing");
 require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "sidebar must identify the active destination");
 require(!roundLayout.includes("utilityNav") && !roundLayout.includes("atlas-round-more-menu") && !roundLayout.includes("Crosshair"), "non-board utilities must remain implemented but unavailable from the active sidebar, and the target icon must be removed");
-require(css.includes(".atlas-round-sidebar") && css.includes(".atlas-round-sidebar-backdrop") && css.includes("translateX(-102%)") && css.includes("visibility:hidden"), "sidebar must be persistent on desktop and an off-canvas drawer on mobile");
+require(css.includes(".atlas-round-primary") && css.includes(".atlas-round-mobile-tabbar") && css.includes("@media (max-width:760px)"), "horizontal navigation must collapse to the mobile tabbar");
 require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
 require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
@@ -73,7 +73,7 @@ require(objective.length > 0 && objective.length <= 1600, "default mission must 
 require(launch.includes("const [objectiveLimit, setObjectiveLimit] = useState<number | null>(null)") && launch.includes("maxLength={objectiveLimit ?? undefined}") && launch.includes("discoveryObjectiveMaxChars") && healthRoute.includes("discoveryObjectiveMaxChars: MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS") && launch.includes("objective.length > objectiveLimit"), "All launch surfaces must use the backend-authoritative objective limit for input, counter and submission");
 require(launch.includes('variant === "primary" ? "" : DEFAULT_ATLAS_DISCOVERY_OBJECTIVE'), "Only Home starts empty; other launch callers retain the canonical default objective");
 require(css.includes(".atlas-home-board-console::before") && css.includes(".atlas-home-board-console::after") && css.includes("background-size: 24px 24px;") && css.includes("background-size:32px 24px"), "Home console must join the checky left field to the wave right field in one continuous frame");
-require((roundLayout.match(/<ApexAtlasMark \/>/g) ?? []).length === 2, "Apex Atlas heraldic shield must appear beside the wordmark in desktop and mobile navigation");
+require((roundLayout.match(/<ApexAtlasMark \/>/g) ?? []).length === 1 && roundLayout.includes("atlas-round-header-brand"), "the responsive shared header must show the Apex Atlas heraldic shield beside its wordmark");
 require(!boardLedger.includes("atlas-ledger-counts"), "Ledger must not duplicate the outcome counts already shown in its filter controls");
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");

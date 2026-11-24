@@ -40,7 +40,7 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(radiusFor(".atlas-round-primary")).toBe("16px");
     expect(radiusFor(".atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-round .atlas-card")).toBe("12px!important");
-    expect(radiusFor(".atlas-round-sidebar .atlas-round-navlink")).toBe("6px");
+    expect(radiusFor(".atlas-round-mobile-tabbar .atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-home-console-inner")).toBe("12px");
     expect(radiusFor(".atlas-round .atlas-home-board-console")).toBe("20px!important");
     expect(radiusFor(".atlas-round .atlas-home-board-console .atlas-launch-cta")).toBe("10px!important");
