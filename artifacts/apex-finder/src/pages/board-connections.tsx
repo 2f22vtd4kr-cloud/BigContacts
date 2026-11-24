@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useListRelationships, type Relationship } from "@workspace/api-client-react";
+import { getListRelationshipsQueryKey, useListRelationships, type Relationship } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { RefreshCw, Search } from "lucide-react";
 import { ConnectionPathFinder } from "@/components/connection-path-finder";
@@ -42,7 +42,7 @@ export default function BoardConnectionsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RelationshipFilter>("all");
   const { data, isLoading, isError, refetch } = useListRelationships(undefined, {
-    query: { staleTime: 10_000, refetchOnWindowFocus: true },
+    query: { queryKey: getListRelationshipsQueryKey(), staleTime: 10_000, refetchOnWindowFocus: true },
   });
 
   const relationships = useMemo(() => Array.isArray(data) ? data : [], [data]);
