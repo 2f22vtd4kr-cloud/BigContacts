@@ -1148,7 +1148,7 @@ body:has(.atlas-round-shell) {
   background:rgba(250,250,248,.96); backdrop-filter:blur(12px);
 }
 .atlas-card-shell-header .atlas-round-wordmark { flex:none; flex-direction:row; align-items:center; gap: 12px; color:var(--round-ink); text-decoration:none; }
-.atlas-card-shell-header .atlas-round-wordmark strong { color:var(--round-ink); font:500 16px/1 "Geist",sans-serif; letter-spacing:-.01em; }
+.atlas-card-shell-header .atlas-round-wordmark strong { color:var(--round-ink); font:500 16px/1 "Geist",sans-serif; letter-spacing:0; }
 .atlas-card-shell-nav { display:flex; min-width:0; align-items:center; justify-content:center; gap: 4px; margin-inline: auto; }
 .atlas-card-shell-navlink {
   display:inline-flex; min-height:40px; align-items:center; justify-content:center; padding: 0 12px;
