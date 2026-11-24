@@ -81,3 +81,7 @@ Part of unslop by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), CC BY 
 A follow-up source review found the existing alert assertion still matched the pre-responsive exact class string. Updated the contract test to assert the complete responsive class and require all three actionable controls (Retry, System Status and Dismiss) to declare 44px minimum width and height. This keeps the test aligned with the actual component contract rather than weakening it to a broad substring check.
 
 **Regression-test correction commit:** `3e9663c1adb0d71aad67efbee2e510dbbcd23541`.
+
+The touch-target assertions use literal occurrence counts (three `min-h-[44px]` and three `min-w-[44px]` declarations) to avoid regex escaping ambiguity in the test source.
+
+**Assertion robustness follow-up:** `cd4e66016e6ee8e97a19f4653d8cc01e14a89aa3`.
