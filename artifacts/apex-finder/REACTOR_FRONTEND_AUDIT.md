@@ -306,3 +306,26 @@ Exact CSS added:
 ```
 
 No execution-state or evidence-status semantics were added. Screenshot verification remains pending.
+
+### Patch 4 — suppress duplicate Reactor-only connectivity alerts
+
+Updated `artifacts/apex-finder/src/components/apex-error-notice.tsx`. The global floating notice now suppresses only the known API connectivity/proxy failures while the current route is `/reactor` or a Reactor subroute. The Reactor's inline API-down state and Retry control remain authoritative. All other errors and all other routes retain the existing global notice behavior.
+
+Exact replacement handler:
+
+```tsx
+const showError=(next:ApexUserError)=>{
+  const onReactor=window.location.pathname==="/reactor"||window.location.pathname.startsWith("/reactor/");
+  const isInlineReactorApiError=next.title==="The Apex research service is unavailable"
+    ||/Research API is not reachable \(got an HTML page instead of JSON\)/i.test(next.message)
+    ||/^API returned non-JSON \(\d{3}\)/i.test(next.message);
+  if(onReactor&&isInlineReactorApiError) return;
+  setError(next);
+};
+const on=(e:Event)=>showError((e as CustomEvent<ApexUserError>).detail);
+window.addEventListener("apex:error",on);
+const onWindow=(e:ErrorEvent)=>showError(classifyApexError(e.error?.message ?? e.message));
+const onRejection=(e:PromiseRejectionEvent)=>showError(classifyApexError(e.reason?.message ?? e.reason));
+```
+
+This is notification presentation only; API requests, retry behavior, error classification, and backend behavior are unchanged.
