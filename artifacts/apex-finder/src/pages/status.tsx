@@ -89,9 +89,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_SECRET_LABELS: Record<string, string> = {
   groqInvestigator: "GROQ_INVESTIGATOR_API_KEY · numbered slots supported",
-  serper: "SERPER_API_KEY · SERPER_KEY also accepted",
+  serper: "SERPER_API_KEY · SERPER_KEY alias · _2/_3 slots",
   tavily: "TAVILY_API_KEY · numbered slots supported",
-  exa: "EXA_API_KEY · numbered slots supported",
+  exa: "EXA_API_KEY · EXA_1/_2 aliases and numbered slots",
 };
 
 function SlotBar({ active, cooling }: { active: number; cooling: number }) {
@@ -333,7 +333,7 @@ export default function SystemStatusPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="max-w-full text-[13px] leading-relaxed text-[#55555A] break-words">
-            Search-provider key pools, Redis and database health. Other source tools appear under research lanes below; the Groq model roles are reported separately.
+            Search-provider key pools, Redis and database health. Canonical Groq model roles are listed separately, and each pool identifies its provider-specific secret name.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
