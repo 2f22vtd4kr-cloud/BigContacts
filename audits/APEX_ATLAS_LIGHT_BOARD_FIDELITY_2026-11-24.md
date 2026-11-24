@@ -83,3 +83,47 @@ Extended `board-spacing-grid-contract.test.ts` to assert:
 - The first live browser render showed the Home frame still colorful in `?mock=1`. This is because that safe local mode deliberately skips API-health polling, so the dashboard's API-unavailable boolean is false even though no API is running.
 - Corrected the frame's visual state binding to treat local mock mode as API-down (`apiUnavailable || mock`). This changes only the frame's truthful presentation in the offline preview; mock fixtures remain local and no API call or backend behavior is added.
 - Added a regression assertion for this case.
+
+
+## Final verification pass
+
+### Production build
+
+- `pnpm --dir artifacts/apex-finder build`: **passed** after the final mobile drawer correction.
+- The build script's frontend launch, source-boundary, user-error, operator-auth, generated Reactor syntax, and profile-route checks completed successfully as part of the build.
+
+### Actual browser render checks
+
+Rendered the local frontend with Chromium against the safe `?mock=1` preview, without starting the API, workers, Bureau, or research.
+
+**Phone — 402×874**
+- Document width: 402px; no horizontal overflow.
+- Main content starts at y=60px, directly below the header (the initial drawer cascade issue was corrected).
+- Launch frame state: `down`; computed frame background: `rgb(189, 189, 184)`.
+- Checker tile: 22×14px; continuous wave tile: 64×24px.
+- Header bottom border: 0px.
+- Sidebar drawer: fixed, top 60px, height 814px; opens with all five existing destinations visible.
+- Browser page errors: none.
+
+**Desktop — 1440×1000**
+- Document width: 1440px; no horizontal overflow.
+- Sidebar begins at y=0 and is 1000px high.
+- Expanded sidebar width: 240px.
+- Active destination: text weight 700, transparent background, no box shadow/red marker.
+- Header bottom border: 0px.
+- Browser page errors: none.
+
+### Error dismissal behavior
+
+In Chromium, dispatched a missing-credential error, confirmed the notice appeared once, dismissed it, then dispatched the identical error again. The second notice remained suppressed. A different fingerprint remains eligible to display. No browser page errors occurred.
+
+### Regression tests
+
+- Focused new checks: **3 passed** (API-state-aware frame, full-height/text-only sidebar with mobile drawer, repeated-error dismissal).
+- Full `board-spacing-grid-contract.test.ts`: **9 passed, 4 failed**. The remaining failures are existing assertions about the four-pixel spacing grid, radius scale/control radii, and the Card mobile-nav source selector; they are outside the new frame/sidebar/error assertions. These are not being silently reported as a clean full-suite pass.
+- `git diff --check`: passed.
+- GitHub comparison: branch is ahead of current `main` with no behind commits; only the four frontend files and this audit file are changed.
+
+### Reference comparison limitation
+
+The design-board URL could not be fetched by the external page reader in this run. The user-provided board screenshots were therefore the visual reference for the specific mobile API-down frame and route-card comparison; the app itself was rendered in Chromium at both requested viewport sizes.
