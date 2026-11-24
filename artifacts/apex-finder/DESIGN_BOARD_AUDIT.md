@@ -43,8 +43,10 @@
 - Contact outcome styles are keyed by the actual `data-outcome` value; all states retain text.
 
 ## Verification status
-- GitHub branch writes and exact-file re-reads are pending completion.
-- Build, UI contract tests, browser rendering and desktop/390px screenshots have not yet been run. Do not claim design verification until completed.
+- Branch commit `e2e97084260bc5cde355b42688bc367ff6251859` was built by Vercel successfully: deployment state READY; Vite reported `✓ built in 1.64s`.
+- Build-time launch, source-boundary, API error-boundary, operator-auth and generated-reactor checks passed.
+- The branch-triggered Frontend responsive contract workflow failed at `Check Apex frontend polish contract` before dependency installation/build. The new mobile Ledger styles had three 10px metadata declarations, violating the repository-wide 11px minimum. Corrected all three to 11px in the follow-up commit; the workflow rerun is pending.
+- Browser rendering and desktop/390px screenshots have not yet been run. Do not claim visual verification until completed.
 - No backend process was started; no Bureau/research execution was triggered.
 
 ## Follow-up verification
@@ -56,3 +58,14 @@
 
 ## Attribution
 This pass follows Unslop by Damir Sokolovsky, licensed CC BY 4.0: https://github.com/heydamir/unslop
+
+
+## Follow-up correction — minimum mobile type size
+- CI failure identified: the existing Apex frontend polish contract enforces an 11px minimum for active-board metadata.
+- Corrected the new Ledger CSS declarations from 10px to 11px:
+```css
+.atlas-round .atlas-ledger-register-meta { font-size:11px; }
+.atlas-round .atlas-ledger-mobile-card-meta { font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; }
+.atlas-round .atlas-ledger-mobile-card-meta strong { font:400 11px/1.5 "Geist Mono",ui-monospace,monospace; overflow-wrap:anywhere; }
+```
+- No component logic, backend, route, or data behavior changed in this correction.
