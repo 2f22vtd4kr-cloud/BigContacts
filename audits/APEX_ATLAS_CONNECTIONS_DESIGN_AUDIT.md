@@ -32,3 +32,50 @@ This is the cumulative implementation record for the Connections page. It is int
 - Created this file before source changes so each subsequent step can be recorded immediately.
 - No application source changed in this step.
 
+### Change 1 — quartered shield mark and favicon
+- Mismatch: The old mark had a dark outline and crossbars. The reference uses a clean, clipped four-field red/gold shield.
+- Files changed: `artifacts/apex-finder/src/components/layout-round.tsx`, `artifacts/apex-finder/src/flat-round.css`, and `artifacts/apex-finder/public/favicon.svg`.
+- Exact implementation: the React mark now uses a `useId()`-scoped clip path with a 20×22 viewBox and four solid quarter fields; the favicon uses the same shield geometry. The React component imports `useId`. The mark is sized to 22×24.2px on desktop and 20×22px in the mobile header.
+- Safety: decorative SVG and CSS only; no routes, state, API requests, IDs or data contracts changed.
+- Verification: source-level diff reviewed. Runtime rendering/build and desktop/390px captures are still pending.
+- Exact React replacement:
+```tsx
+function ApexAtlasMark() {
+  const clipId = useId().replace(/:/g, "");
+  return (
+    <svg className="atlas-round-brand-mark" viewBox="0 0 20 22" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id={clipId}>
+          <path d="M0 0h20v12c0 5.5-4.2 8.6-10 10C4.2 20.6 0 17.5 0 12z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <rect width="10" height="11" fill="#C8321E" />
+        <rect x="10" width="10" height="11" fill="#EDB92B" />
+        <rect y="11" width="10" height="11" fill="#EDB92B" />
+        <rect x="10" y="11" width="10" height="11" fill="#C8321E" />
+      </g>
+    </svg>
+  );
+}
+```
+- Exact CSS replacement:
+```css
+.atlas-round-brand-mark { display:block; width:22px; height:24.2px; flex:none; }
+.atlas-round-mobile-header .atlas-round-brand-mark { width:20px; height:22px; }
+```
+- Favicon replacement:
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 22">
+  <defs>
+    <clipPath id="shield"><path d="M0 0h20v12c0 5.5-4.2 8.6-10 10C4.2 20.6 0 17.5 0 12z"/></clipPath>
+  </defs>
+  <g clip-path="url(#shield)">
+    <rect width="10" height="11" fill="#C8321E"/>
+    <rect x="10" width="10" height="11" fill="#EDB92B"/>
+    <rect y="11" width="10" height="11" fill="#EDB92B"/>
+    <rect x="10" y="11" width="10" height="11" fill="#C8321E"/>
+  </g>
+</svg>
+
+```
