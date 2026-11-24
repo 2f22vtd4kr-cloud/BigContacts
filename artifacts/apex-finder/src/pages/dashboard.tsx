@@ -103,7 +103,7 @@ export default function Dashboard() {
             <p>Describe who you want to reach. Atlas searches public records, links the evidence and maps the shortest route to them.</p>
           </section>
 
-          <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console" data-api-state={apiUnavailable ? "down" : "ready"}>
+          <section className="atlas-home-actions atlas-home-board-console" aria-label="Launch console" data-api-state={apiUnavailable || mock ? "down" : "ready"}>
             <div className="atlas-home-console-inner">
               <LaunchAtlasButton variant="primary" label="Launch" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>
