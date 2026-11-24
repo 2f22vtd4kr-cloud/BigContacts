@@ -279,7 +279,7 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
             : state === "offline"
               ? "API down"
               : "Checking";
-  const compactDotState = state === "researching-degraded" ? "limited" : state;
+  const compactDotState = state === "researching-degraded" ? "limited" : state === "degraded" && noKeysConfigured ? "offline" : state === "degraded" && noActiveProviderCapacity ? "limited" : state;
 
   if (compact) {
     return (
