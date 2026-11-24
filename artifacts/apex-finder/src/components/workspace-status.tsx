@@ -53,7 +53,7 @@ const STATE_COPY: Record<WorkspaceState, {
   },
   "researching-degraded": {
     label: "Limited",
-    shortLabel: "Live",
+    shortLabel: "Limited",
     detail: "Research is running; some AI/search keys are rate-limited or offline.",
     className: "text-[#EDB92B]",
     dotClassName: "bg-[#EDB92B]",
