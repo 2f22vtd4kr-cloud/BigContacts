@@ -321,7 +321,8 @@ export function WorkspaceStatus({ compact = false, className }: { compact?: bool
         aria-expanded={open}
         aria-controls="workspace-status-panel"
         aria-label={`${copy.label}. Open whole workspace status.`}
-        data-testid="button-workspace-status"\n        data-status={state}
+        data-testid="button-workspace-status"
+        data-status={state}
         className={cn(
           "atlas-round-workspace-status-trigger group flex min-h-[44px] min-w-[44px] h-auto max-w-full items-center gap-2 rounded-md border px-2 transition-colors sm:min-h-[44px] sm:max-w-none sm:gap-2 sm:px-2",
           "border-[#E5E5E1] bg-[#FAFAF8] hover:border-[#BDBDB8] hover:bg-[#F3F3F0]",
