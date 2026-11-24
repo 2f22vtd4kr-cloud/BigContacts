@@ -100,3 +100,34 @@ The board includes populated specimens to demonstrate layout. The safe app previ
 - Card does not invent claim-level evidence, relationships, or assets that are absent from the existing fixture.
 
 These are data-contract differences, not colour or spacing differences. The current pass fixes the shared light shell and the Home console's major geometry; any further route-specific refinement should preserve the above boundaries.
+
+
+## Follow-through after merged pixel-fidelity pass
+
+The next pass is isolated on `fix/light-board-followthrough-2026-11-24`, based on the merged main state after PR #959.
+
+### Additional defects identified in source review
+
+- The active sidebar rule still painted a red inset selection bar and white selection block, contrary to the request for bold selected text only.
+- The header retained a bottom border and translucent blur, creating a separate horizontal bar rather than one continuous paper surface.
+- Home, Discover, Ledger, Connections, and Reactor had separate wave SVG cadence/placement definitions. The new follow-through standardizes the decorative wave to one wider 64×24 tile with one longer wave cycle across all five console frames.
+- API-down gray frame styling was explicit only for Reactor. The light shell now derives the offline state from its existing workspace status indicator and applies matching gray checker/wave rails across all console frames; Home also recognizes its inline API-down alert.
+- The global error notice cleared visually on dismissal but did not remember the dismissal. Repeated API errors could immediately reopen it. Dismissed notice identity is now retained in session storage for the browser session, with an in-memory fallback when storage is unavailable.
+- The missing-credential classifier recognized the word “missing” but not common runtime messages such as “API keys are not set” or “keys are not configured.” Those now map to the dedicated missing-credential guidance.
+
+### Configuration boundary
+
+The frontend can classify and explain missing provider credentials, but it cannot safely manufacture or set secret values. Actual provider keys must be supplied in the deployment's secret manager/environment and the API restarted. No secrets are requested in chat, committed to Git, or modified by this frontend-only pass.
+
+### Implementation in progress
+
+- Shared light header surface; no bottom rule.
+- Full viewport-height desktop sidebar; active destination uses bold label only, with no red rail or selected white tile.
+- Unified longer wave motif and consistent gray API-down treatment across the Home, Discover, Ledger, Connections, and Reactor frames.
+- Session-level dismissal memory for repeated global error notices.
+- Explicit classification for “not set” / “not configured” provider key messages.
+- Regression assertions added for each of these contracts.
+
+### Verification status
+
+Implementation is committed incrementally to this isolated branch. Build, targeted tests, and visual desktop/mobile checks remain to be run before opening a pull request. The legacy dark-green shell, backend, data, generated API client, routes, and research behavior remain out of scope.
