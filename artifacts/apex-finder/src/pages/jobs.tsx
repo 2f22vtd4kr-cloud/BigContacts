@@ -43,7 +43,7 @@ export default function BackgroundJobs() {
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="font-mono text-[11px]  tracking-[0.22em] text-[#2757C6]">Workspace activity</div>
+            <div className="font-mono text-[11px]   text-[#2757C6]">Workspace activity</div>
             <h1 className="mt-1 text-2xl font-medium ">Research control center</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#74747A]">
               Deterministic bulk-research launchers have been retired. Research begins only through the canonical model-owned control plane; this desk provides navigation and review surfaces rather than choosing research steps for the Investigator.
@@ -71,7 +71,7 @@ export default function BackgroundJobs() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-primary/10 bg-primary/[0.035] p-5">
-          <div className="font-mono text-[11px]  tracking-[0.18em] text-[#2757C6]">Architecture invariant</div>
+          <div className="font-mono text-[11px]   text-[#2757C6]">Architecture invariant</div>
           <p className="mt-2 text-xs leading-5 text-[#74747A]">
             The UI never selects a search provider, query sequence, hop count, discovery category, or promotion outcome. Those decisions belong to the Investigator and its oversight chain; the application supplies safety, persistence, provenance, and review boundaries.
           </p>
