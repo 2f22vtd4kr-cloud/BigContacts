@@ -370,15 +370,15 @@ function GraphViewerInner() {
   }, [gData, targetId]);
 
   function nodeColor(node: any): string {
-    if (node.isTarget) return "hsl(160, 84%, 39%)";
+    if (node.isTarget) return "#2757C6";
     const t: string = node.nodeType ?? "";
-    if (t === "HNWI") return "hsl(45, 90%, 45%)";
-    if (t === "Corporation" || t === "Corp") return "hsl(217, 80%, 52%)";
-    if (t === "Trust") return "hsl(270, 65%, 45%)";
-    if (t === "Gatekeeper") return "hsl(38, 90%, 45%)";
+    if (t === "HNWI") return "#1F8A4D";
+    if (t === "Corporation" || t === "Corp") return "#2757C6";
+    if (t === "Trust") return "#EDB92B";
+    if (t === "Gatekeeper") return "#C8321E";
     if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(t))
-      return "hsl(215, 16%, 38%)";
-    return "hsl(215, 14%, 50%)";
+      return "#74747A";
+    return "#74747A";
   }
 
   /** Draw the entity name label below each node */
@@ -939,13 +939,13 @@ function GraphViewerInner() {
               {selectedNode.isTarget && (
                 <div className="flex justify-between items-center p-3 border border-primary/30 bg-primary/5 rounded">
                   <span className="text-primary/70">Role</span>
-                  <span className="text-primary font-medium">PRIMARY TARGET</span>
+                  <span className="text-primary font-medium">Primary target</span>
                 </div>
               )}
               {selectedNode.isCentral && !selectedNode.isTarget && (
                 <div className="flex justify-between items-center p-3 border border-[#E4E4DF] bg-[#F3F3F0] rounded">
                   <span className="text-[#1F8A4D]">Role</span>
-                  <span className="text-[#1F8A4D] font-medium">CENTRAL NODE</span>
+                  <span className="text-[#1F8A4D] font-medium">Central node</span>
                 </div>
               )}
               {selectedNode.contactOutcome && (
