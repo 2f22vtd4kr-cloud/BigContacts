@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
 const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.tsx", import.meta.url), "utf8");
+const dashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
 
 describe("Flat Round four-pixel spacing grid", () => {
   it("keeps padding, margin and gaps on four-pixel increments", () => {
@@ -114,10 +115,28 @@ describe("Flat Round four-pixel spacing grid", () => {
     expect(boardCss).toContain(".atlas-round-mobile-tabbar { display:none; }");
   });
 
-  it("contains the Home route empty state and restores the split patterned console frame", () => {
-    expect(boardCss).toContain(".atlas-round .atlas-home-route-card");
-    expect(boardCss).toContain("border-radius:12px");
-    expect(boardCss).toContain("background-image:conic-gradient(#C8321E 25%,#EDB92B 0 50%,#C8321E 0 75%,#EDB92B 0)");
-    expect(boardCss).toContain("background-size:32px 24px");
+  it("uses API-state-aware Home framing with Reactor-aligned wave placement", () => {
+    expect(dashboardSource).toContain('data-api-state={apiUnavailable ? "down" : "ready"}');
+    expect(boardCss).toContain(".atlas-round .atlas-home-board-console::after { display:none; }");
+    expect(boardCss).toContain("background-size:64px 24px");
+    expect(boardCss).toContain('data-api-state="down"');
+    expect(boardCss).toContain("background-color:#BDBDB8!important");
+    expect(boardCss).toContain("background-image:conic-gradient(#BDBDB8 25%,#E2E2DD 0 50%,#BDBDB8 0 75%,#E2E2DD 0)");
+    expect(boardCss).toContain("background-size:22px 14px");
+  });
+
+  it("keeps the sidebar full-height and uses text-only active emphasis", () => {
+    expect(boardCss).toContain("grid-row:1 / -1");
+    expect(boardCss).toContain("height:100dvh");
+    expect(boardCss).toContain(".atlas-round-sidebar .atlas-round-navlink.is-active { background:transparent; color:var(--round-ink); box-shadow:none; }");
+    expect(boardCss).toContain("font-weight:700");
+    expect(boardCss).not.toContain("box-shadow:inset 3px 0 0 var(--round-red)");
+  });
+
+  it("persists dismissal of the same user-facing error for the current tab session", () => {
+    expect(errorNoticeSource).toContain('const DISMISSED_ERRORS_KEY = "apex:dismissed-user-errors:v1"');
+    expect(errorNoticeSource).toContain("window.sessionStorage.setItem(DISMISSED_ERRORS_KEY");
+    expect(errorNoticeSource).toContain("dismissedErrors.current.has(errorFingerprint(next))");
+    expect(errorNoticeSource).toContain("onClick={dismissError}");
   });
 });
