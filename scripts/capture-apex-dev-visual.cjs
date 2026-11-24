@@ -193,10 +193,10 @@ async function main() {
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       if (name === "mobile") {
-        const openNavigation = page.getByRole("button", { name: "Open navigation" });
+        const openNavigation = page.locator(".atlas-round-sidebar-toggle");
         if (await openNavigation.count()) {
           await openNavigation.click();
-          await page.waitForSelector(".atlas-round-sidebar.is-open", { timeout: 3000 });
+          await page.waitForSelector(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar", { timeout: 3000 });
           const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
           console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
         } else {
@@ -218,7 +218,7 @@ async function main() {
       if (await routeSelects.count() !== 2) throw new Error("Connections shortest-path controls are missing.");
       await routeSelects.nth(0).selectOption("1");
       await routeSelects.nth(1).selectOption("2");
-      await page.getByRole("button", { name: "Find shortest path" }).click();
+      await page.getByRole("button", { name: "Find a shortest path" }).click();
       await page.waitForSelector(".atlas-home-route-result", { timeout: 10_000 });
       routeFixtureLoaded = true;
       console.log(`APEX_VISUAL_META_${name}_connections=${JSON.stringify({
