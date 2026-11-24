@@ -187,7 +187,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <aside className={cn(
       "flex flex-col bg-[#111827]",
       mobile ? "h-full w-[min(300px,86vw)]" : "h-full w-[250px] shrink-0",
-    )}>
+    )} id={mobile ? "atlas-mobile-sidebar" : "atlas-desktop-sidebar"}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.03] px-5">
         <Link
           href="/"
