@@ -525,7 +525,7 @@ type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[]; rati
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 // The latest raw observation is a protected evidence window; its size is budgeted from Groq TPM.
 const MAX_ITER = 64;
-export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = Math.max(1_200, Math.min(16_000, Math.floor((boundedPositiveNumber(process.env.APEX_GROQ_TPM_BUDGET, 7_000, 1_000, 1_000_000) - 5_000) * 3.4))); const PREFERRED_PROVIDER_PROMPT_CHARS = 10_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000; const INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
+export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = Math.max(1_200, Math.min(8_000, Math.floor((boundedPositiveNumber(process.env.APEX_GROQ_TPM_BUDGET, 7_000, 1_000, 1_000_000) - 5_000) * 3.4 / 2))); const PREFERRED_PROVIDER_PROMPT_CHARS = 10_000; const PREFERRED_INVESTIGATOR_REQUEST_CHARS = 10_000; const PREFERRED_INVESTIGATOR_USER_PROMPT_CHARS = 4_000; const INVESTIGATOR_SCHEMA_OVERHEAD_CHARS = 4_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
 /** Return the preferred user-message size target; it is not a prompt validity or mission limit. */
 export function investigatorUserPromptBudget(systemPromptChars: number): number {
   const systemChars = Number.isFinite(systemPromptChars) ? Math.max(0, Math.floor(systemPromptChars)) : PREFERRED_INVESTIGATOR_REQUEST_CHARS;
@@ -6169,37 +6169,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       .replace(/\n?\[(?:MORE PAGE CONTENT RETAINED|PAGE CONTENT CONTINUES|PDF CONTENT CONTINUES|END OF RETAINED PAGE CONTENT)[^\]]*\]/gi, "")
       .trim();
     if (source.length <= maxChars) return source;
-    const marker = "[OBSERVATION PROJECTION: fetched-page verbatim excerpts sampled across this page window; omitted text is unknown; full observation remains in immutable case events]";
-    const labelReserve = 180;
-    const perWindow = Math.max(120, Math.floor((maxChars - marker.length - labelReserve - 4) / 3));
-    const maxStart = Math.max(0, source.length - perWindow);
-    const rawStarts = [0, Math.floor(maxStart / 2), maxStart];
-    const urlSpans = [...source.matchAll(/https?:\/\/[^\s"'<>]+/giu)].map((match) => {
+    // Older page turns may be compacted, but never sample distant parts of a
+    // page. Keep one contiguous prefix of this sequential window and disclose
+    // that the model can continue from the retained page offset in the args.
+    const marker = "[PAGE WINDOW EXCERPT: contiguous text from this observation window; omitted remainder is unknown; request the next sequential window using pageReadNextOffset]";
+    const budget = Math.max(0, maxChars - marker.length - 2);
+    let end = Math.min(source.length, budget);
+    for (const match of source.matchAll(/https?:\/\/[^\s"'<>]+/giu)) {
       const start = match.index ?? 0;
-      return { start, end: start + match[0].length };
-    });
-    const excerpts = rawStarts.map((rawStart, index) => {
-      let start = rawStart;
-      let end = Math.min(source.length, start + perWindow);
-      for (const span of urlSpans) {
-        if (span.start < start && span.end > start) start = span.end;
-        if (span.start < end && span.end > end) end = span.start;
-      }
-      if (start > 0) {
-        const nextSpace = source.indexOf(" ", start);
-        if (nextSpace > start && nextSpace - start <= 80) start = nextSpace + 1;
-      }
-      if (end < source.length) {
-        const previousSpace = source.lastIndexOf(" ", end);
-        if (previousSpace > start && end - previousSpace <= 80) end = previousSpace;
-      }
-      const text = source.slice(start, Math.max(start, end)).trim();
-      return text ? "[PAGE EXCERPT " + (index + 1) + " chars=" + start + "-" + end + "] " + text : "";
-    }).filter(Boolean);
-    const projection = [marker, ...excerpts].join("\n");
-    return projection.length <= maxChars
-      ? projection
-      : compactPromptSectionPreservingUrlTokens(projection, maxChars, marker);
+      const urlEnd = start + match[0].length;
+      if (start < end && urlEnd > end) end = start;
+    }
+    const excerpt = source.slice(0, Math.max(0, end)).trimEnd();
+    return [excerpt, marker].filter(Boolean).join("\n");
   };
 
   const compactDurablePromptObservation = (value: unknown, maxChars = 640): string => {
