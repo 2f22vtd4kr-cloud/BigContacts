@@ -21,7 +21,6 @@ import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } fr
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext, type IntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan, type SourceSpan } from "./research-epistemic-vnext";
-import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, getAvailableRegistryIdsForPrompt, normalizeRegistryId, type RegistryId } from "./registry-client";
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
@@ -6826,21 +6825,6 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     + cues.join(" ")
     + " Reassess whether the current hypothesis is producing objective-relevant evidence; do not merely rephrase a low-yield search or fetch every remaining URL. Choose any objective-fit alternative question, falsification step, or stopping point from the evidence; no tool, provider, page, source family, or hop order is prescribed.";
 }
-/** Bind the model-selected name to observed source text; role claims are checked separately when supplied. */
-export function candidateIdentitySourceBound(personName: string, _role: string | null | undefined, observation: string): boolean {
-  const normalizedName = normalizeCandidateIdentityName(personName);
-  if (!normalizedName) return false;
-  const identityText = observation
-    .replace(/https?:\/\/\S+/gi, " ")
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
-  if (candidateIdentityObserved(personName, identityText)) return true;
-
-  // Unspaced scripts have no reliable whitespace token boundary; require an
-  // exact source span, but do not require the model to invent a role.
-  const unspacedNameScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
-  return unspacedNameScript.test(personName) && Boolean(bindExactSourceSpan(observation, personName)?.exact);
-}
-
 const DISCOVERY_EXTERNAL_ACTIONS = new Set([
   "web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search",
   "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
