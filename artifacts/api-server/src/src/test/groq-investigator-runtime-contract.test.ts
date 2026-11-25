@@ -545,7 +545,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(terminalOnlyUser).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
-    expect(submitted).toContain("No fixed source/provider/registry order or mix.");
+    expect(submitted).toContain("The first discovery probe uses the run's randomized opening modality; after that, choose sources, providers, registries and mix freely from evidence.");
     expect(submitted).toContain("Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(submitted).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
