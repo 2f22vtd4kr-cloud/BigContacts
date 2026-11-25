@@ -19,7 +19,7 @@ const investigatorSystemCore = orientation.match(/export function apexInvestigat
 const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)")
   && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)")
   && stepPromptBuilder.includes("recentFetchedRecordsForPrompt.map(serializeDurablePromptRecord)")
-  && stepPromptBuilder.includes("const rawObservation = record.observation ?? \"\"")
+  && stepPromptBuilder.includes("const rawObservation = typeof record.observation === \"string\" && record.observation.length > 0")
   && stepPromptBuilder.includes("const boundedObservation = isLatestSuccessfulObservation")
   && stepPromptBuilder.includes("record === latestSuccessfulSearchRecord")
   && stepPromptBuilder.includes("record === latestSuccessfulFetchRecord")
