@@ -194,6 +194,7 @@ export function assignSearchResultLeads(
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     leads.push(normalized);
+    if (leads.length >= 24) break;
   }
   record.leadUrls = leads;
   record.observedUrls = [];
@@ -6251,19 +6252,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // surface. Preserve it whole: search results are title/URL/snippet triples and
     // fetched-page records are sequential retained-page windows. Older turns alone
     // are compacted; the immutable event ledger remains authoritative.
-    const isLatestSuccessfulObservation = record === latestRecord
-      && record.execution === "success"
-      && (searchActions.has(record.action) || record.action === "visit" || record.action === "browser_fetch");
-    const observationBudget = isLatestSuccessfulObservation
-      ? rawObservation.length
-      : searchActions.has(record.action)
-        ? 640
-        : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-          ? 1_280
-          : 1_200;
-    const boundedObservation = isLatestSuccessfulObservation
-      ? rawObservation
-      : compactDurablePromptObservation(rawObservation, observationBudget);
+    // Preserve the complete latest result/page window only within explicit
+    // transport bounds. Oversized observations remain recoverable in the
+    // immutable event ledger and use the same URL-safe projection as older turns.
+    const observationBudget = searchActions.has(record.action)
+      ? 4_000
+      : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
+        ? 16_500
+        : 1_200;
+    const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
     const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
