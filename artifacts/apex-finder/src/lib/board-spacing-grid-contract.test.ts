@@ -288,6 +288,8 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("grid-template-areas:\n      \"objective action\"\n      \"settings settings\"\n      \"explainer explainer\";");
     expect(boardCss).toContain("min-height:48px;");
     expect(boardCss).toContain("min-height:76px;");
+    expect(boardCss).toContain(":has(.atlas-home-api-down)");
+    expect(boardCss).toContain('"alert alert"');
   });
 
 });
