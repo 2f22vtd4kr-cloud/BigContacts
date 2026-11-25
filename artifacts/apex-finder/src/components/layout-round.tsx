@@ -10,21 +10,17 @@ function ApexAtlasMark() {
   </svg>;
 }
 
-const primaryNav = [
-  { name: "Overview", href: "/" },
-  { name: "Ledger", href: "/profiles" },
-  { name: "Discover", href: "/search" },
-  { name: "Connections", href: "/network" },
-  { name: "Reactor", href: "/reactor" },
-];
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const isCardPage = location.startsWith("/profile/");
-  const active = (href: string) => href === "/" ? location === "/" : (href === "/profiles" && isCardPage) || location === href || location.startsWith(href + "/");
-  const title = isCardPage ? "Card" : primaryNav.find((item) => active(item.href))?.name ?? "Apex Atlas";
+  const title = location.startsWith("/profile/") ? "Card"
+    : location === "/profiles" ? "Ledger"
+    : location === "/search" ? "Discover"
+    : location === "/network" ? "Connections"
+    : location === "/reactor" ? "Reactor"
+    : location === "/status" ? "System status"
+    : "Apex Atlas";
 
-  useEffect(() => { document.title = title === "Overview" ? "Apex Atlas" : title + " · Apex Atlas"; }, [title]);
+  useEffect(() => { document.title = title === "Apex Atlas" ? title : title + " · Apex Atlas"; }, [title]);
 
   return (
     <div className="atlas-round atlas-round-shell">
@@ -33,14 +29,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Link href="/" aria-label="Apex Atlas overview" className="atlas-round-wordmark atlas-round-header-brand">
           <ApexAtlasMark /><strong>Apex Atlas</strong>
         </Link>
-        <nav className="atlas-round-primary" aria-label="Main navigation">
-          {primaryNav.map((item) => (
-            <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}
-              className={`atlas-round-navlink ${active(item.href) ? "is-active" : ""}`}>
-              <span>{item.name}</span>
-            </Link>
-          ))}
-        </nav>
         <div className="atlas-round-header-status"><WorkspaceStatus compact /></div>
       </header>
       <main id="main-content" tabIndex={-1} className="atlas-round-main">
