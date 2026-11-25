@@ -116,7 +116,10 @@ async function verifiedProviderFinalUrl(rawUrl: unknown, signal?: AbortSignal): 
 async function readFailureBody(response: Response): Promise<string | null> {
   try {
     const body = await response.text();
-    return body ? body.slice(0, 1_500) : null;
+    if (!body) return null;
+    return body.slice(0, 1_500)
+      .replace(/(api[_-]?key|token|authorization|password)(["'\\s:=]+)[^"'\\s,}]+/gi, "$1$2[REDACTED]")
+      .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]");
   } catch {
     return null;
   }
