@@ -124,9 +124,9 @@ describe("Groq Investigator runtime contract", () => {
       actionAllowlist: ["visit", "web_search", "done"],
       lastObservation: "latest page window",
       trajectoryRecords: [
-        { turn: 1, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
-        { turn: 2, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
-        { turn: 3, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 3400, pageReadNextOffset: 6800 }, observedUrls: ["https://example.com/profile"], observation: "Second page window with additional company history." },
+        { turn: 1, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 2, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 3, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 3400, pageReadNextOffset: 6800 }, observedUrls: ["https://example.com/profile"], observation: "Second page window with additional company history." },
       ],
     });
     expect(prompt).toContain("DISCOVERY VISIT HISTORY");
