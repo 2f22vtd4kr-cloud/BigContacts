@@ -7372,9 +7372,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         }
       }
       const latestSearchObservation = latestSuccessfulSearchRecord?.observation ?? "";
-      const searchResultBlocks = latestSearchObservation.split(/\\r?\\n/u);
-      const latestSearchTitleCount = searchResultBlocks.filter((line, index, lines) => /^URL:\\s*https?:\\/\\//i.test(line) && Boolean((lines[index - 1] ?? "").trim())).length;
-      const latestSearchSnippetCount = searchResultBlocks.filter((line, index, lines) => /^URL:\\s*https?:\\/\\//i.test(line) && Boolean((lines[index + 1] ?? "").trim())).length;
+      const searchResultBlocks = latestSearchObservation.split(/\r?\n/u);
+      const latestSearchTitleCount = searchResultBlocks.filter((line, index, lines) => /^URL:\s*https?:\/\//i.test(line) && Boolean((lines[index - 1] ?? "").trim())).length;
+      const latestSearchSnippetCount = searchResultBlocks.filter((line, index, lines) => /^URL:\s*https?:\/\//i.test(line) && Boolean((lines[index + 1] ?? "").trim())).length;
       emit("investigator_fresh_observation_delivery", {
         status: "info",
         summary: "Fresh successful search/fetch observations bypass historical compaction and are included in the Investigator context.",
