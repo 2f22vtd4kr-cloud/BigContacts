@@ -954,7 +954,7 @@ describe("review and claim finding separation", () => {
 });
 
 describe("model-owned discovery relevance reasoning", () => {
-  it("asks the Investigator to justify objective fit without selecting a source, target, or action", () => {
+  it("keeps semantic decisions model-owned while using a randomized opening modality", () => {
     const input = {
       targetName: "",
       objective: "Find under-the-radar owners and operators with source-backed business or asset signals.",
