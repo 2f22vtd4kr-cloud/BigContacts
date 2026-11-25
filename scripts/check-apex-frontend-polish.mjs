@@ -49,7 +49,7 @@ const tabletSurfaces = [
 
 const checks = [
   ["Flat Round is the default presentation shell", read("artifacts/apex-finder/src/components/layout.tsx").includes("./layout-round")],
-  ["Flat Round exposes the five product destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
+  ["The five board pages remain routable without invented header navigation", ["/", "/profiles", "/search", "/network", "/reactor"].every((route) => router.includes(`"${route}"`)) && !roundLayout.includes("atlas-round-primary")],
   ["Flat Round preserves utility routes without exposing them in active board navigation", ["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].every((route) => router.includes(`path="${route}"`)) && !["/manual", "/status", "/data-sources", "/osint-tools", "/improvements", "/duplicates", "/jobs", "/research", "/network/graph", "/reactor/topology"].some((route) => roundLayout.includes(`href: "${route}"`))],
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
   ["active and fallback shells contain no decorative grain layer", !roundLayout.includes("atlas-noise") && !layout.includes("atlas-noise") && !css.includes(".atlas-noise::before")],
