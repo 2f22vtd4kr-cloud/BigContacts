@@ -63,7 +63,7 @@ assert(
   "dynamic discovery prompt must retain observational search activity and review-only handoff state without restricting model-selected searches",
 );
 assert(
-  /MODEL-OWNED RELEVANCE: Investigator decides relevance/.test(orientation)
+  /MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance/.test(orientation)
     && /HYPOTHESES: Form falsifiable public-evidence hypotheses/.test(orientation)
     && /AUTONOMY: No fixed source\/provider\/registry order or mix/.test(orientation)
     && /OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries/.test(orientation)
