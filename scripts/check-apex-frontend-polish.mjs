@@ -87,7 +87,7 @@ const checks = [
   ["launch click lifts and reveals the flowing surface", /@keyframes atlas-underflow/.test(css) && /\.atlas-launch-cta\.atlas-click-flash::before/.test(css) && /\.atlas-launch-cta\.atlas-click-flash,[\s\S]*?\.atlas-launch-glow\.atlas-click-flash\s*\{\s*z-index:\s*20;\s*\}/.test(css) && /translateY\(-3px\) scale\(1\.015\)/.test(css) && /setFlash\(true\);\s*window\.setTimeout\(\(\) => setFlash\(false\), 2800\);/.test(launchButton)],
   ["launch surface uses the supplied light and existing dark palettes", /--atlas-flow-1: #0a3d40/.test(css) && /--atlas-flow-4: #9cff1a/.test(css) && /--atlas-flow-1: #083322/.test(css) && /--atlas-flow-2: #0b5c3b/.test(css) && /--atlas-flow-3: #083322/.test(css) && /--atlas-flow-4: #ba9c7b/.test(css)],
   ["launch interaction respects reduced-motion preferences", /atlas-launch-cta::before,[\s\S]*?atlas-launch-glow::before \{ animation: none !important; transition: none !important; \}/.test(css) && /atlas-launch-cta:active,[\s\S]*?atlas-launch-glow:active \{ transform: none !important; \}/.test(css)],
-  ["Reactor uses product-specific mark in board navigation and topology", /ReactorMark/.test(roundLayout) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
+  ["Reactor uses its product-specific mark in the Reactor page and topology, not as a navigation icon", !/ReactorMark/.test(roundLayout) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
   ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /sourceUrlsFor/.test(replay)],
   ["replay is bounded", /slice\(0, 40\)/.test(replay)],
