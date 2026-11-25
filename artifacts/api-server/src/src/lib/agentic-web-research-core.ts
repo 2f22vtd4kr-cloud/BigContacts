@@ -6329,14 +6329,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? { ...carryForwardSuccessfulSearch, observation: "" }
         : carryForwardSuccessfulSearch;
       const carryForwardPromptRecord = serializeDurablePromptRecord(carryForwardRecord);
-      if (!searchRecordAlreadyCompacted) {
-        const boundedObservation = compactDurablePromptObservation(carryForwardRecord.observation);
-        carryForwardPromptRecord.observation = boundedObservation;
-        carryForwardPromptRecord.observationCharsOmitted = Math.max(
-          0,
-          (carryForwardRecord.observation?.length ?? 0) - boundedObservation.length,
-        );
-      }
+      // serializeDurablePromptRecord already protects the latest successful
+      // search observation. Do not compact it merely because a later fetch
+      // became latestRecord: every result from the newest successful search
+      // must remain visible until a newer search supersedes it.
       parts.push(
         "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn
         + " (advisory, not evidence or a mandated next action):\n"
