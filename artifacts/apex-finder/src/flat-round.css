@@ -2223,10 +2223,10 @@ html.light main,
 .atlas-round .atlas-ledger-console::after,
 .atlas-round .atlas-board-connections .atlas-connections-console::after {
   background-color:#2757C6!important;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='48'%20height='24'%20viewBox='0%200%2048%2024'%3E%3Cpath%20d='M-24%2012%20C-12%200%20-12%200%200%2012%20S12%2024%2024%2012%20S36%200%2048%2012%20S60%2024%2072%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='24'%20viewBox='0%200%2064%2024'%3E%3Cpath%20d='M-32%2012%20C-16%200%20-16%200%200%2012%20S16%2024%2032%2012%20S48%200%2064%2012%20S80%2024%2096%2012'%20fill='none'%20stroke='%23FAFAF8'%20stroke-width='1.5'%20stroke-linecap='round'/%3E%3C/svg%3E")!important;
   background-repeat:repeat!important;
   background-position:0 0!important;
-  background-size:48px 24px!important;
+  background-size:64px 24px!important;
 }
 
 /* Match Reactor's existing neutral frame whenever Home's API is unavailable. */
@@ -2494,7 +2494,7 @@ html.light main,
   min-width:10px;
   height:44px!important;
   min-height:44px;
-  border-radius:0!important;
+  border-radius:6px!important;
   align-self:center;
 }
 .atlas-round .atlas-connections-legend .atlas-evidence-pattern {
@@ -2517,4 +2517,22 @@ html.light main,
 }
 .atlas-round .atlas-card-claims>ul>li>.atlas-evidence-pattern {
   align-self:center;
+}
+
+
+/* Launch console identity and breathing room from the design board. */
+.atlas-round .atlas-home-console-brand {
+  display:flex;
+  min-height:28px;
+  align-items:center;
+  gap:12px;
+  margin:0 0 12px;
+  color:var(--round-ink);
+  font:500 14px/1.2 "Geist",sans-serif;
+}
+.atlas-round .atlas-home-console-brand-mark {
+  display:block;
+  width:20px;
+  height:22px;
+  flex:0 0 20px;
 }
