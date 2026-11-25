@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
 import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, hasBoundedAiHistoricalMemory, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, estimateGroqInvestigatorDailyReservationTokens, discoveryLeadInspectionRequirement, fitGroqInvestigatorRequestToLocalCeiling, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
-import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
+import { directFetchUserAgent, getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
@@ -6207,6 +6207,43 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(advisory).toContain("Reassess whether the current hypothesis");
     expect(advisory).toContain("do not merely rephrase a low-yield search");
     expect(advisory).toContain("fetch every remaining URL");
+  });
+
+  it("shows exact search queries and counts new versus repeated result URLs without query gates", () => {
+    const advisory = discoverySearchLivenessAdvisory([
+      { turn: 1, model: "test", action: "web_search", args: { query: "first distinct query", provider: "serper" }, execution: "success", observation: "results", observedUrls: [], leadUrls: ["https://example.org/a", "https://example.org/b"], findings: [], providerFallback: [] },
+      { turn: 2, model: "test", action: "web_search", args: { query: "near duplicate wording query", provider: "serper" }, execution: "success", observation: "results", observedUrls: [], leadUrls: ["https://example.org/b", "https://example.org/c"], findings: [], providerFallback: [] },
+    ]);
+    expect(advisory).toContain('"first distinct query"');
+    expect(advisory).toContain('"near duplicate wording query"');
+    expect(advisory).toContain("result URLs=2; new=2; repeats=0");
+    expect(advisory).toContain("result URLs=2; new=1; repeats=1");
+    expect(advisory).toContain("not a keyword gate");
+  });
+
+  it("uses an SEC-identifying User-Agent only when it includes a contact email", () => {
+    expect(directFetchUserAgent("https://www.sec.gov/Archives/edgar/data/1/a.htm", {
+      SEC_USER_AGENT: "Apex Atlas research ops@example.org",
+    })).toBe("Apex Atlas research ops@example.org");
+    expect(directFetchUserAgent("https://www.sec.gov/Archives/edgar/data/1/a.htm", {
+      SEC_USER_AGENT: "Apex Atlas research",
+    })).toBeNull();
+    expect(directFetchUserAgent("https://example.org/page", {})).toContain("ApexAtlas/1.0");
+    expect(getAvailableBrowserFetchProviders()).toContain("direct");
+  });
+
+  it("allows a medium reasoning-effort experiment for supported Investigator models", () => {
+    vi.stubEnv("GROQ_AGENTIC_REASONING_EFFORT", "medium");
+    try {
+      const request = buildGroqInvestigatorRequestBody({
+        model: "openai/gpt-oss-120b",
+        prompt: completeInvestigatorProviderPrompt,
+        cognitiveTask: "discovery",
+      }) as { reasoning_effort?: string };
+      expect(request.reasoning_effort).toBe("medium");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
 });
