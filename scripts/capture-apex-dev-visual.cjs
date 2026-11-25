@@ -92,6 +92,8 @@ async function main() {
           payload = { leads: [], sourceLeads: [], activeDiscovery: false };
         } else if (url.includes("/api/ingest/job/active/atlas-run")) {
           payload = { active: false, status: "idle" };
+        } else if (url.includes("/api/ingest/jobs")) {
+          payload = [];
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
         } else if (url.endsWith("/api/registry-matrix")) {
