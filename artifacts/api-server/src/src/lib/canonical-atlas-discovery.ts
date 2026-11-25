@@ -369,9 +369,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   // Resolve provisional leads before strict admission so they remain visible
   // to Boss/Right-hand in the trajectory, but do not persist review-only cards.
   // Only the evidence-gated admission paths below may create durable targets.
-  // Provisional person leads remain visible through discoveryFindings and the
-  // durable trajectory. There is intentionally no partial PersonCandidate
-  // materializer; only the evidence-backed admission loop below can persist one.
+  // Review-only person/organization cards are materialized above after exact
+  // URL+quote verification. Only separately promoted candidate findings enter
+  // the evidence-backed admission loop below.
   const partialOrganizations = await materializePartialOrganizationLeadCards({
     findings: input.findings,
     atlasJobId: input.atlasJobId,
@@ -664,9 +664,9 @@ async function materializePartialOrganizationLeadCards(input: {
   discoveryRunId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> }> {
-  // Resolve only organization leads explicitly selected in Investigator findings.
-  // They remain distinct from person candidates and imply no ownership, wealth,
-  // or HNWI status; review-only leads are not persisted as cards.
+  // Resolve the stricter organization target-admission projection. Review-only
+  // person/organization cards are persisted separately after exact URL+quote
+  // reality verification; this path does not decide whether a lead merits review.
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
@@ -839,9 +839,9 @@ async function materializePartialOrganizationLeadCards(input: {
     }
     if (!supports.size) continue;
 
-    // Keep review-only organization leads ephemeral. Boss/Right-hand can see
-    // the observed lead, and an explicitly selected lead may be researched,
-    // but the review-only state cannot create a Corporation card or evidence.
+    // Keep target admission separate from the review-only card. A review card may
+    // already exist, but it cannot become an admitted Corporation target or
+    // evidence row without the separate model-led promotion/evidence process.
     const leadFindings = input.findings.filter((finding) =>
       finding.scope === "organization"
       && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
@@ -853,9 +853,9 @@ async function materializePartialOrganizationLeadCards(input: {
       && support.spanVerified
       && isClaimGradeDiscoverySourceUrl(support.sourceUrl));
     if (!explicitlyPromotedByInvestigator || !hasFetchedClaimGradeSupport) {
-      // Search-only and explicitly review-only company leads remain in the
-      // trajectory/control context; they cannot create a Corporation card or
-      // enter the admitted-target list without fetched, claim-grade support.
+      // Search-only and explicitly review-only company leads remain review cards;
+      // they cannot enter the admitted-target list without the separate
+      // evidence-backed promotion process.
       candidates.push({ name, sourceUrls: [...supports.keys()], targetEligibleForResearch: false });
       continue;
     }
