@@ -39,6 +39,7 @@ export function getAvailableBrowserFetchProviders(): BrowserProvider[] {
   if (Boolean(process.env.BROWSERLESS_TOKEN?.trim())) available.push("browserless");
   // Direct retrieval is always available; SEC.gov requests require SEC_USER_AGENT
   // with an identifying application name and monitored contact email.
+  available.push("direct");
   const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true";
   if (playwrightEnabled) {
     try {
