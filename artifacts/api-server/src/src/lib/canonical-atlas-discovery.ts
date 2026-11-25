@@ -34,11 +34,11 @@ import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
-import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { getAgenticLlmTelemetryForJob } from "./agentic-llm-telemetry";
-import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
+import { isRestrictedCommunitySourceUrl } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
   /** Operator-controlled maximum number of target investigations; never a candidate admission/relevance rule. */
