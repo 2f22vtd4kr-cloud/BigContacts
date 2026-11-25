@@ -6241,6 +6241,7 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(agenticCoreSource).toContain("if (result.failures?.length)");
     expect(agenticCoreSource).toContain("upstreamHttpStatus: failure.status");
     expect(agenticCoreSource).toContain("errorBody: failure.body");
+    expect(agenticCoreSource).toContain("PROVIDER_FAILURES_BEFORE_SUCCESS");
   });
 
   it("allows a medium reasoning-effort experiment for supported Investigator models", () => {
