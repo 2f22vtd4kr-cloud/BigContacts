@@ -2241,7 +2241,7 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
@@ -2361,13 +2361,13 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toContain("wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*candidate=person/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -2510,7 +2510,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -2601,8 +2601,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -3187,8 +3187,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
   });
 
   it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
