@@ -72,7 +72,7 @@ async function main() {
           payload = { researchKeysConfigured: true, launchLimits: { discoveryObjectiveMaxChars: 1200 } };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
-            ai: { groqInvestigator: visualKeySlots(3), serper: visualKeySlots(2), tavily: visualKeySlots(2), exa: visualKeySlots(2) },
+            ai: currentPath === "/status" ? { groqInvestigator: [], serper: [], tavily: [], exa: [] } : { groqInvestigator: visualKeySlots(3), serper: visualKeySlots(2), tavily: visualKeySlots(2), exa: visualKeySlots(2) },
             databases: {
               postgres: { status: "ok", latencyMs: 1 },
               localRedis: { status: "ok", latencyMs: 1 },
