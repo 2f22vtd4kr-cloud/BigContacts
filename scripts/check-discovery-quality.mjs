@@ -27,7 +27,7 @@ const checks = [
   [discovery, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent.ts"],
   [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-intake.ts"],
   [admit, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent-admit.ts"],
-  [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","Ranking, top-N and famous-investor list pages are poor sources for this mission and should not be searched","primary evidence such as filings, board seats, ownership records"], "apex-bureau-orientation.ts"],
+  [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","For the default mission, ranking, top-N and famous-investor list pages are poor sources and should not be searched","primary evidence such as filings, board seats, ownership records"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [orientation, ["DISCOVERY TARGETABILITY / REALISM","The Investigator decides whether an observed person is worth an in-memory provisional review lead","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles may provide evidence, leads, named targets or a contact route when their actual content supports that interpretation"], "apex-bureau-orientation.ts"],
   [orientation, ["REVIEW LEADS:","exactQuote copied verbatim from the observation","Search-only is unverified; selection is not promotion"], "apex-bureau-orientation.ts"],
