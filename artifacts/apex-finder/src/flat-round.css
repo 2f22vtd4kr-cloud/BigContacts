@@ -2861,3 +2861,28 @@ html.light main,
     min-height:76px;
   }
 }
+
+/* Preserve the intentional API-down alert row when the compact ready-state
+   console grid is expanded for an unavailable research API. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root:has(.atlas-home-api-down) {
+    grid-template-areas:
+      "alert alert"
+      "objective action"
+      "settings settings"
+      "explainer explainer";
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-api-down { grid-area:alert; }
+}
+@media (max-width:1100px) {
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root:has(.atlas-home-api-down) {
+    grid-template-areas:
+      "alert"
+      "sources"
+      "objective"
+      "action"
+      "settings"
+      "explainer";
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-api-down { grid-area:alert; }
+}
