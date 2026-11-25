@@ -2967,15 +2967,15 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
 
 function compactInvestigatorPromptSectionBody(prompt: string, heading: string, maxBodyChars: number, marker: string): string {
   const sectionPrefix = "\n\n" + heading;
-  const capabilityBoundary = prompt.lastIndexOf("\n\nCAPABILITIES:");
-  const searchFrom = capabilityBoundary >= 0 ? capabilityBoundary + 2 : 0;
-  const sectionAt = prompt.indexOf(sectionPrefix, searchFrom);
+  const sectionAt = prompt.indexOf(sectionPrefix);
   const headingAt = sectionAt >= 0 ? sectionAt + 2 : prompt.startsWith(heading) ? 0 : -1;
   if (headingAt < 0) return prompt;
   const bodyStart = prompt.indexOf("\n", headingAt);
   if (bodyStart < 0) return prompt;
   const sectionHeadings = [
     "ARCHIVED TRAJECTORY INDEX",
+    "DISCOVERY WORKING MEMORY:",
+    "DISCOVERY EPISTEMIC STATE:",
     "CONTEXT MANAGEMENT LAW",
     "AI-COMPACTED HISTORICAL RESEARCH MEMORY",
     "COMPACTED HISTORICAL RESEARCH CONTEXT",
@@ -3044,6 +3044,8 @@ export function fitGroqInvestigatorRequestToLocalCeiling(input: {
     { heading: "ARCHIVED TRAJECTORY INDEX", chars: 420, marker: "[OLDER HISTORY COMPACTED: omitted detail is unknown; complete trajectory remains durable]" },
     { heading: "AI-COMPACTED HISTORICAL RESEARCH MEMORY", chars: 420, marker: "[DURABLE MEMORY PROJECTION COMPACTED: omitted detail is unknown; case events remain authoritative]" },
     { heading: "COMPACTED HISTORICAL RESEARCH CONTEXT", chars: 420, marker: "[EMERGENCY MEMORY PROJECTION COMPACTED: omitted detail is unknown; durable case events remain authoritative]" },
+    { heading: "DISCOVERY EPISTEMIC STATE:", chars: 80, marker: "[DISCOVERY INTELLIGENCE STATE DROPPED BEFORE OBSERVATION TEXT]" },
+    { heading: "DISCOVERY WORKING MEMORY:", chars: 80, marker: "[DISCOVERY WORKING MEMORY DROPPED BEFORE OBSERVATION TEXT]" },
     { heading: "CANONICAL EVIDENCE GRAPH STATE", chars: 180, marker: "[AUXILIARY STATE COMPACTED: omitted detail is unknown; durable evidence remains authoritative]" },
     { heading: "CURRENT CONTROL / OVERSIGHT CONTEXT", chars: 160, marker: "[AUXILIARY CONTROL CONTEXT COMPACTED: current objective and accepted Boss scope remain authoritative]" },
   ];
@@ -5958,13 +5960,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   });
   const discoveryWorkingMemory = input.mode === "discovery" && hasDiscoveryWorkingMemory
     ? boundInvestigatorPromptSection(
-        "[DISCOVERY WORKING MEMORY: search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
+        "DISCOVERY WORKING MEMORY:\n[Search snippets are unverified; omitted details remain in durable case events and are unknown] " + buildDiscoveryWorkingMemoryContext(discoveryWorkingRecords),
         1_300,
       )
     : "";
   const discoveryIntelligenceContext = input.mode === "discovery" && input.intelligenceContext?.trim()
     ? boundInvestigatorPromptSection(
-        "[DISCOVERY EPISTEMIC STATE: preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + input.intelligenceContext,
+        "DISCOVERY EPISTEMIC STATE:\n[Preserve actual hypotheses, open/research questions, frontier pressure and stopping assessment] " + input.intelligenceContext,
         500,
       )
     : "";
