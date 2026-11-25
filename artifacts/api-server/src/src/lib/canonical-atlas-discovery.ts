@@ -1908,14 +1908,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // validated Boss pivot restored from durable case state. The new opening Boss
     // hypothesis remains advisory and cannot replace either accepted objective.
     const openingInvestigatorObjective = activeDiscoveryObjective;
-    // Randomize the opening discovery modality per run. This is a one-step
-    // exploration shuffle, not a fixed itinerary: after the first observation,
-    // the Investigator owns all source, target, query and stopping decisions.
-    const randomizedOpeningRouteOrder = Math.random() < 0.5
-      ? ["available_registry", "localized_web_search"]
-      : ["localized_web_search", "available_registry"];
     const openingResearchAdvisory = [
-      "RANDOMIZED DISCOVERY OPENING (use the first modality below for the initial discovery probe, then choose freely from evidence): " + randomizedOpeningRouteOrder.join(" -> ") + ". For available_registry, randomly select one callable registry from the runtime-attested AVAILABLE REGISTRIES list; do not invent registry IDs. For localized_web_search, generate a fresh search for a real-world company/category in a relevant jurisdiction, use the local language where useful, and do not reuse a canned geography or query. The route is for discovering a human or company; the Investigator decides what target, if any, merits a review lead.",
       "BOSS OPENING HYPOTHESIS (non-binding and non-exclusive; not an accepted scope or source requirement): " + openingDirectionResolution.direction,
       "Use this hypothesis only if it helps test the complete human objective. You may pursue any other objective-fit people, organizations, assets, relationships, public sources, or jurisdictions without asking Boss to approve a change in hypothesis.",
       "Boss rationale (advisory only, not evidence): " + openingBossDecision.reason,
