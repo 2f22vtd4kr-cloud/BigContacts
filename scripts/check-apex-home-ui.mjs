@@ -78,7 +78,7 @@ require(!boardLedger.includes("atlas-ledger-counts"), "Ledger must not duplicate
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
 require(launch.split('variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch"').length - 1 >= 2, "Home launch CTA must stack beneath settings and remain full width on desktop");
-require(roundLayout.includes('name: "Reactor"') && roundLayout.includes('href: "/reactor"'), "horizontal Reactor navigation must retain the Reactor destination");
+require(router.includes('"/reactor"') && reactor.includes("Reactor"), "the Reactor page route and surface must remain available without adding header navigation");
 require(!roundLayout.includes("Cpu"), "board navigation must not use the generic CPU icon");
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
 require(!/\bCpu\b/.test(reactor), "Reactor page must not use generic CPU iconography");
