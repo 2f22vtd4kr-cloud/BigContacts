@@ -384,12 +384,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
   let materialized = reviewOnlyCardsCreated;
   let evidenceRows = 0;
-  // Resolve provisional leads before strict admission so they remain visible
-  // to Boss/Right-hand in the trajectory, but do not persist review-only cards.
-  // Only the evidence-gated admission paths below may create durable targets.
-  // Review-only person/organization cards are materialized above after exact
-  // URL+quote verification. Only separately promoted candidate findings enter
-  // the evidence-backed admission loop below.
+  // Review-only person/organization cards are already persisted above after
+  // exact URL+quote reality verification. They remain separate from evidence-
+  // backed target admission; only separately promoted findings enter this loop.
   const partialOrganizations = await materializePartialOrganizationLeadCards({
     findings: input.findings,
     atlasJobId: input.atlasJobId,
