@@ -2123,7 +2123,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
   } else if (action === "visit" && !isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=visit invalid=url";
   else if (action === "browser_fetch") {
     if (!isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=browser_fetch invalid=url";
-    if (!["scrapfly", "zenrows", "browserless", "playwright"].includes(provider)) return "invalid_action_arguments action=browser_fetch invalid=provider";
+    if (!["scrapfly", "zenrows", "browserless", "playwright", "direct"].includes(provider)) return "invalid_action_arguments action=browser_fetch invalid=provider";
   } else if (action === "footprint_email" && !textField("email", 120).includes("@")) return "invalid_action_arguments action=footprint_email invalid=email";
   else if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && textField("username", 80).replace(/^@/, "").length < 2) return `invalid_action_arguments action=${action} invalid=username`;
   else if (action === "domain_lookup") {
