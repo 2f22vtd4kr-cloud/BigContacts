@@ -39,6 +39,47 @@ function RelationshipRow({ relationship }: { relationship: Relationship }) {
   );
 }
 
+function RelationshipMap({ relationships, isLoading, isError }: {
+  relationships: Relationship[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  const shown = relationships.slice(0, 3);
+  return (
+    <section className="atlas-connections-map" aria-labelledby="atlas-connections-map-title">
+      <div className="atlas-connections-map-heading">
+        <div>
+          <h2 id="atlas-connections-map-title">Recorded relationship map</h2>
+          <p>Direct links from the relationship register</p>
+        </div>
+        <span>{isError ? "Unavailable" : isLoading ? "Loading" : `${shown.length} of ${relationships.length}`}</span>
+      </div>
+      <div className="atlas-connections-map-edges" aria-live="polite">
+        {isLoading && <p className="atlas-connections-list-state">Loading recorded links…</p>}
+        {isError && <p className="atlas-connections-list-state">The relationship map is unavailable until the register can be loaded.</p>}
+        {!isLoading && !isError && shown.length === 0 && <p className="atlas-connections-list-state">No recorded links to map yet.</p>}
+        {!isLoading && !isError && shown.map((relationship) => {
+          const isEntity = relationship.targetType === "Entity";
+          const sourceName = relationship.sourceEntityName || `Entity #${relationship.sourceEntityId}`;
+          const targetName = relationship.targetName || `${isEntity ? "Entity" : "Asset"} #${relationship.targetId}`;
+          return (
+            <div className="atlas-connections-map-edge" key={relationship.id}>
+              <Link className="atlas-connections-map-node" href={`/profile/${relationship.sourceEntityId}`}>{sourceName}</Link>
+              <span className="atlas-connections-map-link" aria-label={relationshipLabel(relationship.relationshipType)}>
+                <span>{relationshipLabel(relationship.relationshipType)}</span>
+              </span>
+              {isEntity
+                ? <Link className="atlas-connections-map-node" href={`/profile/${relationship.targetId}`}>{targetName}</Link>
+                : <span className="atlas-connections-map-node">{targetName}</span>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="atlas-connections-map-note">Each line is a stored relationship record. No unrecorded route or personal contact is inferred.</p>
+    </section>
+  );
+}
+
 export default function BoardConnectionsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RelationshipFilter>("all");
@@ -117,6 +158,7 @@ export default function BoardConnectionsPage() {
         </div>
 
         <div className="atlas-connections-right-column">
+          <RelationshipMap relationships={visible} isLoading={isLoading} isError={isError} />
           <section className="atlas-connections-route-panel" aria-label="Shortest path finder">
             <ConnectionPathFinder />
           </section>
