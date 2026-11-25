@@ -1,5 +1,4 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
   personName: string | null;
@@ -93,16 +92,12 @@ export function candidateRoleCorroborationSources(input: {
   }));
   if (!claimedUrls.size) return [];
   const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
-  const observedPassageFingerprints = new Set<string>();
   for (const observation of input.observations) {
     if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
-    // The Investigator selects the contextual passage; code verifies only
-    // that the exact quotation is present in this successfully fetched source
-    // and that the model-selected quotation exists verbatim. Do not impose a fixed character
-    // window or require the model's semantic role interpretation to match a
-    // hard-coded English/Latin role string.
+    // The Investigator owns identity, role and semantic relevance. Code verifies
+    // only successful retrieval plus the exact model-selected quote in this page.
     const modelQuotes = input.findings
       .filter((finding) => normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(input.personName)
         && normalizeCandidateIdentityName(finding.role ?? "") === normalizeCandidateIdentityName(role)
@@ -112,17 +107,11 @@ export function candidateRoleCorroborationSources(input: {
       .filter(Boolean);
     const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote));
     if (!exactQuote) continue;
-    // The same exact quoted passage copied to a second domain is not independent
-    // corroboration; use the model-selected, source-verified quotation as lineage.
-    const passageFingerprint = exactQuote.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
-    if (observedPassageFingerprints.has(passageFingerprint)) continue;
     let host = "";
     try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
-    const publisher = publisherDomain(host);
-    if (!publisher) continue;
-    observedPassageFingerprints.add(passageFingerprint);
-    if (supporting.has(publisher)) continue;
-    supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
+    // Do not collapse or veto sources by publisher/domain. The model decides
+    // whether observations are independent and materially relevant.
+    if (!supporting.has(sourceUrl)) supporting.set(sourceUrl, { sourceUrl, publisher: host, eventId: observation.eventId });
   }
   return [...supporting.values()];
 }
