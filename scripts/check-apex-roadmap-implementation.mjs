@@ -36,9 +36,15 @@ for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!o
 const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),"utf8");
 for(const marker of [
   "Investigator owns hypotheses, targets, research and stopping",
-  "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.",
-  "No unrequested criteria or keyword/name heuristics"
+  "MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.",
+  "No keyword, regex, name, employer or domain gates"
 ]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
+const defaults=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/atlas-launch-defaults.ts"),"utf8");
+const discovery=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),"utf8");
+for(const marker of ["lesser-known or unknown wealthy people","Ranking, top-N and famous-investor list pages are poor sources","primary evidence such as corporate filings"]) if(!defaults.includes(marker)) throw new Error("Default Atlas realism intent missing: "+marker);
+for(const marker of ["RANDOMIZED DISCOVERY OPENING","available_registry","localized_web_search","randomly select one callable registry"]) if(!discovery.includes(marker)) throw new Error("Randomized discovery opening missing: "+marker);
+for(const marker of ["materializeVerifiedReviewOnlyLeadCards","finding.exactQuote","observation.includes(quote)","reviewOnlyCardsCreated","PersonCandidate","Corporation"]) if(!discovery.includes(marker)) throw new Error("Immediate review-only card reality contract missing: "+marker);
+for(const marker of ["exactQuote copied verbatim from that observation","After every successful search or fetch"]) if(!core.includes(marker) && !prompt.includes(marker)) throw new Error("Exact-quote lead handoff missing: "+marker);
 const uiFiles=["artifacts/apex-finder/src/pages/profile.tsx","artifacts/apex-finder/src/pages/research.tsx","artifacts/apex-finder/src/pages/graph.tsx","artifacts/apex-finder/src/router.tsx"]; for(const f of uiFiles) if(!fs.existsSync(path.join(root,f))) throw new Error("Investigator workstation surface missing: "+f);
 const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
 for(const s of ["check:research-run","bench:campaign","bench:failure-observatory","check:evidence-graph","check:research-campaign","check:failure-records","build:research-gauntlet","bench:empirical-campaign"]) if(!pkg.scripts?.[s]) throw new Error("Package script missing: "+s);
