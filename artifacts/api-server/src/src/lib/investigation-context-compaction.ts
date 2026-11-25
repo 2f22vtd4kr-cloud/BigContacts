@@ -472,8 +472,9 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   const freshRecords = [...new Set([latestSuccessfulSearch, latestSuccessfulFetch].filter((record): record is CompactionTrajectoryRecord => Boolean(record)))];
   const freshRecordSet = new Set(freshRecords);
   const workingRecords = records.filter((record) => !freshRecordSet.has(record));
-  const freshObservationChars = freshRecords.reduce((total, record) => total + (record.observation?.length ?? 0), 0);
-  budget.maxChars = Math.min(MAX_MAX_CHARS, Math.max(budget.maxChars, freshObservationChars + freshRecords.length * 1_200 + 1_800));
+  // Keep the general working-context ceiling intact. The full newest search
+  // and fetch records are separately reattached verbatim in buildStepPrompt's
+  // mandatory latest-evidence envelope; this section is only a bounded aid.
   const recentStart = Math.max(0, workingRecords.length - budget.recentFullRecords);
   const recent = workingRecords.slice(recentStart);
   const older = workingRecords.slice(0, recentStart);
