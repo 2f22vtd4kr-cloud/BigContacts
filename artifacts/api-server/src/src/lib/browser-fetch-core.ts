@@ -407,7 +407,7 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   const attempts: Array<[BrowserProvider, () => Promise<BrowserFetchAttempt>]> = [
     ["scrapfly", () => fetchViaScrapfly(url, options.signal)],
     ["zenrows", () => fetchViaZenRows(url, options.signal)],
-    ["direct", () => fetchViaDirect(url, options.signal)],
+    ["direct", () => runProviderCall({ provider: "direct", account: new URL(url).hostname, scope, signal: options.signal }, () => fetchViaDirect(url, options.signal))],
     ["browserless", async () => ({ html: await fetchViaBrowserlessContent(url, options.signal), observedUrl: null })],
     ["playwright", () => fetchViaPlaywright(url, options.signal)],
   ];
