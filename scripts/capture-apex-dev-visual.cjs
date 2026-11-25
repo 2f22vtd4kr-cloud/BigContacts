@@ -5,6 +5,7 @@ const baseUrl = process.env.APEX_VISUAL_BASE_URL || "http://127.0.0.1:23695";
 
 // Synthetic browser-only fixtures for the visual harness. The route interceptor
 // below serves these responses locally; no fixture is written to or sent to Apex.
+const visualKeySlots = (count) => Array.from({ length: count }, (_, index) => ({ index: index + 1, state: "active", expiresAt: null }));
 const visualEntities = [
   { id: 1, name: "Mira Patel", type: "HNWI", isHidden: false },
   { id: 2, name: "Noah Reed", type: "HNWI", isHidden: false },
@@ -68,10 +69,10 @@ async function main() {
         }
         let payload = {};
         if (url.endsWith("/api/healthz")) {
-          payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
+          payload = { researchKeysConfigured: true, launchLimits: { discoveryObjectiveMaxChars: 1200 } };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
-            ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
+            ai: { groqInvestigator: visualKeySlots(3), serper: visualKeySlots(2), tavily: visualKeySlots(2), exa: visualKeySlots(2) },
             databases: {
               postgres: { status: "ok", latencyMs: 1 },
               localRedis: { status: "ok", latencyMs: 1 },
@@ -97,7 +98,7 @@ async function main() {
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
         } else if (url.endsWith("/api/registry-matrix")) {
-          payload = { sources: [] };
+          payload = { sources: [{ id: "companies-house", name: "Companies House", productionReviewStatus: "reviewed_for_production", runtimeAdapterImplemented: true }] };
         } else if (url.endsWith("/api/entities/1")) {
           payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
