@@ -4,6 +4,7 @@ import { isMockMode, mockDashboardStats } from "@/lib/dev-mock-data";
 import { ChevronRight, CircleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton, type HomeSourceReadiness } from "@/components/launch-atlas-button";
+import { ApexAtlasMark } from "@/components/apex-atlas-mark";
 
 function StatTile({
   label,
@@ -105,6 +106,10 @@ export default function Dashboard() {
 
           <section className={`atlas-home-actions atlas-home-board-console${apiUnavailable ? " is-api-down" : ""}`} aria-label="Launch console">
             <div className="atlas-home-console-inner">
+              <div className="atlas-home-console-brand" aria-label="Apex Atlas launch console">
+                <ApexAtlasMark className="atlas-home-console-brand-mark" />
+                <span>Launch console</span>
+              </div>
               <LaunchAtlasButton variant="primary" label="Launch" className="atlas-home-launch" apiUnavailable={apiUnavailable} sourceStatuses={sourceStatuses} onRetryApi={() => { void apiHealthQuery.refetch(); }} />
             </div>
           </section>
