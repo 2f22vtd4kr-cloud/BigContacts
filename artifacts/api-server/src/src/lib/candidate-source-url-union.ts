@@ -61,9 +61,8 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
  */
 export function isRealisticPersonRouteSourceUrl(value: unknown): value is string {
   // Whether a page is a useful person-specific route is a contextual model
-  // judgement, not a publisher/path allowlist. Keep only technical source
-  // eligibility here: a valid claim-grade HTTPS source, excluding search
-  // result endpoints via isClaimGradeDiscoverySourceUrl.
+  // judgment, not a publisher/path/search-endpoint allowlist. Keep only
+  // technical source reality here: a valid public HTTPS URL.
   return isClaimGradeDiscoverySourceUrl(value);
 }
 
