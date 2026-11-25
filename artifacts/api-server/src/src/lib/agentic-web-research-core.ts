@@ -6317,18 +6317,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + (omittedChars > 0 ? "\nOBSERVATION_CHARS_OMITTED_FROM_PROMPT: " + omittedChars : ""));
     }
     if (carryForwardSuccessfulSearch && carryForwardSuccessfulSearch.turn !== latestRecord?.turn) {
-      // If Boss memory has already summarized this historical turn, preserve
-      // its still-unfetched complete URLs as leads but do not resurrect its raw
-      // search observation. The model-authored memory is the semantic summary;
-      // the immutable event ledger remains authoritative. When the newest
-      // record is the search itself, its bounded latest-record envelope already
-      // carries this context; do not duplicate it.
-      const searchRecordAlreadyCompacted = Boolean(aiHistoricalMemory)
-        && carryForwardSuccessfulSearch.turn <= (input.aiCompactedHistoricalThroughTurn ?? 0);
-      const carryForwardRecord = searchRecordAlreadyCompacted
-        ? { ...carryForwardSuccessfulSearch, observation: "" }
-        : carryForwardSuccessfulSearch;
-      const carryForwardPromptRecord = serializeDurablePromptRecord(carryForwardRecord);
+      // This is the newest successful search, even when a later fetch is
+      // latestRecord or AI memory has summarized older turns. Keep its raw
+      // title/URL/snippet triples visible; only a newer search may supersede it.
+      const carryForwardPromptRecord = serializeDurablePromptRecord(carryForwardSuccessfulSearch);
       // serializeDurablePromptRecord already protects the latest successful
       // search observation. Do not compact it merely because a later fetch
       // became latestRecord: every result from the newest successful search
