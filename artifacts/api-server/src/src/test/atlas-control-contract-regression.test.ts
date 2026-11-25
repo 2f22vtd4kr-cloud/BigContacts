@@ -154,8 +154,8 @@ describe("Atlas control-plane contract regression", () => {
         canonicalDiscoverySource.indexOf("async function assertAtlasJobActive"),
       ),
       canonicalDiscoverySource.slice(
-        canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
-        canonicalDiscoverySource.indexOf("export async function runCanonicalAtlasPipeline"),
+        canonicalDiscoverySource.indexOf("async function materializeVerifiedReviewOnlyLeadCards"),
+        canonicalDiscoverySource.indexOf("async function materializeAtlasAdmissions"),
       ),
     ];
     expect(canonicalDiscoverySource).not.toContain("materializePartialPersonLeadCards");
