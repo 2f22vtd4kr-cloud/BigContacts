@@ -63,7 +63,7 @@ describe("Serper request construction", () => {
     const [, init] = vi.mocked(safeOutboundFetch).mock.calls[0]!;
     expect(JSON.parse(String(init?.body))).toEqual({
       q: "Alex Example",
-      num: 6,
+      num: 10,
     });
   });
 });
