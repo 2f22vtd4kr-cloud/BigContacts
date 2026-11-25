@@ -5188,10 +5188,10 @@ describe("single fetched page organization identity", () => {
 describe("latest Investigator observations remain complete within the provider token ceiling", () => {
   it("preserves the complete latest fetched-page window and exposes its continuation cursor", () => {
     const sourceUrl = "https://www.openvc.app/investor-lists/angel-investors";
-    const observation = "PAGE_START_SENTINEL " + "A".repeat(8_000)
+    const observation = "PAGE_START_SENTINEL " + "A".repeat(3_000)
       + " MIDDLE_DIRECTORY_LEAD_SENTINEL: WIT Angels Club and Golden Seeds are listed here. "
-      + "B".repeat(6_900)
-      + "C".repeat(1_200)
+      + "B".repeat(2_600)
+      + "C".repeat(900)
       + " LATE_DIRECTORY_LEAD_SENTINEL: a later organization is listed here."
       + "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run.]";
     const prompt = buildStepPrompt({
@@ -5208,7 +5208,7 @@ describe("latest Investigator observations remain complete within the provider t
           hypothesis: "The directory contains named objective-fit investor leads.",
           purpose: "Inspect source-listed organizations and people.",
           pageReadOffset: 0,
-          pageReadNextOffset: 16_000,
+          pageReadNextOffset: 6_800,
           pageHasMore: true,
           pageReadSource: "retained_fetch_artifact",
         },
@@ -5227,7 +5227,7 @@ describe("latest Investigator observations remain complete within the provider t
     expect(prompt).toContain("MIDDLE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain("LATE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain('"pageReadOffset":0');
-    expect(prompt).toContain('"pageReadNextOffset":16000');
+    expect(prompt).toContain('"pageReadNextOffset":6800');
     expect(prompt).toContain('"pageHasMore":true');
     expect(prompt).toContain("PAGE CONTENT CONTINUES");
     expect(prompt).toContain(observation);
@@ -5281,7 +5281,7 @@ describe("latest Investigator observations remain complete within the provider t
         },
         {
           turn: 2, model: "openai/gpt-oss-120b", action: "browser_fetch", execution: "success",
-          args: { url: secondUrl, pageReadOffset: 0, pageReadNextOffset: 12000, pageHasMore: true },
+          args: { url: secondUrl, pageReadOffset: 0, pageReadNextOffset: 6800, pageHasMore: true },
           observation: "Fetched source two. The page names SECOND_SOURCE_PERSON in an article about early-stage investing.",
           observedUrls: [secondUrl], leadUrls: [], findings: [],
         },
