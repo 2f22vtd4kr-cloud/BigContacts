@@ -6255,12 +6255,24 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // Preserve the complete latest result/page window only within explicit
     // transport bounds. Oversized observations remain recoverable in the
     // immutable event ledger and use the same URL-safe projection as older turns.
-    const observationBudget = searchActions.has(record.action)
-      ? 4_000
-      : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
-        ? 16_500
-        : 1_200;
-    const boundedObservation = compactDurablePromptObservation(rawObservation, observationBudget);
+    // The newest successful search and fetched-page window are the live
+    // evidence surface. Pass their raw observation without sampling or clipping.
+    // Provider-token fitting removes older history and auxiliary state first.
+    const isLatestSuccessfulObservation = (
+      record === latestRecord || record === latestSuccessfulSearchRecord
+    )
+      && record.execution === "success"
+      && (searchActions.has(record.action) || record.action === "visit" || record.action === "browser_fetch");
+    const observationBudget = isLatestSuccessfulObservation
+      ? rawObservation.length
+      : searchActions.has(record.action)
+        ? 640
+        : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
+          ? 1_280
+          : 1_200;
+    const boundedObservation = isLatestSuccessfulObservation
+      ? rawObservation
+      : compactDurablePromptObservation(rawObservation, observationBudget);
     const rawArgs = record.args ?? {};
     const promptArgs = compactLatestArgs(rawArgs);
     const argsOmittedFromPromptCount = Object.keys(rawArgs).filter((key) => !Object.prototype.hasOwnProperty.call(promptArgs, key)).length;
