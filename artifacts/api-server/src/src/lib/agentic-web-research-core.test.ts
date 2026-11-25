@@ -966,14 +966,14 @@ describe("model-owned discovery relevance reasoning", () => {
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
-    expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
+    expect(modelPrompt).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown.");
-    expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
-    expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
+    expect(modelPrompt).toContain("The first discovery probe uses the run's randomized opening modality");
+    expect(modelPrompt).toContain("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates.");
+    expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. Use the run-supplied randomized opening modality for the first probe");
     expect(modelPrompt).toContain("Locale guides language; market is evidence-led, not a gate.");
     expect(modelPrompt).toContain("Respect explicit geography; otherwise follow objective fit.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
@@ -987,10 +987,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(modelPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
-    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(targetPrompt).toContain("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
     expect(targetPrompt).toContain("ASSIGNMENT TARGET:");
-    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(apexInvestigatorSystemCore()).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(targetPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(targetPrompt).not.toContain("globally famous/household-name");
   });
@@ -2240,7 +2240,7 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("No unrequested criteria");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
@@ -2358,7 +2358,7 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
-    expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
+    expect(modelPrompt).toContain("The first discovery probe uses the run's randomized opening modality");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
     expect(modelPrompt).toContain("wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
@@ -2509,7 +2509,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
-    expect(modelPrompt).toContain("No unrequested criteria");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
@@ -2600,7 +2600,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(modelPrompt).toContain("No unrequested criteria");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
   });
@@ -3500,7 +3500,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(modelPrompt).toContain("No unrequested criteria");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("candidate=person; organization=organization");
   });
@@ -3516,7 +3516,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
-    expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(modelPrompt).toContain("context, not gates");
     expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
@@ -5771,12 +5771,12 @@ describe("community source lead handling and evidence-led scope", () => {
   });
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(system).toContain("Boss approves scope");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
-    expect(system).toContain("No fixed source/provider/registry order or mix.");
+    expect(system).toContain("The first discovery probe uses the run's randomized opening modality");
   });
 
   it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {
