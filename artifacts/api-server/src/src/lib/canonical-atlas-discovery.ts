@@ -237,14 +237,14 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
   atlasJobId: string;
   discoveryRunId: string;
   discoveryCaseId: number;
-}): Promise<number> {
+}): Promise<{ created: number; candidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> }> {
   const selected = input.findings.filter((finding) =>
     finding.reviewOnly === true
     && finding.promotionDecision !== "reject"
     && Boolean(finding.exactQuote?.trim())
     && (finding.scope === "candidate" ? Boolean(finding.personName?.trim()) : Boolean(finding.value.trim()))
   );
-  if (!selected.length) return 0;
+  if (!selected.length) return { created: 0, candidates: [] };
   const events = await db.select({
     actorRole: researchCaseEventsTable.actorRole,
     eventType: researchCaseEventsTable.eventType,
@@ -299,7 +299,15 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
     }
   }
   let created = 0;
+  const organizationCandidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> = [];
   for (const lead of verified.values()) {
+    if (lead.type === "Corporation") {
+      organizationCandidates.push({
+        name: lead.name,
+        sourceUrls: [...lead.sourceUrls],
+        targetEligibleForResearch: lead.actions.has("visit") || lead.actions.has("browser_fetch"),
+      });
+    }
     const result = await db.transaction(async (tx) => {
       const [ownedCase] = await tx.select({
         status: researchCasesTable.status,
@@ -365,11 +373,11 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
     }, { isolationLevel: "serializable" });
     if (result) created += 1;
   }
-  return created;
+  return { created, candidates: organizationCandidates };
 }
 
 async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
-  const reviewOnlyCardsCreated = await materializeVerifiedReviewOnlyLeadCards({
+  const partialOrganizations = await materializeVerifiedReviewOnlyLeadCards({
     findings: input.findings,
     atlasJobId: input.atlasJobId,
     discoveryRunId: input.discoveryRunId,
@@ -381,7 +389,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
-  let materialized = reviewOnlyCardsCreated;
+  let materialized = partialOrganizations.created;
   let evidenceRows = 0;
   // Review-only person/organization cards are already persisted above after
   // exact URL+quote reality verification. They remain separate from evidence-
