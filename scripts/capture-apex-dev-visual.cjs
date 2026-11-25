@@ -84,9 +84,9 @@ async function main() {
           };
         } else if (url.includes("/api/dashboard/stats")) {
           payload = {
-            totalEntities: 248,
-            totalRelationships: 37,
-            totalAssets: 1412,
+            totalEntities: 0,
+            totalRelationships: 0,
+            totalAssets: 0,
             registryShallowRisk: false,
           };
         } else if (url.includes("/api/dashboard/research-leads")) {
@@ -119,7 +119,7 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "degraded"), { timeout: 8_000 });
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
       await page.waitForTimeout(400);
       const workspaceStatusVisible = await page.evaluate(() => {
         const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
@@ -129,12 +129,6 @@ async function main() {
         return rect.width > 0 && rect.height > 0 && !!hit && (hit === status || status.contains(hit));
       });
       if (!workspaceStatusVisible) throw new Error("Workspace status is obscured by the shell header");
-
-      const prompt = page.locator("textarea").first();
-      if (await prompt.count()) {
-        await prompt.fill("Founders of UK climate startups with a warm route");
-        await page.waitForTimeout(250);
-      }
 
       let routeFixtureLoaded = false;
 
