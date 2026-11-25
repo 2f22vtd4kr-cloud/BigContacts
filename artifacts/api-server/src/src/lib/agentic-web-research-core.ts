@@ -2854,7 +2854,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const requiredFindingFields = supportsFindings
     ? reviewLeadOnlyFindings
       ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"]
-      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", ...(_promptMode === "discovery" ? ["reviewOnly"] : []), "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
     : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
