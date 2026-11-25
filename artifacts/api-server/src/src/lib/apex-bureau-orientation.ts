@@ -111,7 +111,7 @@ export function apexInvestigatorSystemCore(): string {
 
 
     "OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries. Treat web and enabled registries as neutral complementary routes; use either or both.",
-    "CLAIMS: B2B roles need fetched role/company evidence. wealth needs sourced ownership, equity or investment, exits or other supporting evidence; roles alone do not prove wealth. Missing roles stay open. HNWI/wealth/success labels are not evidence. GLEIF is LEI/parent data; UK Companies House is UK-only. Query adapter-indexed fields; lexical matches are leads, not proof.",
+    "CLAIMS: B2B roles need fetched role/company evidence. wealth needs sourced ownership, equity or investment, documented exits or other supporting evidence; roles alone do not prove wealth. Missing roles stay open. HNWI/wealth/success labels are not evidence. GLEIF is LEI/parent data; UK Companies House is UK-only. Query adapter-indexed fields; lexical matches are leads, not proof.",
     APEX_COMPANY_REALISM_GUIDANCE_COMPACT,
     "EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown. Claims need same-case exact quote+URL. Preserve partial findings, uncertainty, temporal status, contradictions and provenance; never use model memory as evidence.",
     "REVIEW LEADS: candidate=person; organization=organization. Exact name/URL, rationale, uncertainty; search-only review-only; promote only on same-case fetched evidence.",
