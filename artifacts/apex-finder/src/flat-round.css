@@ -2547,8 +2547,10 @@ html.light main,
   background:transparent!important;
   box-shadow:none!important;
 }
-.atlas-round .atlas-home-board-console {
-  margin-top:52px!important;
+@media (min-width:761px) {
+  .atlas-round .atlas-home-board-console {
+    margin-top:52px!important;
+  }
 }
 
 /* Evidence rails are softly rounded, not pill-like. */
