@@ -9,7 +9,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandReview, resolveAtlasRightHandReviewWatermark, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, DISCOVERY_AI_OVERSIGHT_INTERVAL, resolveDiscoveryIterationCeiling, resolveDiscoveryIterationsPerAct, resolveOpeningInvestigatorIterations, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS, resolveCanonicalAtlasRunTimeoutMs, resolveCanonicalAtlasTargetCount } from "./atlas-launch-defaults";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -927,7 +927,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   const captureTerminalAuditTrajectory = (records: AgenticTrajectoryRecord[] | undefined): void => {
     terminalAuditTrajectory = records ?? [];
   };
-  const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
+  const targetLimit = resolveCanonicalAtlasTargetCount(opts.targetCount); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? undefined); const atlasTimeoutMs = resolveCanonicalAtlasRunTimeoutMs(process.env.APEX_ATLAS_RUN_TIMEOUT_MS === undefined ? undefined : configuredAtlasTimeout); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   let discoveryObjective = opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE;
   if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS) {
     throw new Error(`Canonical Atlas discovery objective exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_OBJECTIVE_CHARS} characters.`);
