@@ -5233,6 +5233,47 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).not.toContain(observation);
   });
 
+  it("carries multiple recent successful fetched sources into the next discovery decision", () => {
+    const firstUrl = "https://investors.example.test/first-source";
+    const secondUrl = "https://investors.example.test/second-source";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find objective-fit potential investors and other relevant people through public evidence.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: firstUrl },
+          observation: "Fetched source one. The page names FIRST_SOURCE_PERSON as a director of a relevant investment firm.",
+          observedUrls: [firstUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-120b", action: "browser_fetch", execution: "success",
+          args: { url: secondUrl, pageReadOffset: 0, pageReadNextOffset: 12000, pageHasMore: true },
+          observation: "Fetched source two. The page names SECOND_SOURCE_PERSON in an article about early-stage investing.",
+          observedUrls: [secondUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 3, model: "openai/gpt-oss-120b", action: "web_search", execution: "success",
+          args: { query: "corroborate public investment roles", provider: "serper" },
+          observation: "A later search returned additional leads.",
+          observedUrls: [], leadUrls: ["https://investors.example.test/third-source"], findings: [],
+        },
+      ],
+      lastObservation: "A later search returned additional leads.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
+    });
+
+    expect(prompt).toContain("RECENT SUCCESSFUL FETCHED SOURCE OBSERVATIONS");
+    expect(prompt).toContain("FIRST_SOURCE_PERSON");
+    expect(prompt).toContain("SECOND_SOURCE_PERSON");
+    expect(prompt).toContain(firstUrl);
+    expect(prompt).toContain(secondUrl);
+    expect(prompt).toContain('"includedRecordCount":2');
+  });
+
   it("keeps a source fact near the end of a long successful page observation", () => {
     const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const compact = compactEmergencyTrajectoryObservation(observation, 700);
