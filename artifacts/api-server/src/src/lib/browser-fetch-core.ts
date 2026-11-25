@@ -37,9 +37,11 @@ export function getAvailableBrowserFetchProviders(): BrowserProvider[] {
   if (Boolean(process.env.SCRAPFLY_API_KEY?.trim())) available.push("scrapfly");
   if (Boolean(process.env.ZENROWS_API_KEY?.trim())) available.push("zenrows");
   if (Boolean(process.env.BROWSERLESS_TOKEN?.trim())) available.push("browserless");
-  // Direct retrieval is always available; SEC.gov requests require SEC_USER_AGENT
-  // with an identifying application name and monitored contact email.
-  available.push("direct");
+  // Direct retrieval is advertised only when explicitly enabled, or when a
+  // compliant SEC identity is configured for the primary SEC.gov use case.
+  if (process.env.APEX_BROWSER_FETCH_DIRECT_ENABLED === "1" || directFetchUserAgent("https://www.sec.gov") !== null) {
+    available.push("direct");
+  }
   const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true";
   if (playwrightEnabled) {
     try {
