@@ -6231,6 +6231,9 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     expect(directFetchUserAgent("https://www.sec.gov/Archives/edgar/data/1/a.htm", {
       SEC_USER_AGENT: "Apex Atlas research",
     })).toBeNull();
+    expect(directFetchUserAgent("https://www.sec.gov/Archives/edgar/data/1/a.htm", {
+      SEC_USER_AGENT: "Research ops@example.org",
+    })).toBeNull();
     expect(directFetchUserAgent("https://example.org/page", {})).toContain("ApexAtlas/1.0");
     vi.stubEnv("SEC_USER_AGENT", "Apex Atlas research ops@example.org");
     expect(getAvailableBrowserFetchProviders()).toContain("direct");
