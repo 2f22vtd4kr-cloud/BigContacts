@@ -110,6 +110,8 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(layoutSource).not.toContain("atlas-round-sidebar");
     expect(boardCss).toContain("width:min(calc(100% - 32px),1280px)");
     expect(boardCss).toContain("border-radius:20px");
+    expect(boardCss).toContain("margin:48px auto 40px;");
+    expect(boardCss).toContain("min-height:calc(100dvh - 88px);");
     expect(lastRule(".atlas-round-shell .atlas-round-header-status")).toContain("margin-left:auto;");
   });
 
