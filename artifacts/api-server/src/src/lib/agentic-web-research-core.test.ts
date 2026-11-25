@@ -849,7 +849,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
-    expect(systemCore).toContain("No fixed source/provider/registry order or mix.");
+    expect(systemCore).toContain("The first discovery probe uses the run's randomized opening modality");
+    expect(systemCore).toContain("after that, choose sources, providers, registries and mix freely from evidence");
     expect(systemCore).not.toContain("Virtual Globetrotting");
     expect(systemCore).not.toContain("PERSON REALISM");
     expect(roleOrientation).toContain("YOUR ROLE — INVESTIGATOR");
