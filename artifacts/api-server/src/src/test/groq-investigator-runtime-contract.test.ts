@@ -98,6 +98,44 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed?.partialFindings[0]?.promotionDecision).toBeUndefined();
   });
 
+  it("keeps discovery review-lead output minimal even when done is allowed", () => {
+    const response = structuredActionResponseFormat(
+      "openai/gpt-oss-120b",
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+      "discovery",
+    ) as { type: string; json_schema?: { schema?: { properties?: Record<string, { items?: { properties?: Record<string, unknown>; required?: string[] } }> } } };
+    expect(response.type).toBe("json_schema");
+    const findings = response.json_schema?.schema?.properties?.findings?.items;
+    expect(Object.keys(findings?.properties ?? {}).sort()).toEqual([
+      "exactQuote", "note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType",
+    ]);
+    expect(findings?.required).toContain("reviewOnly");
+    expect(findings?.required).toContain("exactQuote");
+    expect(findings?.properties).not.toHaveProperty("promotionDecision");
+  });
+
+  it("shows the Investigator its fetched-page visit windows and mechanical novelty", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find a public company owner",
+      history: [],
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["visit", "web_search", "done"],
+      lastObservation: "latest page window",
+      trajectoryRecords: [
+        { turn: 1, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 2, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 3, action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 3400, pageReadNextOffset: 6800 }, observedUrls: ["https://example.com/profile"], observation: "Second page window with additional company history." },
+      ],
+    });
+    expect(prompt).toContain("DISCOVERY VISIT HISTORY");
+    expect(prompt).toContain('"start":0,"end":3400');
+    expect(prompt).toContain('"start":3400,"end":6800');
+    expect(prompt).toContain('"newInformation":"no"');
+    expect(prompt).toContain('"newInformation":"yes"');
+  });
+
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
