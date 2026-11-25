@@ -52,7 +52,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
 
   it("uses only the board's documented corner-radius scale", () => {
     const radii = [...boardCss.matchAll(/border-radius:\s*([^;]+)/g)].map((match) => match[1].trim());
-    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:6|10|12|16|20)px|20px 0 0 20px|0 20px 20px 0)(?:!important)?$/.test(radius));
+    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:4|6|10|12|16|20)px|20px 0 0 20px|0 20px 20px 0)(?:!important)?$/.test(radius));
     expect(unsupported).toEqual([]);
   });
 
@@ -255,9 +255,17 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("margin: 16px 0 0; color:var(--round-ink-2)!important; font-size:16px; line-height:1.6;");
     expect(launchAtlasButtonSource).toContain("rows={1}");
     expect(boardCss).toContain(".atlas-home-board-console textarea { min-height:56px; resize:vertical; padding: 16px 12px!important;");
-    expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:6px!important;");
+    expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:4px!important;");
     expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
     expect(boardCss).toContain("background-size:64px 24px!important;");
+  });
+
+  it("keeps the Overview routes column unboxed and restores the board breathing room", () => {
+    const routesRule = lastRule(".atlas-round .atlas-home-board-routes");
+    expect(routesRule).toContain("padding:0!important;");
+    expect(routesRule).toContain("border:0!important;");
+    expect(routesRule).toContain("background:transparent!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:52px!important;");
   });
 
 });
