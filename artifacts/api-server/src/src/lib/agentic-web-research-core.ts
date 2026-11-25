@@ -6224,7 +6224,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const leadUrls = rawLeadUrls
       .map((value) => completePromptUrl(value))
       .filter((value): value is string => Boolean(value));
-    const rawObservation = record.observation ?? "";
+    const rawObservation = typeof record.observation === "string" && record.observation.length > 0
+      ? record.observation
+      : record === latestRecord ? (input.lastObservation ?? "") : "";
     // Search responses remain unverified lead context, but every result from
     // the newest successful search is passed through whole. The newest
     // successful fetched page window is also passed through whole. Older turns
