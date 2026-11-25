@@ -263,4 +263,19 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:52px!important;");
   });
 
+  it("matches the design-board desktop Overview hero scale and spacing", () => {
+    expect(lastRule(".atlas-round .atlas-home-board")).toContain("padding-inline:8px!important;");
+    const gridRule = lastRule(".atlas-round .atlas-home-board-grid");
+    expect(gridRule).toContain("grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;");
+    expect(gridRule).toContain("gap:64px!important;");
+    const titleRule = lastRule(".atlas-round .atlas-home-board-intro h1");
+    expect(titleRule).toContain("font-size:76px!important;");
+    expect(titleRule).toContain("line-height:76px!important;");
+    const ledeRule = lastRule(".atlas-round .atlas-home-board-intro p");
+    expect(ledeRule).toContain("max-width:440px!important;");
+    expect(ledeRule).toContain("font-size:18px!important;");
+    expect(ledeRule).toContain("line-height:27px!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:40px!important;");
+  });
+
 });
