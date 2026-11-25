@@ -305,7 +305,7 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
       organizationCandidates.push({
         name: lead.name,
         sourceUrls: [...lead.sourceUrls],
-        targetEligibleForResearch: lead.actions.has("visit") || lead.actions.has("browser_fetch"),
+        // Review-only discovery cards are never silently promoted into target work.\n        // A separate explicit non-review promotion must authorize organization research.\n        targetEligibleForResearch: false,
       });
     }
     const result = await db.transaction(async (tx) => {
