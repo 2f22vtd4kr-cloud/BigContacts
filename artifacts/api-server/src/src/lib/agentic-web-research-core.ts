@@ -194,7 +194,6 @@ export function assignSearchResultLeads(
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     leads.push(normalized);
-    if (leads.length >= 24) break;
   }
   record.leadUrls = leads;
   record.observedUrls = [];
