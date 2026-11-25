@@ -2557,3 +2557,140 @@ html.light main,
 .atlas-round .atlas-evidence-pattern {
   border-radius:4px!important;
 }
+
+/* -------------------------------------------------------------------------
+   Shared shell: match the design board's framed desktop workspace and
+   compact horizontal navigation. Phone boards keep only brand + status.
+   ------------------------------------------------------------------------- */
+.atlas-round-shell {
+  display:flex!important;
+  width:min(calc(100% - 32px),1280px);
+  min-height:calc(100dvh - 48px);
+  flex-direction:column;
+  margin:24px auto;
+  overflow:hidden;
+  border:1px solid var(--round-line);
+  border-radius:20px;
+  background:var(--round-paper);
+}
+.atlas-round-shell > .atlas-round-header {
+  position:relative!important;
+  top:auto!important;
+  z-index:80;
+  display:flex;
+  width:100%;
+  min-height:68px;
+  height:68px;
+  align-items:center;
+  gap:24px;
+  padding:0 24px!important;
+  border:0!important;
+  background:var(--round-paper)!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.atlas-round-shell .atlas-round-header-brand {
+  display:flex;
+  flex:none;
+  align-items:center;
+  gap:10px;
+  margin:0;
+  color:var(--round-ink);
+  text-decoration:none;
+}
+.atlas-round-shell .atlas-round-header-brand .atlas-round-brand-mark {
+  width:22px;
+  height:24px;
+}
+.atlas-round-shell .atlas-round-header-brand strong {
+  color:var(--round-ink);
+  font:500 16px/1 "Geist",sans-serif;
+  letter-spacing:0;
+}
+.atlas-round-shell .atlas-round-primary {
+  display:flex!important;
+  flex:0 1 auto;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  margin:0 0 0 auto!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink {
+  display:inline-flex;
+  min-height:40px;
+  align-items:center;
+  justify-content:center;
+  padding:0 12px;
+  border:0!important;
+  border-radius:8px;
+  background:transparent;
+  color:var(--round-ink-2);
+  font:400 13px/1 "Geist",sans-serif;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink span { display:inline!important; }
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink.is-active {
+  background:var(--round-raised)!important;
+  color:var(--round-ink)!important;
+  font-weight:500;
+  box-shadow:none!important;
+}
+.atlas-round-shell .atlas-round-header-status {
+  display:flex;
+  flex:none;
+  align-items:center;
+  margin-left:12px;
+}
+.atlas-round-shell .atlas-round-sidebar,
+.atlas-round-shell .atlas-round-sidebar-toggle,
+.atlas-round-shell .atlas-round-nav-backdrop { display:none!important; }
+.atlas-round-shell .atlas-round-main {
+  display:block;
+  flex:1 1 auto;
+  width:100%;
+  min-width:0;
+  min-height:calc(100dvh - 116px);
+  grid-column:auto!important;
+  grid-row:auto!important;
+  background:var(--round-paper)!important;
+}
+.atlas-round-shell .atlas-round-content {
+  width:100%;
+  max-width:none;
+  min-width:0;
+  margin:0;
+  padding:0 24px 36px;
+}
+@media (max-width:1100px) and (min-width:761px) {
+  .atlas-round-shell > .atlas-round-header { gap:12px; padding-inline:18px!important; }
+  .atlas-round-shell .atlas-round-primary { gap:0; }
+  .atlas-round-shell .atlas-round-primary .atlas-round-navlink { padding-inline:9px; font-size:12px; }
+  .atlas-round-shell .atlas-round-header-status { margin-left:4px; }
+}
+@media (max-width:760px) {
+  .atlas-round-shell {
+    width:calc(100% - 8px);
+    min-height:calc(100dvh - 8px);
+    margin:4px auto;
+    border-radius:16px;
+  }
+  .atlas-round-shell > .atlas-round-header {
+    min-height:48px;
+    height:48px;
+    gap:8px;
+    padding:0 12px!important;
+  }
+  .atlas-round-shell .atlas-round-header-brand { gap:8px; }
+  .atlas-round-shell .atlas-round-header-brand .atlas-round-brand-mark { width:20px; height:22px; }
+  .atlas-round-shell .atlas-round-header-brand strong { font-size:14px; }
+  .atlas-round-shell .atlas-round-primary { display:none!important; }
+  .atlas-round-shell .atlas-round-header-status { margin-left:auto; }
+  .atlas-round-shell .atlas-round-main { min-height:calc(100dvh - 56px); }
+  .atlas-round-shell .atlas-round-content { padding:0 12px 28px; }
+}
