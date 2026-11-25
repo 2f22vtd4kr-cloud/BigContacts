@@ -103,17 +103,15 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("display:none!important;");
   });
 
-  it("keeps the full-height sidebar and text-only active navigation", () => {
-    expect(layoutSource).toContain('id="atlas-round-sidebar"');
-    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
+  it("uses the design-board horizontal navigation and framed desktop shell", () => {
+    expect(layoutSource).toContain('className="atlas-round-primary"');
     expect(layoutSource).toContain('aria-label="Main navigation"');
-    expect(boardCss).toContain("height:calc(100dvh - 68px);");
-    const activeRule = lastRule(".atlas-round-sidebar .atlas-round-navlink.is-active");
-    expect(activeRule).toContain("background:transparent!important;");
-    expect(activeRule).toContain("box-shadow:none!important;");
-    expect(activeRule).toContain("font-weight:700!important;");
-    expect(activeRule).not.toContain("var(--round-red)");
-    expect(boardCss).toContain(".atlas-round-shell .atlas-round-sidebar .atlas-round-navlink span { display:inline; }");
+    expect(layoutSource).not.toContain("atlas-round-sidebar");
+    expect(boardCss).toContain("width:min(calc(100% - 32px),1280px)");
+    expect(boardCss).toContain("border-radius:20px");
+    const activeRule = lastRule(".atlas-round-shell .atlas-round-primary .atlas-round-navlink.is-active");
+    expect(activeRule).toContain("background:var(--round-raised)!important;");
+    expect(activeRule).toContain("color:var(--round-ink)!important;");
   });
 
   it("keeps the header and API-down shell on one uninterrupted paper surface", () => {
@@ -223,15 +221,12 @@ describe("Apex Atlas design-board and unslop contract", () => {
   });
 
 
-  it("uses the current light-shell collapsible sidebar instead of horizontal or bottom navigation", () => {
-    expect(layoutSource).toContain('className="atlas-round-sidebar-toggle"');
-    expect(layoutSource).toContain('id="atlas-round-sidebar"');
-    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
-    expect(layoutSource).toContain('setSidebarCollapsed((collapsed) => !collapsed)');
-    expect(layoutSource).toContain('setMobileOpen((open) => !open)');
-    expect(boardCss).toContain(".atlas-round-shell.is-sidebar-collapsed");
-    expect(boardCss).toContain(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar");
-    expect(boardCss).toContain(".atlas-round-mobile-tabbar { display:none; }");
+  it("uses the compact design-board phone header without a desktop sidebar", () => {
+    expect(layoutSource).toContain('className="atlas-round-primary"');
+    expect(layoutSource).not.toContain("atlas-round-sidebar");
+    expect(boardCss).toContain("min-height:calc(100dvh - 8px)");
+    expect(boardCss).toContain("height:48px");
+    expect(boardCss).toContain("display:none!important");
   });
 
   it("keeps Home API-down in the same neutral checker-and-wave frame as the other consoles", () => {
