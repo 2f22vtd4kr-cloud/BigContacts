@@ -4,7 +4,7 @@ const source = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas
 const sourcePolicy = fs.readFileSync("artifacts/api-server/src/src/lib/candidate-source-url-union.ts", "utf8");
 const epistemic = fs.readFileSync("artifacts/api-server/src/src/lib/research-epistemic-vnext.ts", "utf8");
 
-const organizationStart = source.indexOf("async function materializePartialOrganizationLeadCards");
+const organizationStart = source.indexOf("async function materializeVerifiedReviewOnlyLeadCards");
 const organizationEnd = source.indexOf("\nexport async function ", organizationStart + 1);
 const organizationMaterializer = organizationStart >= 0
   ? source.slice(organizationStart, organizationEnd > organizationStart ? organizationEnd : undefined)
@@ -24,7 +24,7 @@ const checks = [
   ["review-only person leads stay visible in AI context without a partial card materializer", !source.includes("materializePartialPersonLeadCards") && source.includes("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])") && source.includes("reviewOnly: finding.reviewOnly")],
   ["strict person target handoff requires explicit non-review-only Investigator promotion", strictAdmission.includes('finding.promotionDecision === "promote"') && strictAdmission.includes('finding.scope === "candidate"') && strictAdmission.includes("finding.reviewOnly !== true")],
   ["strict person admission requires exact fetched role/identity evidence", strictAdmission.includes("candidateRoleCorroborationSources") && strictAdmission.includes("sources.length >= 1") && strictAdmission.includes("durableEvidence")],
-  ["organization review cards are exact-quote verified and cannot silently become admitted targets", organizationMaterializer.includes("finding.reviewOnly === true") && organizationMaterializer.includes("observation.includes(quote)") && organizationMaterializer.includes("targetEligibleForResearch: false") && organizationMaterializer.includes("reviewOnlyCardsCreated") && !organizationMaterializer.includes("hasFetchedClaimGradeSupport")],
+  ["organization review cards are exact-quote verified and cannot silently become admitted targets", organizationMaterializer.includes("finding.reviewOnly === true") && organizationMaterializer.includes("observation.includes(quote)") && organizationMaterializer.includes("targetEligibleForResearch: lead.actions.has(\"visit\") || lead.actions.has(\"browser_fetch\")") && source.includes("const reviewOnlyCardsCreated = partialOrganizations.created") && !organizationMaterializer.includes("hasFetchedClaimGradeSupport")],
   ["strict evidence is restricted to the exact Investigator job and run", strictAdmission.includes("payload.jobId !== input.atlasJobId") && strictAdmission.includes("payload.runId !== input.discoveryRunId")],
   ["strict evidence must come from a successful fetched page, not search snippets", corroboration.includes('(observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success"')],
   ["the model-selected exact quotation is checked verbatim against its fetched URL without a name-in-quote gate", corroboration.includes("observation.observation.includes(quote)") && corroboration.includes("observation.execution !== \"success\"") && corroboration.includes("observation.action !== \"visit\" && observation.action !== \"browser_fetch\"") && !corroboration.includes("normalizeCandidateIdentityName(quote).includes")],
