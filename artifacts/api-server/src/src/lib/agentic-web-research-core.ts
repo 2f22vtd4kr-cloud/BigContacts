@@ -7149,7 +7149,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             caseId: input.caseId,
             turn: promptRecord.turn,
           });
-          compactedObservation = compacted?.text ?? "";
+          compactedObservation = compacted?.method === "ai_semantic" ? (compacted.text ?? "") : "";
           if (!compactedObservation) {
             compactedObservation = "[OLDER OBSERVATION TEXT OMITTED WHOLE: semantic compaction unavailable; exact action metadata and URLs remain preserved; omitted content is unknown.]";
             emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "Older observation text was omitted whole after semantic compaction failed; exact URLs and action metadata remain preserved." });
