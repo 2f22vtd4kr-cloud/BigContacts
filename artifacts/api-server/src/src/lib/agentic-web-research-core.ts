@@ -6238,7 +6238,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && record.execution === "success"
       && (searchActions.has(record.action) || record.action === "visit" || record.action === "browser_fetch");
     const observationBudget = isLatestSuccessfulObservation
-      ? rawObservation.length
+      ? MAX_OBS
       : searchActions.has(record.action)
         ? 640
         : record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch")
