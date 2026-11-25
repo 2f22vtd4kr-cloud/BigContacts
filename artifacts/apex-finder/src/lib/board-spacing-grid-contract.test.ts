@@ -71,14 +71,14 @@ describe("Apex Atlas design-board and unslop contract", () => {
       }
       return radius;
     };
-    expect(radiusFor(".atlas-round-sidebar .atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-round .atlas-card")).toBe("12px!important");
     expect(radiusFor(".atlas-home-console-inner")).toBe("12px");
     expect(radiusFor(".atlas-round .atlas-home-board-console")).toBe("20px!important");
     expect(radiusFor(".atlas-round .atlas-home-board-console .atlas-launch-cta")).toBe("10px!important");
     expect(radiusFor(".atlas-launch-depth button")).toBe("6px");
     expect(radiusFor(".atlas-launch-target-count button")).toBe("6px");
-    expect(layoutSource).toContain("primaryNav.map((item) =>");
+    expect(layoutSource).toContain("<WorkspaceStatus compact />");
+    expect(layoutSource).not.toContain("atlas-round-primary");
     expect(layoutSource).not.toContain("utilityNav");
     expect(layoutSource).not.toContain("Crosshair");
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
