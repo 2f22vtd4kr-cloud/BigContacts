@@ -282,4 +282,12 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:40px!important;");
   });
 
+  it("keeps the desktop launch console header and source indicators on one row", () => {
+    expect(boardCss).toContain("position:absolute;");
+    expect(boardCss).toContain("top:20px;");
+    expect(boardCss).toContain("grid-template-areas:\n      \"objective action\"\n      \"settings settings\"\n      \"explainer explainer\";");
+    expect(boardCss).toContain("min-height:48px;");
+    expect(boardCss).toContain("min-height:76px;");
+  });
+
 });
