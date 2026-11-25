@@ -6095,7 +6095,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const normalized = normalizedActionResourceUrl(url);
     return !normalized || !fetchedUrlsAfterLatestSearch.has(normalized);
   });
-  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord && unvisitedSearchLeadUrls.length > 0
+  // Preserve the complete newest successful search observation even when
+  // every returned URL has since been fetched. The snippets still contain
+  // model-visible names and context; only the unresolved lead inventory shrinks.
+  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord
     ? {
         ...latestSuccessfulSearchRecord,
         leadUrls: unvisitedSearchLeadUrls,
@@ -7108,9 +7111,18 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         [renderSearchProviderAvailabilityNotice(searchProviderFailures), lastObservation, livenessAdvisory].filter(Boolean).join("\n\n"),
       );
       let promptLastObservation = combinedLastObservation;
+      const successfulSearchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+      const latestSuccessfulSearchRecord = [...promptTrajectoryRecords].reverse().find((record) =>
+        record.execution === "success" && successfulSearchActions.has(record.action));
+      const latestSuccessfulFetchRecord = [...promptTrajectoryRecords].reverse().find((record) =>
+        record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch"));
+      const freshObservationRecords = new Set([latestSuccessfulSearchRecord, latestSuccessfulFetchRecord].filter(Boolean));
       const recentPromptRecords = promptTrajectoryRecords.slice(-3);
       for (const promptRecord of recentPromptRecords) {
         const isLatestPromptRecord = promptRecord === latestPromptRecord;
+        // Fresh successful search and fetched-page windows are current evidence inputs,
+        // not historical memory. Never compact either one.
+        if (freshObservationRecords.has(promptRecord)) continue;
         const rawObservation = typeof promptRecord.observation === "string" ? promptRecord.observation : "";
         if (rawObservation.length <= 900 && !(isLatestPromptRecord && combinedLastObservation.length > 900)) continue;
         const observationAlreadyIncluded = Boolean(rawObservation) && combinedLastObservation.includes(rawObservation);
@@ -7140,16 +7152,10 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             caseId: input.caseId,
             turn: promptRecord.turn,
           });
-          compactedObservation = compacted?.text ?? "";
+          compactedObservation = compacted?.method === "ai_semantic" ? (compacted.text ?? "") : "";
           if (!compactedObservation) {
-            compactedObservation = "[OBSERVATION PROJECTION UNAVAILABLE: the complete raw observation remains in immutable case events; omitted content is unknown, not negative evidence. Action metadata and source URLs remain separately preserved.]";
-            emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "A non-semantic observation projection was unavailable; retained durable action metadata and marked omitted text unknown." });
-          }
-          if (compacted?.method === "deterministic_projection") {
-            emit("nonsemantic_observation_projection", {
-              status: "partial",
-              summary: "Observation compaction is intentionally non-semantic; a URL-safe bounded projection was supplied. Full source remains durable; omitted content is unknown.",
-            });
+            compactedObservation = "[OLDER OBSERVATION TEXT OMITTED WHOLE: semantic compaction unavailable; exact action metadata and URLs remain preserved; omitted content is unknown.]";
+            emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "Older observation text was omitted whole after semantic compaction failed; exact URLs and action metadata remain preserved." });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
@@ -7362,6 +7368,20 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           }
         }
       }
+      const latestSearchObservation = latestSuccessfulSearchRecord?.observation ?? "";
+      const searchResultBlocks = latestSearchObservation.split(/\r?\n/u);
+      const latestSearchTitleCount = searchResultBlocks.filter((line, index, lines) => /^URL:\s*https?:\/\//i.test(line) && Boolean((lines[index - 1] ?? "").trim())).length;
+      const latestSearchSnippetCount = searchResultBlocks.filter((line, index, lines) => /^URL:\s*https?:\/\//i.test(line) && Boolean((lines[index + 1] ?? "").trim())).length;
+      emit("investigator_fresh_observation_delivery", {
+        status: "info",
+        summary: "Fresh successful search/fetch observations bypass historical compaction and are included in the Investigator context.",
+        latestSearchTurn: latestSuccessfulSearchRecord ? String(latestSuccessfulSearchRecord.turn) : "none",
+        latestSearchTitleCount: String(latestSearchTitleCount),
+        latestSearchSnippetCount: String(latestSearchSnippetCount),
+        latestSearchObservationChars: String(latestSearchObservation.length),
+        latestFetchTurn: latestSuccessfulFetchRecord ? String(latestSuccessfulFetchRecord.turn) : "none",
+        latestFetchObservationChars: String(latestSuccessfulFetchRecord?.observation?.length ?? 0),
+      });
       runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) {
       if (input.investigatorLlm) recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: false, failureClass: "provider_unavailable" });
       return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available");
