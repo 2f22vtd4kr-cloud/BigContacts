@@ -561,7 +561,7 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
-    expect(submitted).not.toContain("reviewOnly=true");
+    expect(submitted).toContain("reviewOnly=true");
 
     const terminalOnlyPrompt = buildStepPrompt({
       targetName: "",
@@ -581,7 +581,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(terminalOnlyUser).not.toContain("reviewOnly=true");
+    expect(terminalOnlyUser).toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
     expect(submitted).toContain("The first discovery probe uses the run's randomized opening modality; after that, choose sources, providers, registries and mix freely from evidence.");
@@ -980,7 +980,7 @@ describe("Groq Investigator runtime contract", () => {
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary.");
-    expect(strictUser).toContain("exactQuote copied verbatim from the supplied observation");
+    expect(strictUser).toContain("exactQuote copied verbatim from that observation");
     expect(strictUser).toContain("Code verifies only URL and quote reality, never meaning or relevance.");
     expect(strictUser).toContain("review-only");
     expect(strictUser).toContain("reviewOnly=true");
