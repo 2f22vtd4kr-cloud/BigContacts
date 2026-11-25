@@ -57,6 +57,19 @@ describe("fresh successful observations reach the Investigator intact", () => {
       expect(finalPrompt).toContain(item.snippet);
     }
     expect(finalPrompt).toContain(fetchRecord.observation);
+    const fullyFetchedSearchRecord = { ...searchRecord, leadUrls: [organic[0]!.url] };
+    const afterEveryLeadFetched = buildStepPrompt({
+      targetName: "Recorded case",
+      objective: "Identify relevant public people.",
+      history: [],
+      trajectoryRecords: [fullyFetchedSearchRecord, fetchRecord],
+      lastObservation: fetchRecord.observation ?? "",
+      findings: [],
+    });
+    for (const item of organic) {
+      expect(afterEveryLeadFetched).toContain(item.title);
+      expect(afterEveryLeadFetched).toContain(item.snippet);
+    }
   });
 });
 
