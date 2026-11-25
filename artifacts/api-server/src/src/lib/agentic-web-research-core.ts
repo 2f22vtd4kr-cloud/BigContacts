@@ -2309,6 +2309,7 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
       scope: personLead ? "candidate" : "organization",
       sourceUrls,
       note: cleanText(f.note, 400) || "Investigator-selected provisional review lead; source and relevance require target-scoped verification.",
+      exactQuote: cleanText(f.exactQuote, 1_200) || undefined,
       reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
