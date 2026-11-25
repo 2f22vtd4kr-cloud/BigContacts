@@ -612,16 +612,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.findings?.items?.required).toEqual([
-      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly",
-      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
-      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
-      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote",
     ]);
     expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
     expect(actionSchema?.properties?.findings?.items?.properties?.reviewOnly).toMatchObject({
       type: ["boolean", "null"],
       enum: [true, null],
     });
+    expect(actionSchema?.properties?.findings?.items?.properties?.exactQuote).toMatchObject({ type: "string" });
     expect(messages).toHaveLength(2);
   });
 
