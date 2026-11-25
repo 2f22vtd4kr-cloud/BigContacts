@@ -37,7 +37,7 @@ const checks = [
   [candidateSources, ["exactQuote", "observation.observation.includes(quote)", "supporting.has(sourceUrl)", "Do not collapse or veto sources by publisher/domain"], "candidate-source-url-union.ts"],
   [targetContact, ["finding.exactQuote", "finding.identityAssessment === \"same_person\"", "finding.promotionDecision === \"promote\""], "target-contact-agent.ts"],
   [reachability, ["TARGETABILITY CONTEXT", "MODEL DECISION AUTHORITY", "No fixed wealth cutoff, score, source-count minimum, growth-ranking penalty", "A missing contact route is an unresolved evidence gap", "exact-quote/provenance verification"], "reachability-realism.ts"],
-  [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgement, not a publisher/path allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
+  [candidateSources, ["export function isRealisticPersonRouteSourceUrl", "contextual model", "judgment, not a publisher/path/search-endpoint allowlist", "isClaimGradeDiscoverySourceUrl(value)"], "candidate-source-url-union.ts"],
 ];
 // The active Investigator owns query strategy. Runtime query validation may
 // enforce syntax/placeholders and outbound safety, but must not encode publisher,
