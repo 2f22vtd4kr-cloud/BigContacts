@@ -6069,8 +6069,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryVisitHistory = input.mode === "discovery"
     ? (() => {
         const seenWindowHashesByUrl = new Map<string, Set<string>>();
+        const visitScopeKey = discoveryPivotScopeKey(input.objective ?? "");
         const visits = orderedTrajectoryRecords
-          .filter((record) => record.action === "visit" || record.action === "browser_fetch")
+          .filter((record) => (record.action === "visit" || record.action === "browser_fetch")
+            && (record.pivotScopeKey === visitScopeKey || !record.pivotScopeKey))
           .map((record) => {
             const rawUrl = typeof record.args?.url === "string" ? record.args.url : record.observedUrls?.[0] ?? "";
             const url = completePromptUrl(rawUrl) ?? rawUrl;
@@ -6093,6 +6095,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
               action: record.action,
               execution: record.execution,
               url,
+              readSource: typeof record.args?.pageReadSource === "string" ? record.args.pageReadSource : null,
               window: offset !== null || nextOffset !== null
                 ? { start: offset ?? 0, end: nextOffset }
                 : "unspecified",
