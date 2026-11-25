@@ -39,9 +39,10 @@ const appendsBoundedLatestEvidenceEnvelope = providerBoundedPromptSource.include
   && /return (?:reportPromptMeasurement\(boundedPrompt\)|boundedPrompt);/.test(core)
   && /return (?:reportPromptMeasurement\(providerBoundedPromptWithReviewHandoff\)|providerBoundedPromptWithReviewHandoff);/.test(core)
   && /const latestRecordTail = \[/.test(core)
-  && core.includes("const boundedObservation = compactDurablePromptObservation(")
+  && core.includes("const isLatestSuccessfulObservation =")
+  && core.includes("const boundedObservation = isLatestSuccessfulObservation")
   && core.includes("observationCharsOmittedFromPrompt");
-assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective, latest durable action, bounded fetched excerpt and URL context");
+assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective and latest complete successful observation within the exact provider token ceiling");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(core.includes("const allPromptRecords = sanitizeObservableValue(") && core.includes("const { pageArtifact: _pageArtifact, ...promptRecord } = record;") && core.includes("const promptTrajectoryRecords = allPromptRecords.map(") && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection, excluding full fetched-page artifacts");
 assert(core.includes("const latestRecordTail = [") && core.includes("buildLatestRecordTail()"), "latest durable evidence envelope is assembled from the trajectory record");
