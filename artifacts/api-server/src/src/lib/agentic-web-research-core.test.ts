@@ -2412,11 +2412,11 @@ describe("Investigator prompt architecture", () => {
 
     expect(prompt).not.toContain(fetchedObservation);
     expect(prompt).toContain("OBSERVATION PROJECTION");
-    // Search results and fetched PDF text are bounded prompt projections; full observations remain durable.
-    expect(prompt).not.toContain(latestObservation);
+    // The latest successful search is complete; only older turns are compacted.
+    expect(prompt).toContain(latestObservation);
     expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
-    expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
-    expect(prompt).toContain("[OBSERVATION PROJECTION: omitted text is unknown; full observation remains in immutable case events; exact URLs are preserved separately]");
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
     expect(prompt).toContain("observationCharsOmittedFromPrompt");
     expect(prompt).toContain("PDF_OWNERSHIP_CLAIM_SENTINEL");
     expect(prompt).toContain(fetchedUrl);
@@ -5185,8 +5185,8 @@ describe("single fetched page organization identity", () => {
   });
 });
 
-describe("latest fetched source evidence survives emergency Investigator compaction", () => {
-  it("samples fetched-page context across the retained page window and exposes its continuation cursor", () => {
+describe("latest Investigator observations remain complete within the provider token ceiling", () => {
+  it("preserves the complete latest fetched-page window and exposes its continuation cursor", () => {
     const sourceUrl = "https://www.openvc.app/investor-lists/angel-investors";
     const observation = "PAGE_START_SENTINEL " + "A".repeat(8_000)
       + " MIDDLE_DIRECTORY_LEAD_SENTINEL: WIT Angels Club and Golden Seeds are listed here. "
@@ -5223,14 +5223,46 @@ describe("latest fetched source evidence survives emergency Investigator compact
       actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
     });
 
-    expect(prompt).toContain("PAGE EXCERPT 2");
+    expect(prompt).toContain("PAGE_START_SENTINEL");
     expect(prompt).toContain("MIDDLE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain("LATE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain('"pageReadOffset":0');
     expect(prompt).toContain('"pageReadNextOffset":16000');
     expect(prompt).toContain('"pageHasMore":true');
-    expect(prompt).not.toContain("PAGE CONTENT CONTINUES");
-    expect(prompt).not.toContain(observation);
+    expect(prompt).toContain("PAGE CONTENT CONTINUES");
+    expect(prompt).toContain(observation);
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
+  });
+
+  it("passes all ten recorded Serper results with complete title, URL and snippet text", () => {
+    const results = Array.from({ length: 10 }, (_, index) => [
+      `RESULT_${index + 1}_TITLE`,
+      `URL: https://serper.example.test/result-${index + 1}`,
+      `RESULT_${index + 1}_SNIPPET contains a complete observation sentinel.`,
+    ].join("\n")).join("\n\n");
+    const urls = Array.from({ length: 10 }, (_, index) => `https://serper.example.test/result-${index + 1}`);
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people who can realistically be contacted.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 7, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+        args: { query: "localized primary-source company discovery", provider: "serper" },
+        observation: results, observedUrls: [], leadUrls: urls, findings: [],
+      }],
+      lastObservation: results,
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(results);
+    for (let index = 1; index <= 10; index += 1) {
+      expect(prompt).toContain(`RESULT_${index}_TITLE`);
+      expect(prompt).toContain(`https://serper.example.test/result-${index}`);
+      expect(prompt).toContain(`RESULT_${index}_SNIPPET`);
+    }
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
   });
 
   it("carries multiple recent successful fetched sources into the next discovery decision", () => {
