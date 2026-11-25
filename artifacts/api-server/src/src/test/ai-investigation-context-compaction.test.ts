@@ -1382,4 +1382,47 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("Dana Sample");
   });
 
+  it("AI-compacts the observed 146k retained case context within bounded Right-hand request limits", async () => {
+    const prefix = "HISTORICAL MEMORY START\\n";
+    const unit = "Source-backed observations, provenance, uncertainty and unresolved research questions remain durable. ";
+    const source = (prefix + unit.repeat(Math.ceil((146_338 - prefix.length) / unit.length))).slice(0, 146_338);
+    expect(source).toHaveLength(146_338);
+
+    rightHandMocks.runGroqRightHandFreeJson.mockResolvedValue({
+      model: "openai/gpt-oss-20b",
+      raw: JSON.stringify({
+        summary: "The retained historical segment preserves source-stage distinctions, provenance, uncertainty and unresolved questions.",
+      }),
+      error: null,
+      attempts: [],
+    });
+
+    const summary = await summarizeInvestigatorContextWithAiCompactor({
+      rawContext: source,
+      maxChars: 7_000,
+      jobId: "job-146k-context-regression",
+      caseId: 1,
+      turn: 14,
+      compactionKind: "historical_memory",
+    });
+
+    expect(summary).toBeTruthy();
+    expect(summary!.length).toBeLessThanOrEqual(7_000);
+    // 146,338 characters require 13 lossless 12k transport segments plus one
+    // model-written consolidation. No segment or decision is hardcoded.
+    expect(rightHandMocks.runGroqRightHandFreeJson).toHaveBeenCalledTimes(14);
+    for (const call of rightHandMocks.runGroqRightHandFreeJson.mock.calls) {
+      expect(String(call[0] ?? "").length).toBeLessThanOrEqual(20_000);
+      expect(call[5]).toMatchObject({
+        preferredModel: "openai/gpt-oss-20b",
+        allowModelFallback: false,
+      });
+      expect(call[4]).toMatchObject({
+        jobId: "job-146k-context-regression",
+        caseId: 1,
+        cognitiveTask: "context_compaction",
+      });
+    }
+  });
+
 });
