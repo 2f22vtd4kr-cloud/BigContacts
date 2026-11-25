@@ -6681,6 +6681,8 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   const searchRequests = new Map<string, { query: string; provider: string; count: number }>();
   const repeatedUrls = new Map<string, number>();
   const hostCounts = new Map<string, number>();
+  const seenSearchResultUrls = new Set<string>();
+  const searchHistoryFacts: string[] = [];
   let emptyResultCount = 0;
   let emptyTerminalCount = 0;
   const emptyResultPattern = /\b(?:no (?:usable )?results?|returned no usable result|no (?:registry|platform|matching) hits|0 results|zero results|empty results?|no matching (?:records|profiles|pages)|access denied|captcha|paywall|challenge page)\b/i;
@@ -6698,6 +6700,35 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   };
 
   for (const record of recent) {
+    const isSearchAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
+    if (isSearchAction) {
+      const queryValues: string[] = [];
+      if (record.action === "web_search" || record.action === "registry_search") {
+        const query = cleanText(record.args.query, 300);
+        if (query) queryValues.push(query);
+      } else if (Array.isArray(record.args.searches)) {
+        for (const item of record.args.searches) {
+          if (!item || typeof item !== "object") continue;
+          const query = cleanText((item as Record<string, unknown>).query, 300);
+          if (query) queryValues.push(query);
+        }
+      }
+      const resultUrls = [...new Set((record.leadUrls ?? []).map((url) => normalizedActionResourceUrl(url)).filter((url): url is string => Boolean(url)))];
+      let newUrls = 0;
+      let repeatedResultUrls = 0;
+      for (const url of resultUrls) {
+        if (seenSearchResultUrls.has(url)) repeatedResultUrls += 1;
+        else { newUrls += 1; seenSearchResultUrls.add(url); }
+      }
+      searchHistoryFacts.push(
+        "turn " + record.turn
+        + " " + record.action
+        + "; queries=" + (queryValues.length ? queryValues.map((query) => JSON.stringify(query)).join(" || ") : "(query unavailable)")
+        + "; result URLs=" + resultUrls.length
+        + "; new=" + newUrls
+        + "; repeats=" + repeatedResultUrls,
+      );
+    }
     if (record.action === "web_search") {
       addSearchRequest(record.args.query, record.args.provider, record.args.locale, record.args.market);
     } else if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
@@ -6786,10 +6817,18 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     cues.push("Three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This suggestion does not mandate visiting, browsing, or any particular provider.");
   }
 
-  if (!cues.length) return null;
-  return "Advisory only: discovery liveness context, not an ordered route. "
-    + cues.join(" ")
-    + " Reassess whether the current hypothesis is producing objective-relevant evidence; do not merely rephrase a low-yield search or fetch every remaining URL. Choose any objective-fit alternative question, falsification step, or stopping point from the evidence; no tool, provider, page, source family, or hop order is prescribed.";
+  const searchFacts = searchHistoryFacts.length
+    ? "SEARCH HISTORY FACTS (observed trajectory only; not a keyword gate, quota, or prescribed route): "
+      + searchHistoryFacts.slice(-20).join(" || ")
+      + ". New/repeat counts compare exact normalized result URLs across the displayed search actions; they do not judge query meaning or relevance."
+    : "";
+  if (!cues.length && !searchFacts) return null;
+  const advisory = cues.length
+    ? "Advisory only: discovery liveness context, not an ordered route. "
+      + cues.join(" ")
+      + " Reassess whether the current hypothesis is producing objective-relevant evidence; do not merely rephrase a low-yield search or fetch every remaining URL. Choose any objective-fit alternative question, falsification step, or stopping point from the evidence; no tool, provider, page, source family, or hop order is prescribed."
+    : "";
+  return [searchFacts, advisory].filter(Boolean).join("\n");
 }
 const DISCOVERY_EXTERNAL_ACTIONS = new Set([
   "web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search",
