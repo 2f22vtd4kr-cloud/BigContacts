@@ -6263,8 +6263,21 @@ describe("model-led discovery adaptation and advisory continuity", () => {
       }) as Record<string, unknown>;
       expect(lowRequest.reasoning_effort).toBe("low");
       expect(mediumRequest.reasoning_effort).toBe("medium");
-      const withoutReasoningEffort = (request: Record<string, unknown>) =>
-        Object.fromEntries(Object.entries(request).filter(([key]) => key !== "reasoning_effort"));
+      const normalizeRandomizedEnums = (value: unknown): unknown => {
+        if (Array.isArray(value)) return value.map(normalizeRandomizedEnums);
+        if (!value || typeof value !== "object") return value;
+        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+          key,
+          key === "enum" && Array.isArray(child)
+            ? [...child].sort((a, b) => String(a).localeCompare(String(b)))
+            : normalizeRandomizedEnums(child),
+        ]));
+      };
+      const withoutReasoningEffort = (request: Record<string, unknown>) => {
+        const normalized = normalizeRandomizedEnums(request) as Record<string, unknown>;
+        const { reasoning_effort: _reasoningEffort, ...stableRequest } = normalized;
+        return stableRequest;
+      };
       expect(withoutReasoningEffort(mediumRequest)).toEqual(withoutReasoningEffort(lowRequest));
     } finally {
       vi.unstubAllEnvs();
