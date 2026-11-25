@@ -6229,7 +6229,9 @@ describe("model-led discovery adaptation and advisory continuity", () => {
       SEC_USER_AGENT: "Apex Atlas research",
     })).toBeNull();
     expect(directFetchUserAgent("https://example.org/page", {})).toContain("ApexAtlas/1.0");
+    vi.stubEnv("SEC_USER_AGENT", "Apex Atlas research ops@example.org");
     expect(getAvailableBrowserFetchProviders()).toContain("direct");
+    vi.unstubAllEnvs();
   });
 
   it("allows a medium reasoning-effort experiment for supported Investigator models", () => {
