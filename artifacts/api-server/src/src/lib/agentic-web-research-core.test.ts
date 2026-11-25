@@ -6237,6 +6237,12 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     vi.unstubAllEnvs();
   });
 
+  it("persists upstream provider failures even when a later fetch provider succeeds", () => {
+    expect(agenticCoreSource).toContain("if (result.failures?.length)");
+    expect(agenticCoreSource).toContain("upstreamHttpStatus: failure.status");
+    expect(agenticCoreSource).toContain("errorBody: failure.body");
+  });
+
   it("allows a medium reasoning-effort experiment for supported Investigator models", () => {
     try {
       vi.stubEnv("GROQ_AGENTIC_REASONING_EFFORT", "low");
