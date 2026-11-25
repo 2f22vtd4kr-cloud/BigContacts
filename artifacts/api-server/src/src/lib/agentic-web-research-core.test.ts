@@ -6213,11 +6213,14 @@ describe("model-led discovery adaptation and advisory continuity", () => {
     const advisory = discoverySearchLivenessAdvisory([
       { turn: 1, model: "test", action: "web_search", args: { query: "first distinct query", provider: "serper" }, execution: "success", observation: "results", observedUrls: [], leadUrls: ["https://example.org/a", "https://example.org/b"], findings: [], providerFallback: [] },
       { turn: 2, model: "test", action: "web_search", args: { query: "near duplicate wording query", provider: "serper" }, execution: "success", observation: "results", observedUrls: [], leadUrls: ["https://example.org/b", "https://example.org/c"], findings: [], providerFallback: [] },
+      { turn: 3, model: "test", action: "web_search", args: { query: "third independent query", provider: "serper" }, execution: "success", observation: "results", observedUrls: [], leadUrls: ["https://example.org/a", "https://example.org/d", "https://example.org/d"], findings: [], providerFallback: [] },
     ]);
     expect(advisory).toContain('"first distinct query"');
     expect(advisory).toContain('"near duplicate wording query"');
     expect(advisory).toContain("result URLs=2; new=2; repeats=0");
     expect(advisory).toContain("result URLs=2; new=1; repeats=1");
+    expect(advisory).toContain('"third independent query"');
+    expect(advisory).toContain("result URLs=3; new=1; repeats=2");
     expect(advisory).toContain("not a keyword gate");
   });
 
