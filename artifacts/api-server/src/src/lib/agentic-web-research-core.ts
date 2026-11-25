@@ -6227,21 +6227,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       .map((value) => completePromptUrl(value))
       .filter((value): value is string => Boolean(value));
     const rawObservation = record.observation ?? "";
-    // Search responses are unverified lead context, including partial results,
-    // not fetched evidence. Bound them even when the search itself is the newest
-    // action; otherwise the latest-record envelope can reintroduce the full
-    // provider response after the historical carry-forward copy is compacted.
-    // Fetched-page observations are projected to a bounded head/tail excerpt; the complete source remains in immutable case events.
-    // The newest successful external observation is the Investigator's live evidence
-    // surface. Preserve it whole: search results are title/URL/snippet triples and
-    // fetched-page records are sequential retained-page windows. Older turns alone
-    // are compacted; the immutable event ledger remains authoritative.
-    // Preserve the complete latest result/page window only within explicit
-    // transport bounds. Oversized observations remain recoverable in the
-    // immutable event ledger and use the same URL-safe projection as older turns.
-    // The newest successful search and fetched-page window are the live
-    // evidence surface. Pass their raw observation without sampling or clipping.
-    // Provider-token fitting removes older history and auxiliary state first.
+    // Search responses remain unverified lead context, but every result from
+    // the newest successful search is passed through whole. The newest
+    // successful fetched page window is also passed through whole. Older turns
+    // alone are compacted; older page turns use one contiguous excerpt rather
+    // than head/middle/tail sampling, and can be revisited by sequential offset.
     const isLatestSuccessfulObservation = (
       record === latestRecord || record === latestSuccessfulSearchRecord
     )
