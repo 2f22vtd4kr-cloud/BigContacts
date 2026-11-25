@@ -544,10 +544,10 @@ describe("Groq Investigator runtime contract", () => {
     const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(terminalOnlyUser).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
+    expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
     expect(submitted).toContain("No fixed source/provider/registry order or mix.");
-    expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(submitted).toContain("Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(submitted).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
