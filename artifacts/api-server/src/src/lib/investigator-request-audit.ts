@@ -11,7 +11,7 @@ type AuditEnvironment = { NODE_ENV?: string; APEX_CAPTURE_INVESTIGATOR_REQUESTS?
 type AuditWriter = (line: string) => unknown;
 
 const SAFE_REQUEST_BODY_KEYS = new Set([
-  "include_reasoning", "max_completion_tokens", "max_tokens", "messages", "model",
+  "include_reasoning", "max_completion_tokens", "max_tokens", "messages", "model", "reasoning_effort",
   "reasoning_format", "response_format", "seed", "stop", "stream", "temperature",
   "tool_choice", "tools", "top_p",
 ]);

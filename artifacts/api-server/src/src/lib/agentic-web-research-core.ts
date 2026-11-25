@@ -520,7 +520,7 @@ export function buildDiscoveryRetrievalFeedback(records: readonly AgenticTraject
 
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; researchOutcome?: "evidence_backed" | "inconclusive"; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled" | "budget_exhausted"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "OVERSIGHT_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR" | "DAILY_TOKEN_BUDGET_EXHAUSTED" | "USAGE_LEDGER_UNAVAILABLE" | "PROVIDER_CONTRACT_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number; aiCompactedHistoricalContext?: string; aiCompactedHistoricalThroughTurn?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
-type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider?: "serper" | "tavily" | "exa" | null; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
+type AgentAction = { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider?: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; sources: string[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright" | "direct"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider?: "serper" | "tavily" | "exa" | null; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[]; rationaleIncomplete?: boolean; requestedAction?: string; requestedProvider?: string; normalizationReason?: string };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 // The latest raw observation is a protected evidence window; its size is budgeted from Groq TPM.
@@ -2123,7 +2123,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
   } else if (action === "visit" && !isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=visit invalid=url";
   else if (action === "browser_fetch") {
     if (!isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=browser_fetch invalid=url";
-    if (!["scrapfly", "zenrows", "browserless", "playwright"].includes(provider)) return "invalid_action_arguments action=browser_fetch invalid=provider";
+    if (!["scrapfly", "zenrows", "browserless", "playwright", "direct"].includes(provider)) return "invalid_action_arguments action=browser_fetch invalid=provider";
   } else if (action === "footprint_email" && !textField("email", 120).includes("@")) return "invalid_action_arguments action=footprint_email invalid=email";
   else if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && textField("username", 80).replace(/^@/, "").length < 2) return `invalid_action_arguments action=${action} invalid=username`;
   else if (action === "domain_lookup") {
@@ -2527,7 +2527,7 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
       validSearches.push({ query: search.query, registry: search.registry, purpose: search.purpose });
     }
     return { action: "parallel_registry_search", searches: validSearches, thought: cleanText(value.thought, 500) || undefined, ...meta };
-  } const webSearchProvider = cleanText(value.provider, 20); if (action === "web_search" && cleanText(value.query, 300) && (!webSearchProvider || ["serper", "tavily", "exa"].includes(webSearchProvider))) return { action: "web_search", query: cleanText(value.query, 300), ...(webSearchProvider ? { provider: webSearchProvider as "serper" | "tavily" | "exa" } : {}), locale: typeof value.locale === "string" && value.locale.trim().length <= 16 ? cleanText(value.locale, 16) || undefined : undefined, market: typeof value.market === "string" && value.market.trim().length <= 16 ? cleanText(value.market, 16) || undefined : undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; const domainLookupProvider = cleanText(value.provider, 30); if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && (!domainLookupProvider || ["rdap","whoisjson"].includes(domainLookupProvider))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, ...(domainLookupProvider ? { provider: domainLookupProvider as "rdap" | "whoisjson" } : {}), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) { const registry = normalizeRegistryId(cleanText(value.registry, 60)); if (!registry || !getAvailableRegistryIdsForPrompt().includes(registry)) return null; return { action: "registry_search", query: cleanText(value.query, 200), registry, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) { const sources = normalizeHarvesterSourceSelection(value.sources); if (!sources) return null; return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, sources, thought: cleanText(value.thought, 500) || undefined, ...meta }; } const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","phone","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
+  } const webSearchProvider = cleanText(value.provider, 20); if (action === "web_search" && cleanText(value.query, 300) && (!webSearchProvider || ["serper", "tavily", "exa"].includes(webSearchProvider))) return { action: "web_search", query: cleanText(value.query, 300), ...(webSearchProvider ? { provider: webSearchProvider as "serper" | "tavily" | "exa" } : {}), locale: typeof value.locale === "string" && value.locale.trim().length <= 16 ? cleanText(value.locale, 16) || undefined : undefined, market: typeof value.market === "string" && value.market.trim().length <= 16 ? cleanText(value.market, 16) || undefined : undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; const domainLookupProvider = cleanText(value.provider, 30); if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && (!domainLookupProvider || ["rdap","whoisjson"].includes(domainLookupProvider))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, ...(domainLookupProvider ? { provider: domainLookupProvider as "rdap" | "whoisjson" } : {}), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) { const registry = normalizeRegistryId(cleanText(value.registry, 60)); if (!registry || !getAvailableRegistryIdsForPrompt().includes(registry)) return null; return { action: "registry_search", query: cleanText(value.query, 200), registry, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) { const sources = normalizeHarvesterSourceSelection(value.sources); if (!sources) return null; return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, sources, thought: cleanText(value.thought, 500) || undefined, ...meta }; } const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","phone","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright","direct"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright" | "direct", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
     const findings: AgenticFinding[] = [];
     for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) {
       if (!rawFinding || typeof rawFinding !== "object") continue;
@@ -4023,7 +4023,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     // subset. The runtime parser remains authoritative for action/provider
     // combinations and cardinality, so those safety checks are not weakened.
     query: { type: ["string","null"] },
-    provider: { type: "string", enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright"] },
+    provider: { type: "string", enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright","direct"] },
     url: { type: "string" },
     email: { type: "string" },
     username: { type: "string" },
@@ -6662,7 +6662,7 @@ export function discoveryActionAllowlist(_mode: string | undefined, actions: rea
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
-  const recent = records.slice(-12);
+  const recent = records.slice(-20);
   let successfulSearchesSinceObservedSource = 0;
   for (const record of [...records].reverse()) {
     if (record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "parallel_registry_search") {
@@ -6681,6 +6681,8 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   const searchRequests = new Map<string, { query: string; provider: string; count: number }>();
   const repeatedUrls = new Map<string, number>();
   const hostCounts = new Map<string, number>();
+  const seenSearchResultUrls = new Set<string>();
+  const searchHistoryFacts: string[] = [];
   let emptyResultCount = 0;
   let emptyTerminalCount = 0;
   const emptyResultPattern = /\b(?:no (?:usable )?results?|returned no usable result|no (?:registry|platform|matching) hits|0 results|zero results|empty results?|no matching (?:records|profiles|pages)|access denied|captcha|paywall|challenge page)\b/i;
@@ -6698,6 +6700,35 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   };
 
   for (const record of recent) {
+    const isSearchAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
+    if (isSearchAction && Array.isArray(record.leadUrls)) {
+      const queryValues: string[] = [];
+      if (record.action === "web_search" || record.action === "registry_search") {
+        const query = cleanText(record.args.query, 300);
+        if (query) queryValues.push(query);
+      } else if (Array.isArray(record.args.searches)) {
+        for (const item of record.args.searches) {
+          if (!item || typeof item !== "object") continue;
+          const query = cleanText((item as Record<string, unknown>).query, 300);
+          if (query) queryValues.push(query);
+        }
+      }
+      const resultUrls = (record.leadUrls ?? []).map((url) => normalizedActionResourceUrl(url)).filter((url): url is string => Boolean(url));
+      let newUrls = 0;
+      let repeatedResultUrls = 0;
+      for (const url of resultUrls) {
+        if (seenSearchResultUrls.has(url)) repeatedResultUrls += 1;
+        else { newUrls += 1; seenSearchResultUrls.add(url); }
+      }
+      searchHistoryFacts.push(
+        "turn " + record.turn
+        + " " + record.action
+        + "; queries=" + (queryValues.length ? queryValues.map((query) => JSON.stringify(query)).join(" || ") : "(query unavailable)")
+        + "; result URLs=" + resultUrls.length
+        + "; new=" + newUrls
+        + "; repeats=" + repeatedResultUrls,
+      );
+    }
     if (record.action === "web_search") {
       addSearchRequest(record.args.query, record.args.provider, record.args.locale, record.args.market);
     } else if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
@@ -6786,10 +6817,18 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     cues.push("Three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This suggestion does not mandate visiting, browsing, or any particular provider.");
   }
 
-  if (!cues.length) return null;
-  return "Advisory only: discovery liveness context, not an ordered route. "
-    + cues.join(" ")
-    + " Reassess whether the current hypothesis is producing objective-relevant evidence; do not merely rephrase a low-yield search or fetch every remaining URL. Choose any objective-fit alternative question, falsification step, or stopping point from the evidence; no tool, provider, page, source family, or hop order is prescribed.";
+  const searchFacts = searchHistoryFacts.length
+    ? "SEARCH HISTORY FACTS (observed trajectory only; not a keyword gate, quota, or prescribed route): "
+      + searchHistoryFacts.join(" || ")
+      + ". New/repeat counts compare exact normalized result URLs across the displayed search actions; they do not judge query meaning or relevance."
+    : "";
+  if (!cues.length && !searchFacts) return null;
+  const advisory = cues.length
+    ? "Advisory only: discovery liveness context, not an ordered route. "
+      + cues.join(" ")
+      + " Reassess whether the current hypothesis is producing objective-relevant evidence; do not merely rephrase a low-yield search or fetch every remaining URL. Choose any objective-fit alternative question, falsification step, or stopping point from the evidence; no tool, provider, page, source family, or hop order is prescribed."
+    : "";
+  return [searchFacts, advisory].filter(Boolean).join("\n");
 }
 const DISCOVERY_EXTERNAL_ACTIONS = new Set([
   "web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search",
@@ -7691,10 +7730,25 @@ const communityText = browserObservationText;
 lastObservation = result.html
   ? `BROWSER_FETCH provider=${result.provider} requested_url=${sanitizeUrlForEvidence(action.url)}
 ${observedBrowserUrl ? `VERIFIED_FINAL_URL: ${observedBrowserUrl}` : "SOURCE_URL_UNVERIFIED: provider did not attest final navigation URL; use this content as a lead, not claim-grade source evidence."}
+${result.failures?.length ? "PROVIDER_FAILURES_BEFORE_SUCCESS: " + result.failures.map((failure) => `${failure.provider}:http=${failure.status ?? "none"}:body=${(failure.body ?? "").replace(/[\r\n]+/g, " ").slice(0, 1_000)}:error=${failure.error ?? "none"}`).join(" || ") : ""}
 ${communityText}${communityObservationSource ? "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : ""}${browserHasMore ? browserPageRetained ? "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run. Request browser_fetch or visit again for this exact URL to read the next section without another network request.]" : "\n[PAGE OBSERVATION TRUNCATED; no readable continuation is available because the run retention budget was reached.]" : ""}`
-  : `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${result.provider}`;
+  : `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${result.provider}; attemptedProviders=${(result.attemptedProviders ?? []).join("|") || action.provider}; providerFailures=${(result.failures ?? []).map((failure) => `${failure.provider}:http=${failure.status ?? "none"}:body=${(failure.body ?? "").replace(/[\r\n]+/g, " ").slice(0, 1_000)}:error=${failure.error ?? "none"}`).join(" || ") || "none"}`;
 record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "error";
-if (!result.html) { record.failureDomain = "external_page_fetch"; record.failureKind = "request_failure"; }
+if (result.failures?.length) {
+  record.args = {
+    ...record.args,
+    providerFailures: result.failures.map((failure) => ({
+      provider: failure.provider,
+      upstreamHttpStatus: failure.status,
+      errorBody: failure.body,
+      error: failure.error,
+    })),
+  };
+}
+if (!result.html) {
+  record.failureDomain = "external_page_fetch";
+  record.failureKind = "request_failure";
+}
 record.observation = lastObservation;
 if (result.html) {
   const browserArtifactWillPersist = Boolean(browserPageRetained && (input.onTrajectoryRecord || input.pageArtifactPersistenceAvailable));

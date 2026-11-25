@@ -88,6 +88,10 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Do not leave schema mutation enabled for ordinary runtime boot. Follow the repository's current setup and preflight scripts rather than copying old environment-variable lists from historical handoffs. Never commit or print secret values.
 
+### SEC EDGAR direct-fetch identity
+
+The browser fetch adapter includes a safe direct HTTP fallback. Before it sends a direct request to `sec.gov` or a subdomain, configure `SEC_USER_AGENT` with an identifying Apex Atlas application name and a monitored contact email, for example `Apex Atlas research ops@your-domain.example`. Replace the example address with an address you control; do not use the placeholder literally. Without this value, the direct SEC attempt is recorded as not sent. See [docs/SEC_EDGAR_FETCH.md](./docs/SEC_EDGAR_FETCH.md).
+
 ## Specialist Python OSINT tools
 
 The repository includes worker-backed adapters for Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot. Their code presence does not mean they are available in a running environment.

@@ -134,6 +134,7 @@ describe("hosted browser fetch final-URL provenance", () => {
   });
 
   it("rejects malformed Scrapfly content instead of treating an object length as HTML", async () => {
+    vi.stubEnv("ZENROWS_API_KEY", "");
     vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
       result: { content: { length: html.length + 1 }, url: "https://research.example/article/final" },
     }), { headers: { "content-type": "application/json" } }));
@@ -141,7 +142,13 @@ describe("hosted browser fetch final-URL provenance", () => {
     await expect(browserFetchHtml("https://research.example/article", {
       provider: "scrapfly",
       scope: "scrapfly-malformed-content-test",
-    })).resolves.toEqual({ html: "", provider: "scrapfly", observedUrl: null });
+    })).resolves.toEqual({
+      html: "",
+      provider: "scrapfly",
+      observedUrl: null,
+      attemptedProviders: ["scrapfly"],
+      failures: [],
+    });
   });
 
   it("threads the caller AbortSignal through wrapper, provider fetch, and observed-final-URL validation", async () => {

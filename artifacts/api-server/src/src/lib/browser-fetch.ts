@@ -1,6 +1,6 @@
 import { assertSafeOutboundUrl } from "./ssrf-safe-fetch";
 import { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml } from "./browser-fetch-core";
-import { browserFetchHtml as unsafeBrowserFetchHtml, type BrowserProvider } from "./browser-fetch-core";
+import { browserFetchHtml as unsafeBrowserFetchHtml, type BrowserFetchFailure, type BrowserProvider } from "./browser-fetch-core";
 import { runProviderCall } from "./provider-gate";
 
 export { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
@@ -8,7 +8,7 @@ export { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFet
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[] }> {
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[]; failures?: BrowserFetchFailure[] }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   if (!isBrowserFetchProviderAvailable(options.provider)) {
     return { html: "", provider: "provider_unavailable", observedUrl: null };

@@ -7,7 +7,8 @@ import { getAgenticExecutionScope } from "./agentic-execution-context";
 import { logger } from "./logger";
 import { runProviderCall } from "./provider-gate";
 
-export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwright";
+export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwright" | "direct";
+export type BrowserFetchFailure = { provider: string; status: number | null; body: string | null; error: string | null };
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Report the actual browser provider used after the model-selected preference. */
@@ -36,6 +37,11 @@ export function getAvailableBrowserFetchProviders(): BrowserProvider[] {
   if (Boolean(process.env.SCRAPFLY_API_KEY?.trim())) available.push("scrapfly");
   if (Boolean(process.env.ZENROWS_API_KEY?.trim())) available.push("zenrows");
   if (Boolean(process.env.BROWSERLESS_TOKEN?.trim())) available.push("browserless");
+  // Direct retrieval is advertised only when explicitly enabled, or when a
+  // compliant SEC identity is configured for the primary SEC.gov use case.
+  if (process.env.APEX_BROWSER_FETCH_DIRECT_ENABLED === "1" || Boolean(process.env.SEC_USER_AGENT?.trim())) {
+    available.push("direct");
+  }
   const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true";
   if (playwrightEnabled) {
     try {
@@ -109,6 +115,20 @@ async function verifiedProviderFinalUrl(rawUrl: unknown, signal?: AbortSignal): 
     return null;
   }
 }
+async function readFailureBody(response: Response): Promise<string | null> {
+  try {
+    const body = await response.text();
+    if (!body) return null;
+    return body.slice(0, 1_500)
+      .replace(/(api[_-]?key|token|authorization|password)(["'\s:=]+)[^"'\s,}]+/gi, "$1$2[REDACTED]")
+      .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]");
+  } catch {
+    return null;
+  }
+}
+function safeFetchError(error: unknown): string {
+  return safeThrownErrorSummary("Browser provider request failed", error).slice(0, 400);
+}
 async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
   const key = process.env.SCRAPFLY_API_KEY ?? "";
   if (!key) return { html: null, observedUrl: null };
@@ -120,7 +140,7 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     u.searchParams.set("asp", "true");
     u.searchParams.set("render_js", "true");
     const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
-    if (!resp.ok) return { html: null, observedUrl: null };
+    if (!resp.ok) return { html: null, observedUrl: null, failure: { provider: "scrapfly", status: resp.status, body: await readFailureBody(resp), error: null } };
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
     const rawHtml = data?.result?.content;
     // Provider JSON is untrusted runtime input despite the generic response type.
@@ -138,8 +158,9 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     return { html: usable ? html : null, observedUrl };
   } catch (err: any) {
     if (signal?.aborted) throw new Error("browser fetch cancelled");
-    logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed");
-    return { html: null, observedUrl: null };
+    const error = safeFetchError(err);
+    logger.debug({ error, url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed");
+    return { html: null, observedUrl: null, failure: { provider: "scrapfly", status: null, body: null, error } };
   }
 }
 async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
@@ -153,7 +174,7 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     u.searchParams.set("js_render", "true");
     u.searchParams.set("premium_proxy", "true");
     const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
-    if (!resp.ok) return { html: null, observedUrl: null };
+    if (!resp.ok) return { html: null, observedUrl: null, failure: { provider: "zenrows", status: resp.status, body: await readFailureBody(resp), error: null } };
     const html = await readResponseTextCapped(resp, signal);
     const usable = isUsableBrowserHtml(html);
     const reportedUrl = resp.headers.get("Zr-Final-Url");
@@ -166,12 +187,66 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     return { html: usable ? html : null, observedUrl };
   } catch (err: any) {
     if (signal?.aborted) throw new Error("browser fetch cancelled");
-    logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed");
-    return { html: null, observedUrl: null };
+    const error = safeFetchError(err);
+    logger.debug({ error, url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed");
+    return { html: null, observedUrl: null, failure: { provider: "zenrows", status: null, body: null, error } };
   }
 }
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "browserless content fetch failed"); return null; } }
-type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
+type BrowserFetchAttempt = { html: string | null; observedUrl: string | null; failure?: BrowserFetchFailure };
+
+function isSecHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return host === "sec.gov" || host.endsWith(".sec.gov");
+}
+
+/** SEC policy requires an identifying application and contact email in User-Agent. */
+export function directFetchUserAgent(url: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  let host = "";
+  try { host = new URL(url).hostname; } catch { return null; }
+  if (isSecHost(host)) {
+    const configured = env.SEC_USER_AGENT?.trim() ?? "";
+    return configured && /apex\s*atlas/i.test(configured) && /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(configured) ? configured : null;
+  }
+  return env.APEX_BROWSER_FETCH_USER_AGENT?.trim() || "ApexAtlas/1.0 (+https://github.com/2f22vtd4kr-cloud/BigContacts)";
+}
+
+async function fetchViaDirect(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
+  const userAgent = directFetchUserAgent(url);
+  if (!userAgent) return { html: null, observedUrl: null, failure: { provider: "direct", status: null, body: null, error: "SEC_USER_AGENT is missing or does not contain a contact email; direct SEC.gov request was not sent." } };
+  let currentUrl = url;
+  try {
+    for (let redirects = 0; redirects <= 5; redirects += 1) {
+      throwIfAborted(signal);
+      await assertSafeOutboundUrl(currentUrl, signal);
+      const response = await safeOutboundFetch(currentUrl, {
+        method: "GET",
+        headers: { "User-Agent": userAgent, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" },
+        redirect: "manual",
+        signal: signal ?? AbortSignal.timeout(timeoutMs()),
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => undefined);
+        if (!location || redirects === 5) return { html: null, observedUrl: null, failure: { provider: "direct", status: response.status, body: null, error: "Redirect chain missing Location or exceeded five hops." } };
+        currentUrl = new URL(location, currentUrl).href;
+        continue;
+      }
+      const body = await readResponseTextCapped(response, signal);
+      if (!response.ok) return { html: null, observedUrl: null, failure: { provider: "direct", status: response.status, body: body.slice(0, 1_500) || null, error: null } };
+      const usable = isUsableBrowserHtml(body);
+      const observedUrl = usable ? await verifiedProviderFinalUrl(currentUrl, signal) : null;
+      return usable
+        ? { html: body, observedUrl, ...(observedUrl ? {} : { failure: { provider: "direct", status: response.status, body: null, error: "Fetched response URL could not be verified." } }) }
+        : { html: null, observedUrl: null, failure: { provider: "direct", status: response.status, body: body.slice(0, 1_500) || null, error: "Response body was not usable HTML/text." } };
+    }
+    return { html: null, observedUrl: null, failure: { provider: "direct", status: null, body: null, error: "Redirect limit exceeded." } };
+  } catch (err) {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
+    const error = safeFetchError(err);
+    return { html: null, observedUrl: null, failure: { provider: "direct", status: null, body: null, error } };
+  }
+}
 
 async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal: AbortSignal | undefined, budget: PlaywrightEgressBudget): Promise<void> {
   const request = route.request();
@@ -306,7 +381,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     return { html: null, observedUrl: null };
   }
 }
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[] }> {
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null; attemptedProviders?: string[]; failures?: BrowserFetchFailure[] }> {
   throwIfAborted(options.signal);
   const availableProviders = getAvailableBrowserFetchProviders();
   if (!availableProviders.includes(options.provider)) {
@@ -334,6 +409,7 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   const attempts: Array<[BrowserProvider, () => Promise<BrowserFetchAttempt>]> = [
     ["scrapfly", () => fetchViaScrapfly(url, options.signal)],
     ["zenrows", () => fetchViaZenRows(url, options.signal)],
+    ["direct", () => runProviderCall({ provider: "direct", account: new URL(url).hostname, scope, signal: options.signal }, () => fetchViaDirect(url, options.signal))],
     ["browserless", async () => ({ html: await fetchViaBrowserlessContent(url, options.signal), observedUrl: null })],
     ["playwright", () => fetchViaPlaywright(url, options.signal)],
   ];
@@ -344,18 +420,20 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   // so a transient anti-bot/provider outage cannot strand every registry lead.
   const fallback = attempts.filter(([provider]) => provider !== options.provider && availableProviders.includes(provider));
   const attemptedProviders: string[] = [];
+  const failures: BrowserFetchFailure[] = [];
   for (const [provider, fn] of [...selected, ...fallback]) {
     throwIfAborted(options.signal);
     attemptedProviders.push(provider);
     const result = await fn();
     if (result.html && !isChallengeHtml(result.html)) {
       logger.info({ url: sanitizeUrlForEvidence(url), provider, bytes: result.html.length, scope, sourceUrlVerified: Boolean(result.observedUrl) }, "browser_fetch ok");
-      return { html: result.html, provider, observedUrl: result.observedUrl, ...(attemptedProviders.length > 1 ? { attemptedProviders } : {}) };
+      return { html: result.html, provider, observedUrl: result.observedUrl, attemptedProviders, ...(failures.length ? { failures } : {}) };
     }
-    if (result.html && isChallengeHtml(result.html)) logger.debug({ url: sanitizeUrlForEvidence(url), provider }, "browser_fetch challenge for model-selected provider");
+    if (result.failure) failures.push(result.failure);
+    if (result.html && isChallengeHtml(result.html)) failures.push({ provider, status: null, body: result.html.slice(0, 1_500), error: "Provider returned a challenge page." });
   }
   logger.info({ url: sanitizeUrlForEvidence(url), provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured");
-  return { html: "", provider: options.provider, observedUrl: null };
+  return { html: "", provider: options.provider, observedUrl: null, attemptedProviders, failures };
 }
 
 export function browserFetchConfigured(): boolean { return getAvailableBrowserFetchProviders().length > 0; }
