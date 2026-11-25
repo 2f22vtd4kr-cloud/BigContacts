@@ -2537,3 +2537,21 @@ html.light main,
   height:22px;
   flex:0 0 20px;
 }
+
+/* Overview: the board has a direct routes column, not a second card around the card. */
+.atlas-round .atlas-home-board-routes {
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.atlas-round .atlas-home-board-console {
+  margin-top:52px!important;
+}
+
+/* Evidence rails are softly rounded, not pill-like. */
+.atlas-round .atlas-evidence-pattern {
+  border-radius:4px!important;
+}
