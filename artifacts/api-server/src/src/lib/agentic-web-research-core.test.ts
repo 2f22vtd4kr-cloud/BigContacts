@@ -14,6 +14,37 @@ import { getGroqTokenRequest, resetProviderGateForTests } from "./provider-gate"
 import { buildDiscoverySourceAttribution, extractCommunityObservationMetadata } from "./discovery-source-attribution";
 import { attachDurableFetchedPageArtifacts, replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
 
+describe("fresh successful observations reach the Investigator intact", () => {
+  it("keeps all ten recorded Serper titles and snippets when historical compaction is unavailable", () => {
+    const organic = Array.from({ length: 10 }, (_, index) => ({
+      title: `Recorded Person ${index + 1} — Director`,
+      url: `https://example.com/person-${index + 1}`,
+      snippet: `Recorded snippet identifying Person ${index + 1} and their current professional role.`,
+    }));
+    const observation = organic.map((item) => `${item.title}\nURL: ${item.url}\n${item.snippet}`).join("\n");
+    const searchRecord: AgenticTrajectoryRecord = {
+      turn: 4, model: "recorded-serper", action: "web_search", args: { provider: "serper" },
+      execution: "success", observation, observedUrls: [], leadUrls: organic.map((item) => item.url), findings: [],
+    };
+    const fetchRecord: AgenticTrajectoryRecord = {
+      turn: 5, model: "recorded-fetch", action: "visit", args: { url: "https://example.com/person-1" },
+      execution: "success", observation: "Fetched page window: Recorded Person 1 is listed as Managing Director.",
+      observedUrls: ["https://example.com/person-1"], findings: [],
+    };
+    const prompt = buildInvestigatorContext({
+      targetName: "Recorded case", objective: "Identify relevant public people.",
+      trajectoryRecords: [searchRecord, fetchRecord], lastObservation: fetchRecord.observation ?? "", findings: [],
+      maxChars: 12_000,
+    });
+    for (const item of organic) {
+      expect(prompt).toContain(item.title);
+      expect(prompt).toContain(item.snippet);
+    }
+    expect(prompt).toContain(fetchRecord.observation);
+    expect(prompt).not.toContain("DETERMINISTIC OBSERVATION PROJECTION");
+  });
+});
+
 const outboundMocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
   originalSafeOutboundFetch: null as ((...args: any[]) => any) | null,
