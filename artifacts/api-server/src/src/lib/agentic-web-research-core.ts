@@ -6095,7 +6095,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const normalized = normalizedActionResourceUrl(url);
     return !normalized || !fetchedUrlsAfterLatestSearch.has(normalized);
   });
-  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord && unvisitedSearchLeadUrls.length > 0
+  // Preserve the complete newest successful search observation even when
+  // every returned URL has since been fetched. The snippets still contain
+  // model-visible names and context; only the unresolved lead inventory shrinks.
+  const carryForwardSuccessfulSearch = latestSuccessfulSearchRecord
     ? {
         ...latestSuccessfulSearchRecord,
         leadUrls: unvisitedSearchLeadUrls,
