@@ -7372,12 +7372,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       emit("investigator_fresh_observation_delivery", {
         status: "info",
         summary: "Fresh successful search/fetch observations bypass historical compaction and are included in the Investigator context.",
-        latestSearchTurn: latestSuccessfulSearchRecord?.turn ?? null,
-        latestSearchTitleCount,
-        latestSearchSnippetCount,
-        latestSearchObservationChars: latestSearchObservation.length,
-        latestFetchTurn: latestSuccessfulFetchRecord?.turn ?? null,
-        latestFetchObservationChars: latestSuccessfulFetchRecord?.observation?.length ?? 0,
+        latestSearchTurn: latestSuccessfulSearchRecord ? String(latestSuccessfulSearchRecord.turn) : "none",
+        latestSearchTitleCount: String(latestSearchTitleCount),
+        latestSearchSnippetCount: String(latestSearchSnippetCount),
+        latestSearchObservationChars: String(latestSearchObservation.length),
+        latestFetchTurn: latestSuccessfulFetchRecord ? String(latestSuccessfulFetchRecord.turn) : "none",
+        latestFetchObservationChars: String(latestSuccessfulFetchRecord?.observation?.length ?? 0),
       });
       runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1, Math.max(prompt.length, promptMeasurement.originalPromptChars), input.mode ?? "target"); if (!llm) {
       if (input.investigatorLlm) recordInvestigatorCapabilityRuntimeOutcome(input.investigatorLlm, { success: false, failureClass: "provider_unavailable" });
