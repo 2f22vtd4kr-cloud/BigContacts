@@ -1535,7 +1535,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
     return { text: "serper returned no usable result: missing API key.", urls: [], status: "error", failureClass: "unauthorized" };
   }
   try {
-    const body: Record<string, unknown> = { q: query, num: 6 };
+    const body: Record<string, unknown> = { q: query, num: 10 };
     const language = normalizeSerperLanguage(locale);
     const country = normalizeSerperCountry(market);
     if (language) body.hl = language;
@@ -1565,7 +1565,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
           keys: Object.keys(body).sort(),
           queryChars: query.length,
           queryDigest: digestDiagnosticText(query),
-          num: 6,
+          num: 10,
           localeChars: typeof body.hl === "string" ? body.hl.length : 0,
           marketChars: typeof body.gl === "string" ? body.gl.length : 0,
         },
