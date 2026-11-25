@@ -38,7 +38,6 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { getAgenticLlmTelemetryForJob } from "./agentic-llm-telemetry";
-import { isRestrictedCommunitySourceUrl } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
   /** Operator-controlled maximum number of target investigations; never a candidate admission/relevance rule. */
@@ -103,8 +102,7 @@ function mergeDurablyAdmittedAtlasTargetSources(
       if (!name || !identity) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
-        .filter((url): url is string => url !== null)
-        .filter((url) => !isRestrictedCommunitySourceUrl(url));
+        .filter((url): url is string => url !== null);
       if (!validUrls.length) continue;
       const key = `${targetType}:${identity}`;
       let entry = merged.get(key);
