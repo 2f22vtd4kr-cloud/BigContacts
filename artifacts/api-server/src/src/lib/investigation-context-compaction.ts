@@ -466,11 +466,17 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     budget.recentObservationChars = Math.min(3_000, Math.max(600, Math.floor(input.recentObservationChars)));
   }
   const records = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
-  const latestRecordCount = records.length ? 1 : 0;
-  const recentStart = Math.max(0, records.length - budget.recentFullRecords - latestRecordCount);
-  const recentEnd = Math.max(0, records.length - latestRecordCount);
-  const recent = records.slice(recentStart, recentEnd);
-  const older = records.slice(0, recentStart);
+  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  const latestSuccessfulSearch = [...records].reverse().find((record) => record.execution === "success" && searchActions.has(record.action));
+  const latestSuccessfulFetch = [...records].reverse().find((record) => record.execution === "success" && (record.action === "visit" || record.action === "browser_fetch"));
+  const freshRecords = [...new Set([latestSuccessfulSearch, latestSuccessfulFetch].filter(Boolean))];
+  const freshRecordSet = new Set(freshRecords);
+  const workingRecords = records.filter((record) => !freshRecordSet.has(record));
+  const freshObservationChars = freshRecords.reduce((total, record) => total + (record.observation?.length ?? 0), 0);
+  budget.maxChars = Math.min(MAX_MAX_CHARS, Math.max(budget.maxChars, freshObservationChars + 1_800));
+  const recentStart = Math.max(0, workingRecords.length - budget.recentFullRecords);
+  const recent = workingRecords.slice(recentStart);
+  const older = workingRecords.slice(0, recentStart);
   const sections: string[] = [];
 
   sections.push([
@@ -561,10 +567,19 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   const latestRecordMaxChars = input.recentObservationChars !== undefined
     ? Math.min(1_400, Math.max(700, Math.floor(budget.maxChars * 0.7)))
     : Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18)));
-  const latestSection = records.length
-    ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
-      compactRecord(records[records.length - 1]!, budget.recentObservationChars, latestRecordMaxChars)
-    : "LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)");
+  const latestSection = freshRecords.length
+    ? [
+        "LATEST SUCCESSFUL SOURCE OBSERVATIONS (complete newest search result set and newest fetched-page window; omitted older context is not negative evidence)",
+        ...freshRecords.map((record) => compactRecord(
+          record,
+          record.observation?.length ?? budget.recentObservationChars,
+          Math.max(800, (record.observation?.length ?? 0) + 1_200),
+        )),
+      ].join("\n---\n")
+    : records.length
+      ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
+        compactRecord(records[records.length - 1]!, budget.recentObservationChars, latestRecordMaxChars)
+      : "LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)");
   const latestReserve = Math.min(budget.maxChars, latestSection.length);
 
   let result = "";
