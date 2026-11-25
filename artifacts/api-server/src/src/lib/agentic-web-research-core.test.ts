@@ -5310,6 +5310,44 @@ describe("latest Investigator observations remain complete within the provider t
     expect(prompt).toContain('"observationCharsRaw":');
   });
 
+  it("keeps the latest fetched page window whole when a later search becomes the newest action", () => {
+    const pageText = "FETCHED_PAGE_START " + "Board member and company ownership evidence. ".repeat(100) + "FETCHED_PAGE_END_NAME_LIST_SENTINEL";
+    const searchResults = Array.from({ length: 10 }, (_, index) => [
+      `LATER_SEARCH_RESULT_${index + 1}_TITLE`,
+      `URL: https://later-search.example.test/result-${index + 1}`,
+      `LATER_SEARCH_RESULT_${index + 1}_SNIPPET`,
+    ].join("\n")).join("\n\n");
+    const searchUrls = Array.from({ length: 10 }, (_, index) => `https://later-search.example.test/result-${index + 1}`);
+    const pageUrl = "https://primary-record.example.test/board";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people with realistic public/professional contact routes.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 4_000, pageHasMore: true },
+          observation: pageText, observedUrls: [pageUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+          args: { query: "follow-up localized company search", provider: "serper" },
+          observation: searchResults, observedUrls: [], leadUrls: searchUrls, findings: [],
+        },
+      ],
+      lastObservation: searchResults,
+      aiCompactedHistoricalContext: "Model-authored memory summarized fetched page turn 1.",
+      aiCompactedHistoricalThroughTurn: 1,
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(pageText);
+    expect(prompt).toContain("FETCHED_PAGE_END_NAME_LIST_SENTINEL");
+    expect(prompt).toContain(searchResults);
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
+  });
+
   it("carries multiple recent successful fetched sources into the next discovery decision", () => {
     const firstUrl = "https://investors.example.test/first-source";
     const secondUrl = "https://investors.example.test/second-source";
