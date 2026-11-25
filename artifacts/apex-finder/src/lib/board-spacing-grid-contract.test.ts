@@ -103,15 +103,14 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("display:none!important;");
   });
 
-  it("uses the design-board horizontal navigation and framed desktop shell", () => {
-    expect(layoutSource).toContain('className="atlas-round-primary"');
-    expect(layoutSource).toContain('aria-label="Main navigation"');
+  it("uses the design-board brand/status-only header and framed desktop shell", () => {
+    expect(layoutSource).toContain("atlas-round-header-brand");
+    expect(layoutSource).toContain("atlas-round-header-status");
+    expect(layoutSource).not.toContain("atlas-round-primary");
     expect(layoutSource).not.toContain("atlas-round-sidebar");
     expect(boardCss).toContain("width:min(calc(100% - 32px),1280px)");
     expect(boardCss).toContain("border-radius:20px");
-    const activeRule = lastRule(".atlas-round-shell .atlas-round-primary .atlas-round-navlink.is-active");
-    expect(activeRule).toContain("background:var(--round-raised)!important;");
-    expect(activeRule).toContain("color:var(--round-ink)!important;");
+    expect(lastRule(".atlas-round-shell .atlas-round-header-status")).toContain("margin-left:auto;");
   });
 
   it("keeps the header and API-down shell on one uninterrupted paper surface", () => {
@@ -221,12 +220,14 @@ describe("Apex Atlas design-board and unslop contract", () => {
   });
 
 
-  it("uses the compact design-board phone header without a desktop sidebar", () => {
-    expect(layoutSource).toContain('className="atlas-round-primary"');
+  it("uses the compact design-board phone header without route navigation", () => {
+    expect(layoutSource).toContain("atlas-round-header-brand");
+    expect(layoutSource).toContain("atlas-round-header-status");
+    expect(layoutSource).not.toContain("atlas-round-primary");
     expect(layoutSource).not.toContain("atlas-round-sidebar");
     expect(boardCss).toContain("min-height:calc(100dvh - 8px)");
     expect(boardCss).toContain("height:48px");
-    expect(boardCss).toContain("display:none!important");
+    expect(boardCss).toContain("margin-left:auto;");
   });
 
   it("keeps Home API-down in the same neutral checker-and-wave frame as the other consoles", () => {
