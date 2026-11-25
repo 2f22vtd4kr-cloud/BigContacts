@@ -7154,12 +7154,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             compactedObservation = "[OLDER OBSERVATION TEXT OMITTED WHOLE: semantic compaction unavailable; exact action metadata and URLs remain preserved; omitted content is unknown.]";
             emit("ai_recent_observation_compaction_degraded", { status: "partial", summary: "Older observation text was omitted whole after semantic compaction failed; exact URLs and action metadata remain preserved." });
           }
-          if (compacted?.method === "deterministic_projection") {
-            emit("nonsemantic_observation_projection", {
-              status: "partial",
-              summary: "Observation compaction is intentionally non-semantic; a URL-safe bounded projection was supplied. Full source remains durable; omitted content is unknown.",
-            });
-          }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
         const protectedObservationMarkers = isLatestPromptRecord
