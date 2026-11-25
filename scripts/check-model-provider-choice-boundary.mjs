@@ -11,7 +11,7 @@ check(/action === "domain_lookup"[\s\S]*?cleanText\(value\.provider/.test(core),
 check(/provider:\s*\{\s*type:\s*"string"\s*,\s*enum:\s*\[\s*"serper"\s*,\s*"tavily"\s*,\s*"exa"\s*,\s*"rdap"\s*,\s*"whoisjson"\s*,\s*"scrapfly"\s*,\s*"zenrows"\s*,\s*"browserless"\s*,\s*"playwright"\s*\]\s*\}/.test(core) && /const providerEnum = \[\.\.\.new Set\(\["serper", "tavily", "exa", "rdap", "whoisjson", \.\.\.browserProviders\]\)\]/.test(core) && /provider: \{ type: "string", enum: providerEnum \}/.test(core),"static and provider-specific structured schemas must expose supported domain/browser provider choices.");
 check(/options\.provider \? attempts\.filter/.test(browser) && !/for \(const \[provider, fn\] of attempts\) \{/.test(browser),"browser retrieval must execute only the selected provider.");
 check(/provider: DomainLookupProvider/.test(domain) && /if \(options\.provider === "rdap"\)/.test(domain) && !/Promise\.all\(\[rdap, whoisjson\]/.test(domain),"domain lookup must execute only the selected provider.");
-check(/playwright:"scrape"/.test(gate) && /rdap:"registry"/.test(gate),"explicit browser/RDAP providers must have scoped provider budgets.");
+check(/playwright:"scrape"/.test(gate) && /direct:"scrape"/.test(gate) && /rdap:"registry"/.test(gate),"explicit browser/RDAP providers must have scoped provider budgets.");
 const executionContext=read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const scopeContext=read("artifacts/api-server/src/src/lib/agentic-execution-context.ts");
 check(/input\.caseId != null/.test(executionContext) && /agentic:case:/.test(executionContext),"canonical case runs must share one agentic execution scope across Investigator acts.");
