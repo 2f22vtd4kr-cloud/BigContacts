@@ -5284,6 +5284,8 @@ describe("latest Investigator observations remain complete within the provider t
         },
       ],
       lastObservation: "FETCHED_PAGE_SENTINEL: this page contains a named board member.",
+      aiCompactedHistoricalContext: "Model-authored memory already summarized search turn 1.",
+      aiCompactedHistoricalThroughTurn: 1,
       findings: [], mode: "discovery",
       actionAllowlist: ["web_search", "visit", "done"],
     });
