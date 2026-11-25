@@ -2814,3 +2814,50 @@ html.light main,
   }
   .atlas-round .atlas-home-board-console { margin-top:40px!important; }
 }
+
+/* The board's desktop launch console keeps the source indicators on the
+   same header line as its title, then uses a compact 70px objective row. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board-console .atlas-home-console-brand {
+    min-height:24px;
+    gap:8px;
+    margin:0 0 16px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-source-status {
+    position:absolute;
+    top:20px;
+    left:20px;
+    right:20px;
+    display:flex;
+    flex-wrap:nowrap;
+    justify-content:flex-end;
+    gap:8px 16px;
+    margin:0;
+    padding:0 0 16px;
+    border-bottom:1px solid var(--round-line);
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root {
+    grid-template-areas:
+      "objective action"
+      "settings settings"
+      "explainer explainer";
+    gap:16px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+    min-height:48px;
+  }
+}
+@media (max-width:760px) {
+  .atlas-round .atlas-home-board-console .atlas-home-console-brand {
+    margin-bottom:12px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-source-status {
+    position:static;
+    flex-wrap:wrap;
+    padding:0 0 12px;
+    border-bottom:1px solid var(--round-line);
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+    min-height:76px;
+  }
+}
