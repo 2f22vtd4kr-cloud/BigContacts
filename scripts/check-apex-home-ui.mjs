@@ -60,11 +60,11 @@ require(launch.includes('sourceLabel("Web search"') && launch.includes('sourceLa
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
-require(roundLayout.includes("atlas-round-primary") && roundLayout.includes("primaryNav.map") && /aria-label="Main navigation"/.test(roundLayout) && !roundLayout.includes("atlas-round-sidebar"), "board navigation must use the five-destination horizontal header navigation");
+require(roundLayout.includes("atlas-round-header-brand") && roundLayout.includes("atlas-round-header-status") && !roundLayout.includes("atlas-round-primary") && !roundLayout.includes("atlas-round-sidebar"), "specimen header must contain the Apex Atlas brand and workspace status without invented route navigation");
 require(!roundLayout.includes("atlas-round-nav-backdrop") && !roundLayout.includes("atlas-round-sidebar") && css.includes("height:48px") && css.includes("display:none!important"), "phone navigation must follow the design-board compact brand/status header");
-require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "horizontal navigation must identify the active destination");
+require(roundLayout.includes('<WorkspaceStatus compact />') && roundLayout.includes("atlas-round-header-status"), "workspace status must remain visible in the shared specimen header");
 require(!roundLayout.includes("utilityNav") && !roundLayout.includes("atlas-round-more-menu") && !roundLayout.includes("Crosshair"), "non-board utilities must remain implemented but unavailable from primary navigation");
-require(css.includes(".atlas-round-primary") && css.includes("width:min(calc(100% - 32px),1280px)") && css.includes("@media (max-width:760px)") && css.includes("height:48px"), "the board shell must use its framed desktop width and compact phone header");
+require(css.includes("width:min(calc(100% - 32px),1280px)") && css.includes("@media (max-width:760px)") && css.includes("height:48px") && css.includes("margin-left:auto;"), "the board shell must use its framed desktop width and compact brand/status phone header");
 require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
 require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
