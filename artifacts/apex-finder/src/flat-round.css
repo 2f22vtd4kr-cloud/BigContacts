@@ -2791,3 +2791,25 @@ html.light main,
   .atlas-round .atlas-board-connections .atlas-connections-routes { order:1; }
   .atlas-round .atlas-board-connections .atlas-connections-route-panel { order:2; }
 }
+
+/* Overview desktop hero: the board uses a 76px two-line title, a narrower
+   three-line lede, and a 40px separation before the framed launch console. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board { padding-inline:8px!important; }
+  .atlas-round .atlas-home-board-grid {
+    grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;
+    gap:64px!important;
+  }
+  .atlas-round .atlas-home-board-intro h1 {
+    max-width:none!important;
+    font-size:76px!important;
+    line-height:76px!important;
+  }
+  .atlas-round .atlas-home-board-intro p {
+    max-width:440px!important;
+    margin-top:24px!important;
+    font-size:18px!important;
+    line-height:27px!important;
+  }
+  .atlas-round .atlas-home-board-console { margin-top:40px!important; }
+}
