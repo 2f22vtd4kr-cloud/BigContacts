@@ -34,7 +34,6 @@ import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { parseJsonRecord } from "./json-record";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { getAgenticLlmTelemetryForJob } from "./agentic-llm-telemetry";
