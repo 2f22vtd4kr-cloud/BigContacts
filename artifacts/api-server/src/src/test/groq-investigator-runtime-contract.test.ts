@@ -111,6 +111,7 @@ describe("Groq Investigator runtime contract", () => {
     ]);
     expect(findings?.required).toContain("reviewOnly");
     expect(findings?.required).toContain("exactQuote");
+    expect(findings?.properties?.exactQuote).toMatchObject({ type: "string" });
     expect(findings?.properties).not.toHaveProperty("promotionDecision");
   });
 
