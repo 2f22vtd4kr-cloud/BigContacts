@@ -616,8 +616,8 @@ describe("Groq Investigator runtime contract", () => {
     ]);
     expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
     expect(actionSchema?.properties?.findings?.items?.properties?.reviewOnly).toMatchObject({
-      type: ["boolean", "null"],
-      enum: [true, null],
+      type: "boolean",
+      enum: [true],
     });
     expect(actionSchema?.properties?.findings?.items?.properties?.exactQuote).toMatchObject({ type: "string" });
     expect(messages).toHaveLength(2);
