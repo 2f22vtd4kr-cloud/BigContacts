@@ -227,145 +227,14 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   }, { isolationLevel: "serializable" });
 }
 
-/**
- * Persist Investigator-selected review leads immediately after each successful
- * observation. A card is review-only: it carries no verified wealth, identity,
- * ownership or contact claim. The only admission check here is reality binding:
- * the exact cited URL and exact model-quoted passage must both occur in the
- * same successful same-run raw observation. No name, keyword or domain gate.
- */
-async function materializeVerifiedReviewOnlyLeadCards(input: {
-  findings: AgenticFinding[];
-  atlasJobId: string;
-  discoveryRunId: string;
-  discoveryCaseId: number;
-}): Promise<number> {
-  const selected = input.findings.filter((finding) =>
-    finding.reviewOnly === true
-    && finding.promotionDecision !== "reject"
-    && Boolean(finding.exactQuote?.trim())
-    && (finding.scope === "candidate" ? Boolean(finding.personName?.trim()) : Boolean(finding.value.trim()))
-  );
-  if (!selected.length) return 0;
-  const events = await db.select({
-    actorRole: researchCaseEventsTable.actorRole,
-    eventType: researchCaseEventsTable.eventType,
-    payload: researchCaseEventsTable.payload,
-  }).from(researchCaseEventsTable).where(and(
-    eq(researchCaseEventsTable.caseId, input.discoveryCaseId),
-    eq(researchCaseEventsTable.eventType, "tool_observation"),
-  ));
-  const verified = new Map<string, {
-    name: string; type: "PersonCandidate" | "Corporation"; role: string | null;
-    sourceUrl: string; exactQuote: string; action: string;
-  }>();
-  for (const finding of selected) {
-    const name = (finding.scope === "candidate" ? finding.personName : finding.value)?.trim() ?? "";
-    const type = finding.scope === "candidate" ? "PersonCandidate" as const : "Corporation" as const;
-    const quote = finding.exactQuote?.trim() ?? "";
-    if (!name || !quote) continue;
-    for (const rawUrl of finding.sourceUrls ?? []) {
-      const sourceUrl = normalizeSourceUrl(rawUrl);
-      if (!sourceUrl) continue;
-      for (const event of events) {
-        if (!isInvestigatorAuthoredResearchEvent(event.actorRole) || typeof event.payload !== "string") continue;
-        let payload: Record<string, unknown>;
-        try {
-          const parsed: unknown = JSON.parse(event.payload);
-          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
-          payload = parsed as Record<string, unknown>;
-        } catch { continue; }
-        if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId || payload.execution !== "success") continue;
-        const action = typeof payload.action === "string" ? payload.action : "";
-        const isFetch = action === "visit" || action === "browser_fetch";
-        const isSearch = action === "web_search" || action === "parallel_web_search"
-          || action === "registry_search" || action === "parallel_registry_search";
-        if (!isFetch && !isSearch) continue;
-        const urlField = isFetch ? payload.observedUrls : payload.leadUrls;
-        if (!Array.isArray(urlField) || !urlField.some((url) => typeof url === "string" && normalizeSourceUrl(url) === sourceUrl)) continue;
-        const observation = typeof payload.observation === "string" ? payload.observation : "";
-        const observedSourceUrls = [...observation.matchAll(/https?:\\/\\/[^\\s"'<>]+/giu)]
-          .map((match) => normalizeSourceUrl(match[0]))
-          .filter((url): url is string => Boolean(url));
-        if (!observedSourceUrls.includes(sourceUrl) || !observation.includes(quote)) continue;
-        const key = type + "|" + name.toLocaleLowerCase("en-US");
-        if (!verified.has(key)) verified.set(key, { name, type, role: finding.role ?? null, sourceUrl, exactQuote: quote, action });
-      }
-    }
-  }
-  let created = 0;
-  for (const lead of verified.values()) {
-    const result = await db.transaction(async (tx) => {
-      const [ownedCase] = await tx.select({
-        status: researchCasesTable.status,
-        currentAction: researchCasesTable.currentAction,
-        caseFile: researchCasesTable.caseFile,
-      }).from(researchCasesTable).where(and(
-        eq(researchCasesTable.id, input.discoveryCaseId),
-        eq(researchCasesTable.status, "active"),
-        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
-        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
-      )).for("update").limit(1);
-      if (!ownedCase) return false;
-      const rows = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
-        .from(entitiesTable).where(and(
-          eq(entitiesTable.type, lead.type),
-          sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`,
-        )).limit(32);
-      const sameCase = rows.some((row) => {
-        const metadata = parseJsonRecord(row.metadata) ?? {};
-        return Number(metadata.discoveryCaseId) === input.discoveryCaseId
-          && metadata.reviewOnly === true
-          && metadata.provisionalReviewLead === true;
-      });
-      if (sameCase) return false;
-      const metadata = JSON.stringify({
-        reviewOnly: true,
-        provisionalReviewLead: true,
-        discoveryCaseId: input.discoveryCaseId,
-        atlasJobId: input.atlasJobId,
-        discoveryRunId: input.discoveryRunId,
-        targetType: lead.type === "PersonCandidate" ? "person" : "organization",
-        role: lead.role,
-        sourceUrls: [lead.sourceUrl],
-        exactQuote: lead.exactQuote,
-        verificationLevel: lead.action === "visit" || lead.action === "browser_fetch" ? "fetched_source" : "search_result_lead",
-        promotionEligible: false,
-      });
-      await tx.insert(entitiesTable).values({
-        name: lead.name,
-        type: lead.type,
-        bayesianScore: 0.05,
-        notes: "REVIEW-ONLY LEAD — exact source URL and quoted passage verified in a same-run observation. Identity, wealth, ownership, materiality and contactability remain unverified.",
-        sourceRegistries: "[]",
-        metadata,
-        isHot: false,
-        isStarred: false,
-        isHidden: false,
-        contactConfidence: 0,
-        contactOutcome: "evidence_only",
-      });
-      return true;
-    }, { isolationLevel: "serializable" });
-    if (result) created += 1;
-  }
-  return created;
-}
-
 async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
-  const reviewOnlyCardsCreated = await materializeVerifiedReviewOnlyLeadCards({
-    findings: input.findings,
-    atlasJobId: input.atlasJobId,
-    discoveryRunId: input.discoveryRunId,
-    discoveryCaseId: input.discoveryCaseId,
-  });
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate" && finding.reviewOnly !== true)
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length > 0)
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
-  let materialized = reviewOnlyCardsCreated;
+  let materialized = 0;
   let evidenceRows = 0;
   // Resolve provisional leads before strict admission so they remain visible
   // to Boss/Right-hand in the trajectory, but do not persist review-only cards.
