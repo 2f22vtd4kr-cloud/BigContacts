@@ -1038,11 +1038,9 @@ export function bindModelFindingsToObservedSources(
       return record ? [{ sourceUrl, record }] : [];
     });
     if (!sourceRecords.length) continue;
-    const personName = finding.scope === "candidate" ? finding.personName : null;
-    if (personName) {
-      const identityBound = sourceRecords.some(({ record }) => bindExactSourceSpan(record.observation ?? "", personName)?.exact);
-      if (!identityBound) continue;
-    }
+    // Identity and role attribution remain Investigator judgments. Runtime
+    // verifies only that the cited source was actually fetched and the model's
+    // quoted claim exists verbatim in that same observation.
     for (const { sourceUrl, record } of sourceRecords) {
       const span = bindExactSourceSpan(record.observation ?? "", finding.value);
       if (!span?.exact) continue;
