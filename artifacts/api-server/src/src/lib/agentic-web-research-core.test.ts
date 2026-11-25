@@ -5266,7 +5266,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
       actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
     });
 
-    expect(prompt).toContain("RECENT SUCCESSFUL FETCHED SOURCE OBSERVATIONS");
+    expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE OBSERVATIONS");
     expect(prompt).toContain("FIRST_SOURCE_PERSON");
     expect(prompt).toContain("SECOND_SOURCE_PERSON");
     expect(prompt).toContain(firstUrl);
