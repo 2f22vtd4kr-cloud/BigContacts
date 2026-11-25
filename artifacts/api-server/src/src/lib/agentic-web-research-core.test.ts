@@ -42,6 +42,21 @@ describe("fresh successful observations reach the Investigator intact", () => {
     }
     expect(prompt).toContain(fetchRecord.observation);
     expect(prompt).not.toContain("DETERMINISTIC OBSERVATION PROJECTION");
+    expect(agenticCoreSource).toContain("if (freshObservationRecords.has(promptRecord)) continue;");
+    expect(agenticCoreSource).toContain('compacted?.method === "ai_semantic"');
+    const finalPrompt = buildStepPrompt({
+      targetName: "Recorded case",
+      objective: "Identify relevant public people.",
+      history: [],
+      trajectoryRecords: [searchRecord, fetchRecord],
+      lastObservation: fetchRecord.observation ?? "",
+      findings: [],
+    });
+    for (const item of organic) {
+      expect(finalPrompt).toContain(item.title);
+      expect(finalPrompt).toContain(item.snippet);
+    }
+    expect(finalPrompt).toContain(fetchRecord.observation);
   });
 });
 
