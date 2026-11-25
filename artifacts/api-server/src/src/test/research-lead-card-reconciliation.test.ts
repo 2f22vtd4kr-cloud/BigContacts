@@ -54,24 +54,19 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).not.toContain("extractSearchResultCompanyLeadFindings");
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
 
-    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
-    const organizationEnd = canonicalAtlas.indexOf("\nexport async function runCanonicalAtlasPipeline", organizationStart + 1);
-    const organizationMaterializer = canonicalAtlas.slice(
-      organizationStart,
-      organizationEnd >= 0 ? organizationEnd : canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings", organizationStart),
-    );
-    expect(organizationMaterializer).toContain("Resolve only organization leads explicitly selected in Investigator findings");
-    expect(organizationMaterializer).toContain('finding.scope !== "organization"');
-    expect(organizationMaterializer).toContain("Registry adapter rows may support this lead only because the");
+    const organizationStart = canonicalAtlas.indexOf("async function materializeVerifiedReviewOnlyLeadCards");
+    const organizationEnd = canonicalAtlas.indexOf("\nasync function materializeAtlasAdmissions", organizationStart + 1);
+    const organizationMaterializer = canonicalAtlas.slice(organizationStart, organizationEnd);
+    expect(organizationMaterializer).toContain("finding.reviewOnly === true");
+    expect(organizationMaterializer).toContain('finding.promotionDecision !== "reject"');
+    expect(organizationMaterializer).toContain("Boolean(finding.exactQuote?.trim())");
+    expect(organizationMaterializer).toContain('payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId || payload.execution !== "success"');
+    expect(organizationMaterializer).toContain("const urlField = isFetch ? payload.observedUrls : payload.leadUrls;");
+    expect(organizationMaterializer).toContain("if (!observation.includes(quote)) continue;");
+    expect(organizationMaterializer).toContain("promotionEligible: false");
+    expect(organizationMaterializer).toContain("targetEligibleForResearch: false");
+    expect(organizationMaterializer).not.toContain("isRestrictedCommunitySourceUrl");
     expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
-    expect(organizationMaterializer).toContain("isRestrictedCommunitySourceUrl(sourceUrl)");
-    expect(organizationMaterializer).toContain("if (support.restrictedCommunitySource) continue;");
-    expect(organizationMaterializer).toContain('"community-reference-only"');
-    const registryLeadObservationBlock = organizationMaterializer.slice(
-      organizationMaterializer.indexOf("if (registryAction &&"),
-      organizationMaterializer.indexOf("const search = /search/i.test(action);"),
-    );
-    expect(registryLeadObservationBlock).not.toContain("leadNames.push(name)");
 
     const registryReconciliationBlock = reconciler.slice(
       reconciler.indexOf("if (registryAction &&"),
