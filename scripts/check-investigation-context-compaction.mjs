@@ -17,7 +17,7 @@ const stepPromptBuilder = stepPromptStart >= 0 && stepPromptEnd > stepPromptStar
   : "";
 const investigatorSystemCore = orientation.match(/export function apexInvestigatorSystemCore\(\): string \{\s*return \[([\s\S]*?)\]\.join\("\\n"\);\s*\}/)?.[1] ?? "";
 const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)")
-  && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardRecord)")
+  && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)")
   && stepPromptBuilder.includes("recentFetchedRecordsForPrompt.map(serializeDurablePromptRecord)")
   && stepPromptBuilder.includes("const rawObservation = record.observation ?? \"\"")
   && stepPromptBuilder.includes("const boundedObservation = isLatestSuccessfulObservation")
@@ -35,10 +35,12 @@ const preservesCompleteLatestEvidence = stepPromptBuilder.includes("serializeDur
   && core.includes("intelligenceStateForMemory")
   && core.includes("historyForMemory")
   && stepPromptBuilder.includes("Pass their raw observation without sampling or clipping.");
-const preservesHistoricalSearchLeadWithoutReplayingCompactedObservation =
-  stepPromptBuilder.includes("const searchRecordAlreadyCompacted = Boolean(aiHistoricalMemory)")
-  && stepPromptBuilder.includes("carryForwardSuccessfulSearch.turn <= (input.aiCompactedHistoricalThroughTurn ?? 0)")
-  && stepPromptBuilder.includes('{ ...carryForwardSuccessfulSearch, observation: "" }');
+const preservesLatestSearchEvenWhenHistoricalMemoryAlreadyCoversItsTurn =
+  stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardSuccessfulSearch)")
+  && stepPromptBuilder.includes("This is the newest successful search, even when a later fetch is")
+  && stepPromptBuilder.includes("AI memory has summarized older turns")
+  && !stepPromptBuilder.includes("searchRecordAlreadyCompacted")
+  && !stepPromptBuilder.includes('{ ...carryForwardSuccessfulSearch, observation: "" }');
 const appendsLatestEvidenceAfterComposedPrompt = stepPromptBuilder.includes("const composedPrompt = [")
   && stepPromptBuilder.includes("const latestRecordTail = [")
   && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")");
@@ -73,7 +75,7 @@ const checks = [
   ["latest search and fetched-page observations reach the model whole while older turns remain bounded and full events stay durable", preservesCompleteLatestEvidence && stepPromptBuilder.includes("serializeDurablePromptRecord(latestRecord)") && stepPromptBuilder.includes("recentFetchedRecordsForPrompt.map(serializeDurablePromptRecord)")],
   ["no smallest emergency tier replaces or slices the full latest trajectory record", stepPromptBuilder.includes("const latestRecordTail = [") && stepPromptBuilder.includes("buildLatestRecordTail()") && !stepPromptBuilder.includes("buildShortestEmergencyRecordTail") && !stepPromptBuilder.includes("compactRecordEnvelope(latestRecord")],
   ["full Investigator prompt carries the latest complete observation without size-selected emergency tiers", core.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && preservesCompleteLatestEvidence && appendsLatestEvidenceAfterComposedPrompt],
-  ["historical unvisited search leads survive AI compaction without replaying their already-summarized observation", preservesHistoricalSearchLeadWithoutReplayingCompactedObservation],
+  ["historical unvisited search leads survive AI compaction without replaying their already-summarized observation", preservesLatestSearchEvenWhenHistoricalMemoryAlreadyCoversItsTurn],
   ["latest durable record, bounded fetched excerpt and all latest-action URLs are appended to the live Investigator prompt", stepPromptBuilder.includes("const latestRecord = orderedTrajectoryRecords.at(-1);") && stepPromptBuilder.includes("buildLatestRecordTail()") && stepPromptBuilder.includes("serializeDurablePromptRecord(carryForwardRecord)") && preservesHistoricalSearchLeadWithoutReplayingCompactedObservation && stepPromptBuilder.includes("recentFetchedRecordsForPrompt.map(serializeDurablePromptRecord)") && stepPromptBuilder.includes("[composedPrompt, latestRecordTail].filter(Boolean).join(\"\\n\\n\")")],
   ["Investigator prompt qualification follows the active objective and preserves conditional wealth evidence rules", ["people are the ultimate mission", "People—not companies or executive prestige", "CASE OBJECTIVE: source-backed real-person research", "CASE OBJECTIVE: find real people with credible ownership evidence", "Seek source-backed ownership/equity/control/investment clues during target research", "owner/operator, ownership/investment or transaction signal"].every((forbidden) => !core.includes(forbidden)) && orientation.includes("human objective and explicit constraints govern") && orientation.includes("B2B needs fetched role/company evidence") && orientation.includes("wealth objectives need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference") && core.includes("DISCOVERY LEAD HANDOFF") && orientation.includes("B2B needs fetched role/company evidence") && orientation.includes("Target research verifies role/relationship/materiality, counter-evidence and route before promotion") && orientation.includes("Target-scoped research independently corroborates or falsifies claims required by the active objective")],
   ["canonical launch defaults preserve the same caller-owned objective across UI and API", (() => {
