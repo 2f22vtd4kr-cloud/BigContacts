@@ -89,6 +89,8 @@ describe("discovery source evidence policy", () => {
       isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl, normalizeSourceUrl: normalize,
     })).toEqual([
       { sourceUrl: "https://leadership.alpha.test/jane", publisher: "alpha.test", eventId: 10 },
+      { sourceUrl: "https://profiles.alpha.test/jane", publisher: "profiles.alpha.test", eventId: 11 },
+      { sourceUrl: "https://mirror-copy.test/jane", publisher: "mirror-copy.test", eventId: 15 },
       { sourceUrl: "https://company-beta.test/team", publisher: "company-beta.test", eventId: 12 },
     ]);
   });
@@ -207,7 +209,7 @@ describe("discovery source evidence policy", () => {
         observation: quote,
         eventId: 42,
       }],
-    })).toEqual([{ sourceUrl: url, publisher: "example.test", eventId: 42 }]);
+    })).toEqual([{ sourceUrl: url, publisher: "registry.example.test", eventId: 42 }]);
   });
 
   it("preserves short but non-empty model-selected identities in the durable source union", () => {
