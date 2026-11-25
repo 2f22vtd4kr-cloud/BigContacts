@@ -1198,7 +1198,11 @@ describe("trajectory-local web-search provider failure state", () => {
     resetProviderGateForTests();
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockImplementation(async () => new Response(JSON.stringify({
-      organic: [{ title: "Mocked public source", link: "https://example.com/observed-lead", snippet: "A mocked search result for the regression test." }],
+      organic: Array.from({ length: 10 }, (_, index) => ({
+        title: `Mocked public source ${index + 1}`,
+        link: `https://example.com/observed-lead-${index + 1}`,
+        snippet: `Complete mocked Serper snippet ${index + 1} for the ten-result regression.`,
+      })),
     }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubEnv("SERPER_API_KEY", "configured-serper-test-key");
     try {
@@ -1220,7 +1224,12 @@ describe("trajectory-local web-search provider failure state", () => {
         const result = await webSearchSerper(action.query);
         if (!result) throw new Error("Mocked Serper search returned no result object");
         expect(result.status).toBe("success");
-        expect(result.urls).toContain("https://example.com/observed-lead");
+        expect(result.urls).toHaveLength(10);
+        expect(result.text).toContain("Mocked public source 10");
+        expect(result.text).toContain("Complete mocked Serper snippet 10 for the ten-result regression.");
+        expect(result.urls).toContain("https://example.com/observed-lead-10");
+        const requestInit = outboundMocks.safeOutboundFetch.mock.calls.at(-1)?.[1] as RequestInit | undefined;
+        expect(JSON.parse(String(requestInit?.body)).num).toBe(10);
       }
       expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(4);
     } finally {
