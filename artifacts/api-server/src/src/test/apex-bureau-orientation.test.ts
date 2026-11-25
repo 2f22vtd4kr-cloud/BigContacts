@@ -27,6 +27,16 @@ describe("objective-led institutional orientation", () => {
     expect(investigator).not.toContain("MASTER REFERENCE — APEX ATLAS BUREAU PLAYBOOK");
   });
 
+  it("allows immediate provisional review cards after URL and quote verification", () => {
+    const prompt = apexInvestigatorSystemCore();
+    expect(prompt).toContain("persist a review-only card immediately");
+    expect(prompt).toContain("promotion/admission is a separate decision");
+    expect(prompt).not.toContain("promote only on same-case fetched evidence");
+    const investigator = apexOrientationFor("investigator");
+    expect(investigator).toContain("review-only card immediately");
+    expect(investigator).not.toContain("A review-only lead is not a persisted entity/card");
+  });
+
   it("treats HNWI as an optional classification rather than the universal mission", () => {
     expect(APEX_WHAT_IS_ATLAS).toContain("people, operating companies, and assets");
     expect(APEX_WHAT_IS_ATLAS).toContain("HNWI is an optional classification");

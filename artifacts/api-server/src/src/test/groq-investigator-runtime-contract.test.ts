@@ -98,6 +98,45 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed?.partialFindings[0]?.promotionDecision).toBeUndefined();
   });
 
+  it("keeps discovery review-lead output minimal even when done is allowed", () => {
+    const response = structuredActionResponseFormat(
+      "openai/gpt-oss-120b",
+      ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"],
+      "discovery",
+    ) as { type: string; json_schema?: { schema?: { properties?: Record<string, { items?: { properties?: Record<string, unknown>; required?: string[] } }> } } };
+    expect(response.type).toBe("json_schema");
+    const findings = response.json_schema?.schema?.properties?.findings?.items;
+    expect(Object.keys(findings?.properties ?? {}).sort()).toEqual([
+      "exactQuote", "note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType",
+    ]);
+    expect(findings?.required).toContain("reviewOnly");
+    expect(findings?.required).toContain("exactQuote");
+    expect(findings?.properties?.exactQuote).toMatchObject({ type: "string" });
+    expect(findings?.properties).not.toHaveProperty("promotionDecision");
+  });
+
+  it("shows the Investigator its fetched-page visit windows and mechanical novelty", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find a public company owner",
+      history: [],
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["visit", "web_search", "done"],
+      lastObservation: "latest page window",
+      trajectoryRecords: [
+        { turn: 1, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 2, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 0, pageReadNextOffset: 3400 }, observedUrls: ["https://example.com/profile"], observation: "First page window with a named managing director." },
+        { turn: 3, model: "test-model", findings: [], action: "visit", execution: "success", args: { url: "https://example.com/profile", pageReadOffset: 3400, pageReadNextOffset: 6800 }, observedUrls: ["https://example.com/profile"], observation: "Second page window with additional company history." },
+      ],
+    });
+    expect(prompt).toContain("DISCOVERY VISIT HISTORY");
+    expect(prompt).toContain('"start":0,"end":3400');
+    expect(prompt).toContain('"start":3400,"end":6800');
+    expect(prompt).toContain('"newInformation":"no"');
+    expect(prompt).toContain('"newInformation":"yes"');
+  });
+
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
@@ -522,7 +561,7 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries.");
-    expect(submitted).not.toContain("reviewOnly=true");
+    expect(submitted).toContain("reviewOnly=true");
 
     const terminalOnlyPrompt = buildStepPrompt({
       targetName: "",
@@ -542,7 +581,7 @@ describe("Groq Investigator runtime contract", () => {
       promptMode: "discovery",
     });
     const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
-    expect(terminalOnlyUser).not.toContain("reviewOnly=true");
+    expect(terminalOnlyUser).toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
     expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
     expect(submitted).toContain("The first discovery probe uses the run's randomized opening modality; after that, choose sources, providers, registries and mix freely from evidence.");
@@ -573,16 +612,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(actionSchema?.properties?.searches?.items?.properties?.provider?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.searches?.items?.properties?.registry?.type).toEqual(["string", "null"]);
     expect(actionSchema?.properties?.findings?.items?.required).toEqual([
-      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly",
-      "contactAttribution", "exactQuote", "identityAssessment", "identityRationale",
-      "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus",
-      "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason",
+      "vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote",
     ]);
     expect(actionSchema?.properties?.findings?.items?.additionalProperties).toBe(false);
     expect(actionSchema?.properties?.findings?.items?.properties?.reviewOnly).toMatchObject({
-      type: ["boolean", "null"],
-      enum: [true, null],
+      type: "boolean",
+      enum: [true],
     });
+    expect(actionSchema?.properties?.findings?.items?.properties?.exactQuote).toMatchObject({ type: "string" });
     expect(messages).toHaveLength(2);
   });
 
@@ -941,7 +978,7 @@ describe("Groq Investigator runtime contract", () => {
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
     expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary.");
-    expect(strictUser).toContain("exactQuote copied verbatim from the supplied observation");
+    expect(strictUser).toContain("exactQuote copied verbatim from that observation");
     expect(strictUser).toContain("Code verifies only URL and quote reality, never meaning or relevance.");
     expect(strictUser).toContain("review-only");
     expect(strictUser).toContain("reviewOnly=true");

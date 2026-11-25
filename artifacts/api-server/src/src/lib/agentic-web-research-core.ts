@@ -2820,12 +2820,12 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     const rootRequired = new Set(schema?.required ?? []);
     const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
     const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
-    const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+    const reviewLeadOnlyFindings = _promptMode === "discovery";
     const requiredRootFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
     const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
     const requiredFindingFields = supportsFindings
       ? reviewLeadOnlyFindings
-        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "exactQuote"]
+        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"]
         : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
       : [];
     const searchRequired = new Set(schema?.properties?.searches?.items?.required ?? []);
@@ -2850,11 +2850,11 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
-  const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+  const reviewLeadOnlyFindings = _promptMode === "discovery";
   const requiredFindingFields = supportsFindings
     ? reviewLeadOnlyFindings
-      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly"]
-      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", ...(_promptMode === "discovery" ? ["reviewOnly"] : []), "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"]
+      : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
     : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
   const outputSection = outputIndex >= 0 ? normalized.slice(outputIndex).trim() : "";
@@ -2885,8 +2885,8 @@ export function buildInvestigatorOutputContractForModel(model: string, strictCon
     promptMode === "discovery"
       ? allowed.has("done")
         ? explicitActionAllowlist
-          ? "On non-terminal discovery actions, inspect the complete same-run observations and include each objective-relevant named person/org lead the model judges worth target-scoped review in findings[] with reviewOnly=true, exact observed source URL, scope, stated role when observed and uncertainty; these remain review-only and are never admitted. A relevant named entity in a successfully fetched page must not be dropped merely because a lossy memory summary omitted it. On done, report source-backed claims only; an explicitly selected same-run organization may be a durable review-only card with promotionDecision=promote and a non-empty promotionReason. That creates a review card only, not company admission; search_result_lead remains unverified and must never be described as claim-grade evidence."
-          : "Discovery: inspect the latest fetched observations, not summaries. For a named objective-fit person or organization worth review, include a review-only, non-admitted lead with its exact observed source URL, scope, stated role when observed and uncertainty. Do not drop a relevant name merely because a compact summary omitted it. On done, report source-backed claims only; an explicitly selected organization may remain a review-only card, never admitted."
+          ? "On non-terminal discovery actions, inspect the complete same-run observations and include each objective-relevant named person/org lead the model judges worth target-scoped review in findings[] with reviewOnly=true, exact observed source URL, scope, stated role when observed and uncertainty; these remain review-only and are never admitted. A relevant named entity in a successfully fetched page must not be dropped merely because a lossy memory summary omitted it. On done, report source-backed claims only; an explicitly selected same-run person or organization may remain a reviewOnly=true provisional card with exact URL and exactQuote. This is not admission or a claim-grade finding; search_result_lead remains unverified."
+          : "Discovery: inspect the latest fetched observations, not summaries. For a named objective-fit person or organization worth review, include a review-only, non-admitted lead with its exact observed source URL, scope, stated role when observed and uncertainty. Do not drop a relevant name merely because a compact summary omitted it. On done, report source-backed claims only; an explicitly selected person or organization may remain a review-only card, never admitted."
         : "Discovery: inspect the complete same-run observations on every action. Include each objective-relevant named person/org lead the model judges worth target-scoped review in findings[] with reviewOnly=true, exact observed name and source URL, scope, stated role only when observed, and uncertainty. Do not drop a relevant name from a successful fetched page merely because a compact memory summary omitted it. Use [] only when no named lead merits review. These are review-only, never admissions."
       : allowed.has("done") ? "done may include source-backed findings[] only; include only observed fields and do not fabricate placeholders." : "",
   ].filter(Boolean).join(" ");
@@ -2938,7 +2938,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const explicitDiscoveryReviewHandoff = inferredMode === "discovery"
     && Array.isArray(actionAllowlist)
     && actionAllowlist.some((action) => action !== "done")
-    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
     : "";
   const promptWithDiscoveryReviewHandoff = explicitDiscoveryReviewHandoff
     && !providerPrompt.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
@@ -3043,7 +3043,6 @@ export function fitGroqInvestigatorRequestToLocalCeiling(input: {
     { heading: "ARCHIVED TRAJECTORY INDEX", chars: 420, marker: "[OLDER HISTORY COMPACTED: omitted detail is unknown; complete trajectory remains durable]" },
     { heading: "AI-COMPACTED HISTORICAL RESEARCH MEMORY", chars: 420, marker: "[DURABLE MEMORY PROJECTION COMPACTED: omitted detail is unknown; case events remain authoritative]" },
     { heading: "COMPACTED HISTORICAL RESEARCH CONTEXT", chars: 420, marker: "[EMERGENCY MEMORY PROJECTION COMPACTED: omitted detail is unknown; durable case events remain authoritative]" },
-    { heading: "DISCOVERY EPISTEMIC STATE:", chars: 80, marker: "[DISCOVERY INTELLIGENCE STATE DROPPED BEFORE OBSERVATION TEXT]" },
     { heading: "DISCOVERY WORKING MEMORY:", chars: 80, marker: "[DISCOVERY WORKING MEMORY DROPPED BEFORE OBSERVATION TEXT]" },
     { heading: "CANONICAL EVIDENCE GRAPH STATE", chars: 180, marker: "[AUXILIARY STATE COMPACTED: omitted detail is unknown; durable evidence remains authoritative]" },
     { heading: "CURRENT CONTROL / OVERSIGHT CONTEXT", chars: 160, marker: "[AUXILIARY CONTROL CONTEXT COMPACTED: current objective and accepted Boss scope remain authoritative]" },
@@ -4182,7 +4181,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   };
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
   const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
-  const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
+  const reviewLeadOnlyFindings = promptMode === "discovery";
   if (promptMode === "discovery") {
     const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown>; required?: string[] } };
     const findingItems = findingSchema.items;
@@ -4198,7 +4197,9 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
           : { type: ["boolean", "null"], enum: [true, null] },
         ...afterNote,
       };
-      findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly"])];
+      findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly", "exactQuote"])];
+      // Review-only cards require a literal quote; null cannot satisfy the provenance contract.
+      if (reviewLeadOnlyFindings && findingItems.properties) findingItems.properties.exactQuote = { type: "string" };
     }
   }
   if (reviewLeadOnlyFindings) {
@@ -5860,7 +5861,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const explicitDiscoveryReviewTurn = input.mode === "discovery" && Array.isArray(input.actionAllowlist) && input.actionAllowlist.some((action) => action !== "done");
   const explicitDiscoveryReviewHandoffText = explicitDiscoveryReviewTurn
-    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
     : "";
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -5973,7 +5974,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
-    ? "TERMINAL REVIEW CARD: On done, you may explicitly select an objective-fit organization for a durable review-only card by setting promotionDecision=promote and providing a non-empty promotionReason, with its exact same-run source URL and exactQuote copied verbatim from that observation. This creates only a provisional review card; it is not company admission or a verified wealth, ownership, identity or contact claim. A search_result_lead remains unverified; it is not fetched evidence. Never auto-promote; choose only leads you judge worthwhile, and leave promotionDecision unset when no card is warranted."
+    ? "TERMINAL REVIEW LEADS: On done, include any objective-fit person or organization you judge worth retaining in findings[] with reviewOnly=true, exact same-run source URL and exactQuote copied verbatim from its observation. The runtime persists a provisional review-only card after URL+quote verification; this is not admission or a claim-grade ownership/wealth/contact conclusion. Search-only leads remain explicitly unverified. Do not add a lead you do not judge worthwhile."
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -6066,6 +6067,49 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     && (belongsToActiveScope(record) || (Boolean(activePivotScopeKey) && !record.pivotScopeKey)),
   );
   const latestSuccessfulFetchRecord = successfulFetchRecords.at(-1);
+  const discoveryVisitHistory = input.mode === "discovery"
+    ? (() => {
+        const seenWindowHashesByUrl = new Map<string, Set<string>>();
+        const visitScopeKey = discoveryPivotScopeKey(input.objective ?? "");
+        const visits = orderedTrajectoryRecords
+          .filter((record) => (record.action === "visit" || record.action === "browser_fetch")
+            && (record.pivotScopeKey === visitScopeKey || !record.pivotScopeKey))
+          .map((record) => {
+            const rawUrl = typeof record.args?.url === "string" ? record.args.url : record.observedUrls?.[0] ?? "";
+            const url = completePromptUrl(rawUrl) ?? rawUrl;
+            const offset = typeof record.args?.pageReadOffset === "number" ? record.args.pageReadOffset : null;
+            const nextOffset = typeof record.args?.pageReadNextOffset === "number" ? record.args.pageReadNextOffset : null;
+            const windowText = typeof record.observation === "string" ? record.observation.trim().replace(/\s+/g, " ") : "";
+            let newInformation: "yes" | "no" | "unknown" = "unknown";
+            if (record.execution === "success" && windowText) {
+              const urlKey = normalizedActionResourceUrl(url) ?? url;
+              const hashes = seenWindowHashesByUrl.get(urlKey) ?? new Set<string>();
+              const hash = createHash("sha256").update(windowText).digest("hex");
+              newInformation = hashes.has(hash) ? "no" : "yes";
+              hashes.add(hash);
+              seenWindowHashesByUrl.set(urlKey, hashes);
+            } else if (record.execution !== "success") {
+              newInformation = "no";
+            }
+            return {
+              turn: record.turn,
+              action: record.action,
+              execution: record.execution,
+              url,
+              readSource: typeof record.args?.pageReadSource === "string" ? record.args.pageReadSource : null,
+              window: offset !== null || nextOffset !== null
+                ? { start: offset ?? 0, end: nextOffset }
+                : "unspecified",
+              newInformation,
+            };
+          });
+        const boundedVisits = visits.slice(-12);
+        return boundedVisits.length
+          ? "DISCOVERY VISIT HISTORY (mechanical retrieval telemetry only; newInformation compares exact window text for the same URL, not semantic relevance. The Investigator decides whether the content matters and may revisit when justified):\n"
+            + JSON.stringify({ visits: boundedVisits, earlierVisitRecordsOmitted: Math.max(0, visits.length - boundedVisits.length) })
+          : "";
+      })()
+    : "";
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
     searchActions.has(record.action)
@@ -6327,6 +6371,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       );
     }
     if (latestFetchedSourceClaimMarker) parts.push(latestFetchedSourceClaimMarker);
+    if (discoveryVisitHistory) parts.push(discoveryVisitHistory);
     const latestLeadCount = latestRecord && belongsToActiveScope(latestRecord)
       ? (latestRecord.leadUrls?.length ?? 0)
       : 0;
@@ -6359,12 +6404,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? explicitActionAllowlist
-          ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Decide which objective-fit people or organizations are worth a review-only card; include each in findings[] with reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only that the cited URL and exactQuote exist in that observation; it does not decide meaning, relevance, names, keywords or domains. Do not promote or admit the lead. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-          : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. After every successful search or fetch, decide which objective-fit people or organizations are worth a review-only card and include each in findings[] with reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Do not promote or admit. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
+          ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Decide which objective-fit people or organizations are worth a review-only card; include each in findings[] with reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only that the cited URL and exactQuote exist in that observation; it does not decide meaning, relevance, names, keywords or domains. Do not promote or admit the lead. On done, report source-backed claims only; an explicitly selected person or organization may be retained as a review-only card, not admitted."
+          : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. After every successful search or fetch, decide which objective-fit people or organizations are worth a review-only card and include each in findings[] with reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Do not promote or admit. On done, report source-backed claims only; an explicitly selected person or organization may be retained as a review-only card, not admitted."
+        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
-  const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
+  const reviewLeadOnlyFindings = input.mode === "discovery";
   const requiredFindingFieldNames = supportsFindings
     ? reviewLeadOnlyFindings
       ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"] as const
