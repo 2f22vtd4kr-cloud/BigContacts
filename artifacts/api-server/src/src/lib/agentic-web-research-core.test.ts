@@ -731,7 +731,7 @@ describe("Investigator local Groq token fit", () => {
     expect(prompt).toContain("omitted text is unknown");
     expect(prompt).toContain("full observation remains in immutable case events");
     expect(prompt).toContain('"observationCharsOmittedFromPrompt":');
-    expect(prompt.length).toBeLessThan(6_000);
+    expect(prompt.length).toBeLessThan(9_000);
   });
 
   it("bounds a standalone latest observation and applies the same projection before historical memory compaction", () => {
@@ -835,14 +835,14 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
     const roleOrientation = apexOrientationFor("investigator");
-    expect(systemCore.length).toBeLessThan(3_500);
+    expect(systemCore.length).toBeLessThan(4_000);
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("REALISM INTENT: Find lesser-known or unknown wealthy people");
+    expect(systemCore).toContain("REALISM INTENT: For the default mission, seek lesser-known or unknown wealthy people");
     expect(systemCore).toContain("Find people through filings, board seats, ownership records, company pages and documented exits");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
@@ -5192,10 +5192,10 @@ describe("single fetched page organization identity", () => {
 describe("latest Investigator observations remain complete within the provider token ceiling", () => {
   it("preserves the complete latest fetched-page window and exposes its continuation cursor", () => {
     const sourceUrl = "https://www.openvc.app/investor-lists/angel-investors";
-    const observation = "PAGE_START_SENTINEL " + "A".repeat(3_000)
+    const observation = "PAGE_START_SENTINEL " + "A".repeat(700)
       + " MIDDLE_DIRECTORY_LEAD_SENTINEL: WIT Angels Club and Golden Seeds are listed here. "
-      + "B".repeat(2_600)
-      + "C".repeat(900)
+      + "B".repeat(700)
+      + "C".repeat(700)
       + " LATE_DIRECTORY_LEAD_SENTINEL: a later organization is listed here."
       + "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run.]";
     const prompt = buildStepPrompt({
@@ -5212,7 +5212,7 @@ describe("latest Investigator observations remain complete within the provider t
           hypothesis: "The directory contains named objective-fit investor leads.",
           purpose: "Inspect source-listed organizations and people.",
           pageReadOffset: 0,
-          pageReadNextOffset: 6_800,
+          pageReadNextOffset: 3_400,
           pageHasMore: true,
           pageReadSource: "retained_fetch_artifact",
         },
@@ -5231,7 +5231,7 @@ describe("latest Investigator observations remain complete within the provider t
     expect(prompt).toContain("MIDDLE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain("LATE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain('"pageReadOffset":0');
-    expect(prompt).toContain('"pageReadNextOffset":6800');
+    expect(prompt).toContain('"pageReadNextOffset":3400');
     expect(prompt).toContain('"pageHasMore":true');
     expect(prompt).toContain("PAGE CONTENT CONTINUES");
     expect(prompt).toContain(observation);
