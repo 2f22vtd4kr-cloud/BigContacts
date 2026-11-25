@@ -267,7 +267,8 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(lastRule(".atlas-round .atlas-home-board")).toContain("padding-inline:8px!important;");
     const gridRule = lastRule(".atlas-round .atlas-home-board-grid");
     expect(gridRule).toContain("grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;");
-    expect(gridRule).toContain("gap:64px!important;");
+    expect(gridRule).toContain("column-gap:64px!important;");
+    expect(gridRule).toContain("row-gap:0!important;");
     const titleRule = lastRule(".atlas-round .atlas-home-board-intro h1");
     expect(titleRule).toContain("font-size:76px!important;");
     expect(titleRule).toContain("line-height:76px!important;");
