@@ -102,7 +102,7 @@ async function main() {
         } else if (url.endsWith("/api/entities/1")) {
           payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
-          payload = (currentPath === "/network" && routeFixtureMode) || currentPath === "/profile/1" ? visualEntities : [];
+          payload = currentPath === "/network" || currentPath === "/profile/1" ? visualEntities : [];
         } else if (url.includes("/api/relationships")) {
           payload = visualRelationships;
         } else if (url.includes("/api/assets")) {
