@@ -36,7 +36,7 @@ for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!o
 const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),"utf8");
 for(const marker of [
   "Investigator owns hypotheses, targets, research and stopping",
-  "MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.",
+  "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.",
   "No unrequested criteria or keyword/name heuristics"
 ]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const uiFiles=["artifacts/apex-finder/src/pages/profile.tsx","artifacts/apex-finder/src/pages/research.tsx","artifacts/apex-finder/src/pages/graph.tsx","artifacts/apex-finder/src/router.tsx"]; for(const f of uiFiles) if(!fs.existsSync(path.join(root,f))) throw new Error("Investigator workstation surface missing: "+f);
