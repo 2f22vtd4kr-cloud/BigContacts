@@ -6233,7 +6233,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // alone are compacted; older page turns use one contiguous excerpt rather
     // than head/middle/tail sampling, and can be revisited by sequential offset.
     const isLatestSuccessfulObservation = (
-      record === latestRecord || record === latestSuccessfulSearchRecord
+      record === latestRecord || record === latestSuccessfulSearchRecord || record === latestSuccessfulFetchRecord
     )
       && record.execution === "success"
       && (searchActions.has(record.action) || record.action === "visit" || record.action === "browser_fetch");
