@@ -4182,7 +4182,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
   };
   const supportsSearchArrays = availableActions.includes("parallel_web_search") || availableActions.includes("parallel_registry_search");
   const supportsFindings = promptMode === "discovery" || availableActions.includes("done");
-  const reviewLeadOnlyFindings = promptMode === "discovery" && !availableActions.includes("done");
+  const reviewLeadOnlyFindings = promptMode === "discovery";
   if (promptMode === "discovery") {
     const findingSchema = schemaProperties.findings as { items?: { properties?: Record<string, unknown>; required?: string[] } };
     const findingItems = findingSchema.items;
@@ -4198,7 +4198,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
           : { type: ["boolean", "null"], enum: [true, null] },
         ...afterNote,
       };
-      findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly"])];
+      findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly", "exactQuote"])];
     }
   }
   if (reviewLeadOnlyFindings) {
@@ -5973,7 +5973,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
-    ? "TERMINAL REVIEW CARD: On done, you may explicitly select an objective-fit organization for a durable review-only card by setting promotionDecision=promote and providing a non-empty promotionReason, with its exact same-run source URL and exactQuote copied verbatim from that observation. This creates only a provisional review card; it is not company admission or a verified wealth, ownership, identity or contact claim. A search_result_lead remains unverified; it is not fetched evidence. Never auto-promote; choose only leads you judge worthwhile, and leave promotionDecision unset when no card is warranted."
+    ? "TERMINAL REVIEW LEADS: On done, include any objective-fit person or organization you judge worth retaining in findings[] with reviewOnly=true, exact same-run source URL and exactQuote copied verbatim from its observation. The runtime persists a provisional review-only card after URL+quote verification; this is not admission or a claim-grade ownership/wealth/contact conclusion. Search-only leads remain explicitly unverified. Do not add a lead you do not judge worthwhile."
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
@@ -6066,6 +6066,46 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     && (belongsToActiveScope(record) || (Boolean(activePivotScopeKey) && !record.pivotScopeKey)),
   );
   const latestSuccessfulFetchRecord = successfulFetchRecords.at(-1);
+  const discoveryVisitHistory = input.mode === "discovery"
+    ? (() => {
+        const seenWindowHashesByUrl = new Map<string, Set<string>>();
+        const visits = orderedTrajectoryRecords
+          .filter((record) => record.action === "visit" || record.action === "browser_fetch")
+          .map((record) => {
+            const rawUrl = typeof record.args?.url === "string" ? record.args.url : record.observedUrls?.[0] ?? "";
+            const url = completePromptUrl(rawUrl) ?? rawUrl;
+            const offset = typeof record.args?.pageReadOffset === "number" ? record.args.pageReadOffset : null;
+            const nextOffset = typeof record.args?.pageReadNextOffset === "number" ? record.args.pageReadNextOffset : null;
+            const windowText = typeof record.observation === "string" ? record.observation.trim().replace(/\\s+/g, " ") : "";
+            let newInformation: "yes" | "no" | "unknown" = "unknown";
+            if (record.execution === "success" && windowText) {
+              const urlKey = normalizedActionResourceUrl(url) ?? url;
+              const hashes = seenWindowHashesByUrl.get(urlKey) ?? new Set<string>();
+              const hash = createHash("sha256").update(windowText).digest("hex");
+              newInformation = hashes.has(hash) ? "no" : "yes";
+              hashes.add(hash);
+              seenWindowHashesByUrl.set(urlKey, hashes);
+            } else if (record.execution !== "success") {
+              newInformation = "no";
+            }
+            return {
+              turn: record.turn,
+              action: record.action,
+              execution: record.execution,
+              url,
+              window: offset !== null || nextOffset !== null
+                ? { start: offset ?? 0, end: nextOffset }
+                : "unspecified",
+              newInformation,
+            };
+          });
+        const boundedVisits = visits.slice(-12);
+        return boundedVisits.length
+          ? "DISCOVERY VISIT HISTORY (mechanical retrieval telemetry only; newInformation compares exact window text for the same URL, not semantic relevance. The Investigator decides whether the content matters and may revisit when justified):\\n"
+            + JSON.stringify({ visits: boundedVisits, earlierVisitRecordsOmitted: Math.max(0, visits.length - boundedVisits.length) })
+          : "";
+      })()
+    : "";
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
     searchActions.has(record.action)
@@ -6327,6 +6367,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       );
     }
     if (latestFetchedSourceClaimMarker) parts.push(latestFetchedSourceClaimMarker);
+    if (discoveryVisitHistory) parts.push(discoveryVisitHistory);
     const latestLeadCount = latestRecord && belongsToActiveScope(latestRecord)
       ? (latestRecord.leadUrls?.length ?? 0)
       : 0;
