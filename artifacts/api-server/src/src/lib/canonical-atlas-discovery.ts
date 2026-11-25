@@ -383,13 +383,14 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     discoveryRunId: input.discoveryRunId,
     discoveryCaseId: input.discoveryCaseId,
   });
+  const reviewOnlyCardsCreated = partialOrganizations.created;
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate" && finding.reviewOnly !== true)
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length > 0)
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
-  let materialized = partialOrganizations.created;
+  let materialized = reviewOnlyCardsCreated;
   let evidenceRows = 0;
   // Review-only person/organization cards are already persisted above after
   // exact URL+quote reality verification. They remain separate from evidence-
