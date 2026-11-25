@@ -6076,7 +6076,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             const url = completePromptUrl(rawUrl) ?? rawUrl;
             const offset = typeof record.args?.pageReadOffset === "number" ? record.args.pageReadOffset : null;
             const nextOffset = typeof record.args?.pageReadNextOffset === "number" ? record.args.pageReadNextOffset : null;
-            const windowText = typeof record.observation === "string" ? record.observation.trim().replace(/\\s+/g, " ") : "";
+            const windowText = typeof record.observation === "string" ? record.observation.trim().replace(/\s+/g, " ") : "";
             let newInformation: "yes" | "no" | "unknown" = "unknown";
             if (record.execution === "success" && windowText) {
               const urlKey = normalizedActionResourceUrl(url) ?? url;
@@ -6101,7 +6101,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           });
         const boundedVisits = visits.slice(-12);
         return boundedVisits.length
-          ? "DISCOVERY VISIT HISTORY (mechanical retrieval telemetry only; newInformation compares exact window text for the same URL, not semantic relevance. The Investigator decides whether the content matters and may revisit when justified):\\n"
+          ? "DISCOVERY VISIT HISTORY (mechanical retrieval telemetry only; newInformation compares exact window text for the same URL, not semantic relevance. The Investigator decides whether the content matters and may revisit when justified):\n"
             + JSON.stringify({ visits: boundedVisits, earlierVisitRecordsOmitted: Math.max(0, visits.length - boundedVisits.length) })
           : "";
       })()
