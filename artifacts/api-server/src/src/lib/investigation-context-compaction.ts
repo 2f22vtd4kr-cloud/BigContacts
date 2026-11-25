@@ -570,7 +570,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     : Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18)));
   const latestSection = freshRecords.length
     ? [
-        "LATEST SUCCESSFUL SOURCE OBSERVATIONS (complete newest search result set and newest fetched-page window; omitted older context is not negative evidence)",
+        "LATEST SUCCESSFUL SOURCE OBSERVATIONS — RESEARCH FRONTIER (complete newest search result set and newest fetched-page window; omitted older context is not negative evidence)",
         ...freshRecords.map((record) => compactRecord(
           record,
           record.observation?.length ?? budget.recentObservationChars,
