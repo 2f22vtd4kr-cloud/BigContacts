@@ -243,7 +243,7 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
     finding.reviewOnly === true
     && finding.promotionDecision !== "reject"
     && Boolean(finding.exactQuote?.trim())
-    && (finding.scope === "candidate" ? Boolean(finding.personName?.trim()) : Boolean(finding.value.trim()))
+    && (finding.scope === "candidate" ? Boolean(finding.personName?.trim()) : finding.scope === "organization" && Boolean(finding.value.trim()))
   );
   if (!selected.length) return { created: 0, candidates: [] };
   const events = await db.select({
