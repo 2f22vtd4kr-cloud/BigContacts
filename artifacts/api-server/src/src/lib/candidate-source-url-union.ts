@@ -43,9 +43,10 @@ export function candidateSourceUrlsForIdentity(input: {
  * judgments; successful fetch and exact-quote checks establish observation reality.
  */
 export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !/^https:\/\/\S+$/i.test(value)) return false;
+  if (typeof value !== "string" || !value.trim()) return false;
   try {
-    return new URL(value).protocol === "https:";
+    const url = new URL(value);
+    return url.protocol === "https:" && Boolean(url.hostname);
   } catch {
     return false;
   }
