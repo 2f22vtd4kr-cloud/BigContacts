@@ -5258,6 +5258,45 @@ describe("latest Investigator observations remain complete within the provider t
     expect(prompt).toContain('"observationCharsShown":');
   });
 
+  it("keeps every result from the latest successful search whole after a later fetch", () => {
+    const results = Array.from({ length: 10 }, (_, index) => [
+      `AFTER_FETCH_RESULT_${index + 1}_TITLE`,
+      `URL: https://serper-after-fetch.example.test/result-${index + 1}`,
+      `AFTER_FETCH_RESULT_${index + 1}_SNIPPET is complete and uncut.`,
+    ].join("\n")).join("\n\n");
+    const urls = Array.from({ length: 10 }, (_, index) => `https://serper-after-fetch.example.test/result-${index + 1}`);
+    const pageUrl = "https://primary-source.example.test/company-lead";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people with realistic public/professional contact routes.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+          args: { query: "localized primary-source company search", provider: "serper" },
+          observation: results, observedUrls: [], leadUrls: urls, findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 90, pageHasMore: false },
+          observation: "FETCHED_PAGE_SENTINEL: this page contains a named board member.",
+          observedUrls: [pageUrl], leadUrls: [], findings: [],
+        },
+      ],
+      lastObservation: "FETCHED_PAGE_SENTINEL: this page contains a named board member.",
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(results);
+    expect(prompt).toContain("FETCHED_PAGE_SENTINEL");
+    for (let index = 1; index <= 10; index += 1) {
+      expect(prompt).toContain(`AFTER_FETCH_RESULT_${index}_TITLE`);
+      expect(prompt).toContain(`AFTER_FETCH_RESULT_${index}_SNIPPET is complete and uncut.`);
+    }
+    expect(prompt).toContain('"observationCharsShown":');
+    expect(prompt).toContain('"observationCharsRaw":');
+  });
+
   it("carries multiple recent successful fetched sources into the next discovery decision", () => {
     const firstUrl = "https://investors.example.test/first-source";
     const secondUrl = "https://investors.example.test/second-source";
