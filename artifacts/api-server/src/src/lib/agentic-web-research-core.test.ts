@@ -969,6 +969,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
+    expect(modelPrompt).toContain("if the human explicitly asks for such lists, follow that objective.");
     expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown.");
     expect(modelPrompt).toContain("The first discovery probe uses the run's randomized opening modality");
     expect(modelPrompt).toContain("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography.");
