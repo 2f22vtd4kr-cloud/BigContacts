@@ -11,6 +11,11 @@ const visualEntities = [
   { id: 3, name: "Northstar Capital", type: "Corporation", isHidden: false },
   { id: 4, name: "Harbor Ventures", type: "Corporation", isHidden: false },
 ];
+const visualRelationships = [
+  { id: 1, sourceEntityId: 1, targetId: 3, targetType: "Entity", relationshipType: "FOUNDER_OF", strength: 0.82, notes: "Recorded company formation link", sourceEntityName: "Mira Patel", targetName: "Northstar Capital", createdAt: "2026-11-25T09:42:00.000Z" },
+  { id: 2, sourceEntityId: 3, targetId: 4, targetType: "Entity", relationshipType: "INVESTMENT_RELATIONSHIP", strength: 0.61, notes: "Recorded investment relationship", sourceEntityName: "Northstar Capital", targetName: "Harbor Ventures", createdAt: "2026-11-24T14:10:00.000Z" },
+  { id: 3, sourceEntityId: 4, targetId: 2, targetType: "Entity", relationshipType: "BOARD_CONNECTION", strength: 0.74, notes: "Recorded board connection", sourceEntityName: "Harbor Ventures", targetName: "Noah Reed", createdAt: "2026-11-23T11:20:00.000Z" },
+];
 const visualConnectionPath = {
   found: true,
   path: [
@@ -95,7 +100,9 @@ async function main() {
           payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
           payload = (currentPath === "/network" && routeFixtureMode) || currentPath === "/profile/1" ? visualEntities : [];
-        } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
+        } else if (url.includes("/api/relationships")) {
+          payload = visualRelationships;
+        } else if (url.includes("/api/assets")) {
           payload = [];
         }
         await route.fulfill({
