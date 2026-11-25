@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned, getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
@@ -254,7 +255,7 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
     eq(researchCaseEventsTable.eventType, "tool_observation"),
   ));
   const verified = new Map<string, {
-    name: string; type: "PersonCandidate" | "Corporation"; role: string | null;
+    leadKey: string; name: string; type: "PersonCandidate" | "Corporation"; role: string | null;
     sourceUrls: Set<string>; exactQuotes: Set<string>; actions: Set<string>;
   }>();
   for (const finding of selected) {
@@ -286,15 +287,26 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         // envelope (observedUrls for fetches, leadUrls for searches); quote
         // membership is verified against its raw text. No semantic/name/domain gate.
         if (!observation.includes(quote)) continue;
-        const key = type + "|" + name.toLocaleLowerCase("en-US");
-        const existing = verified.get(key) ?? {
-          name, type, role: finding.role ?? null,
+        // Idempotency is source-and-quote scoped, never name scoped. Two
+        // different people with the same name (or one unresolved identity
+        // mentioned by different sources) must remain separate review leads
+        // until the Investigator resolves them.
+        const leadKey = createHash("sha256").update(JSON.stringify({
+          type, name, role: finding.role ?? null, sourceUrl, exactQuote: quote,
+          identityAssessment: finding.identityAssessment ?? "unresolved",
+          identityRationale: finding.identityRationale ?? null,
+          ambiguityNotes: finding.ambiguityNotes ?? null,
+          hypothesisRelation: finding.hypothesisRelation ?? null,
+          relationshipType: finding.relationshipType ?? null,
+        })).digest("hex");
+        const existing = verified.get(leadKey) ?? {
+          leadKey, name, type, role: finding.role ?? null,
           sourceUrls: new Set<string>(), exactQuotes: new Set<string>(), actions: new Set<string>(),
         };
         existing.sourceUrls.add(sourceUrl);
         existing.exactQuotes.add(quote);
         existing.actions.add(action);
-        verified.set(key, existing);
+        verified.set(leadKey, existing);
       }
     }
   }
@@ -331,7 +343,8 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         const metadata = parseJsonRecord(row.metadata) ?? {};
         return Number(metadata.discoveryCaseId) === input.discoveryCaseId
           && metadata.reviewOnly === true
-          && metadata.provisionalReviewLead === true;
+          && metadata.provisionalReviewLead === true
+          && metadata.provisionalReviewLeadKey === lead.leadKey;
       });
       const priorMetadata = existingRow ? parseJsonRecord(existingRow.metadata) ?? {} : {};
       const priorUrls = Array.isArray(priorMetadata.sourceUrls) ? priorMetadata.sourceUrls.filter((url): url is string => typeof url === "string") : [];
@@ -343,6 +356,7 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         ...priorMetadata,
         reviewOnly: true,
         provisionalReviewLead: true,
+        provisionalReviewLeadKey: lead.leadKey,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         discoveryRunId: input.discoveryRunId,
