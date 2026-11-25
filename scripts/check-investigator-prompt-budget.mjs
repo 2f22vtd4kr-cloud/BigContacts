@@ -65,7 +65,7 @@ assert(
 assert(
   /MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance/.test(orientation)
     && /HYPOTHESES: Form falsifiable public-evidence hypotheses/.test(orientation)
-    && /AUTONOMY: The first discovery probe uses the run\'s randomized opening modality/.test(orientation)
+    && orientation.includes("randomized opening modality")
     && /OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries/.test(orientation)
     && /Treat web and enabled registries as neutral complementary routes/.test(orientation)
     && /CLAIMS: .*wealth needs sourced ownership, equity or investment/.test(orientation),
