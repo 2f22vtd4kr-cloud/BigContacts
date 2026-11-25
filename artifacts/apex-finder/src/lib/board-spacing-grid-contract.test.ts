@@ -251,6 +251,8 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(dashboardSource).toContain('className="atlas-home-console-brand"');
     expect(dashboardSource).toContain("<ApexAtlasMark className=\"atlas-home-console-brand-mark\" />");
     expect(dashboardSource).toContain(">Launch console</span>");
+    expect(boardCss).toContain("font-size:clamp(42px,4.5vw,60px);");
+    expect(boardCss).toContain("margin: 16px 0 0; color:var(--round-ink-2)!important; font-size:16px; line-height:1.6;");
     expect(launchAtlasButtonSource).toContain("rows={1}");
     expect(boardCss).toContain(".atlas-home-board-console textarea { min-height:56px; resize:vertical; padding: 16px 12px!important;");
     expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:6px!important;");
