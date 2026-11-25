@@ -256,7 +256,7 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
   ));
   const verified = new Map<string, {
     name: string; type: "PersonCandidate" | "Corporation"; role: string | null;
-    sourceUrl: string; exactQuote: string; action: string;
+    sourceUrls: Set<string>; exactQuotes: Set<string>; actions: Set<string>;
   }>();
   for (const finding of selected) {
     const name = (finding.scope === "candidate" ? finding.personName : finding.value)?.trim() ?? "";
@@ -288,7 +288,14 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         // membership is verified against its raw text. No semantic/name/domain gate.
         if (!observation.includes(quote)) continue;
         const key = type + "|" + name.toLocaleLowerCase("en-US");
-        if (!verified.has(key)) verified.set(key, { name, type, role: finding.role ?? null, sourceUrl, exactQuote: quote, action });
+        const existing = verified.get(key) ?? {
+          name, type, role: finding.role ?? null,
+          sourceUrls: new Set<string>(), exactQuotes: new Set<string>(), actions: new Set<string>(),
+        };
+        existing.sourceUrls.add(sourceUrl);
+        existing.exactQuotes.add(quote);
+        existing.actions.add(action);
+        verified.set(key, existing);
       }
     }
   }
@@ -311,14 +318,20 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
           eq(entitiesTable.type, lead.type),
           sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`,
         )).limit(32);
-      const sameCase = rows.some((row) => {
+      const existingRow = rows.find((row) => {
         const metadata = parseJsonRecord(row.metadata) ?? {};
         return Number(metadata.discoveryCaseId) === input.discoveryCaseId
           && metadata.reviewOnly === true
           && metadata.provisionalReviewLead === true;
       });
-      if (sameCase) return false;
+      const priorMetadata = existingRow ? parseJsonRecord(existingRow.metadata) ?? {} : {};
+      const priorUrls = Array.isArray(priorMetadata.sourceUrls) ? priorMetadata.sourceUrls.filter((url): url is string => typeof url === "string") : [];
+      const priorQuotes = Array.isArray(priorMetadata.exactQuotes) ? priorMetadata.exactQuotes.filter((quote): quote is string => typeof quote === "string") : [];
+      const sourceUrls = [...new Set([...priorUrls, ...lead.sourceUrls])];
+      const exactQuotes = [...new Set([...priorQuotes, ...lead.exactQuotes])];
+      const verificationLevel = lead.actions.has("visit") || lead.actions.has("browser_fetch") ? "fetched_source" : "search_result_lead";
       const metadata = JSON.stringify({
+        ...priorMetadata,
         reviewOnly: true,
         provisionalReviewLead: true,
         discoveryCaseId: input.discoveryCaseId,
@@ -326,11 +339,16 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         discoveryRunId: input.discoveryRunId,
         targetType: lead.type === "PersonCandidate" ? "person" : "organization",
         role: lead.role,
-        sourceUrls: [lead.sourceUrl],
-        exactQuote: lead.exactQuote,
-        verificationLevel: lead.action === "visit" || lead.action === "browser_fetch" ? "fetched_source" : "search_result_lead",
+        sourceUrls,
+        exactQuotes,
+        exactQuote: exactQuotes[0] ?? null,
+        verificationLevel,
         promotionEligible: false,
       });
+      if (existingRow) {
+        await tx.update(entitiesTable).set({ metadata }).where(eq(entitiesTable.id, existingRow.id));
+        return false;
+      }
       await tx.insert(entitiesTable).values({
         name: lead.name,
         type: lead.type,
