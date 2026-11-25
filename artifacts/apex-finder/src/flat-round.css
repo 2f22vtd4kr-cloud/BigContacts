@@ -2645,7 +2645,7 @@ html.light main,
   display:flex;
   flex:none;
   align-items:center;
-  margin-left:12px;
+  margin-left:auto;
 }
 .atlas-round-shell .atlas-round-sidebar,
 .atlas-round-shell .atlas-round-sidebar-toggle,
@@ -2692,7 +2692,6 @@ html.light main,
   .atlas-round-shell .atlas-round-header-brand { gap:8px; }
   .atlas-round-shell .atlas-round-header-brand .atlas-round-brand-mark { width:20px; height:22px; }
   .atlas-round-shell .atlas-round-header-brand strong { font-size:14px; }
-  .atlas-round-shell .atlas-round-primary { display:none!important; }
   .atlas-round-shell .atlas-round-header-status { margin-left:auto; }
   .atlas-round-shell .atlas-round-main { min-height:calc(100dvh - 56px); }
   .atlas-round-shell .atlas-round-content { padding:0 12px 28px; }
