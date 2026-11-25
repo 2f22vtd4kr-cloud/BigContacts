@@ -276,6 +276,7 @@ describe("canonical Atlas organization target selection", () => {
 
   it("keeps worthwhile search-result leads ephemeral and preserves verification before promotion", () => {
     expect(canonicalAtlas).not.toContain("async function materializePartialPersonLeadCards");
+    const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
     const organizationStart = reconcilerSource.indexOf("export async function reconcileOrganizationReviewCardsForJob");
     const organizationEnd = reconcilerSource.indexOf("export async function reconcilePersonReviewCardsForJob", organizationStart + 1);
     const organizationMaterializer = reconcilerSource.slice(organizationStart, organizationEnd);
@@ -284,7 +285,6 @@ describe("canonical Atlas organization target selection", () => {
       canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
     );
     const control = readFileSync(new URL("../lib/atlas-control-decision.ts", import.meta.url), "utf8");
-    const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 
     // Search-result leads remain in-memory review context. Only the existing
     // explicit target-selection and evidence gates may authorize card admission.
