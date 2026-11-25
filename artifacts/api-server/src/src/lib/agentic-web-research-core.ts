@@ -5973,7 +5973,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? buildDiscoveryRetrievalFeedback(discoveryWorkingRecords) ?? ""
     : "";
   const terminalReviewCardGuidance = input.mode === "discovery" && (input.actionAllowlist ?? []).includes("done")
-    ? "TERMINAL REVIEW CARD: On done, you may explicitly select an objective-fit organization for a durable review-only card by setting promotionDecision=promote and providing a non-empty promotionReason, with its exact same-run source URL and exactQuote copied verbatim from that observation. This creates only a provisional review card; it is not company admission or a verified wealth, ownership, identity or contact claim. Search-result evidence remains unverified. Never auto-promote; choose only leads you judge worthwhile, and leave promotionDecision unset when no card is warranted."
+    ? "TERMINAL REVIEW CARD: On done, you may explicitly select an objective-fit organization for a durable review-only card by setting promotionDecision=promote and providing a non-empty promotionReason, with its exact same-run source URL and exactQuote copied verbatim from that observation. This creates only a provisional review card; it is not company admission or a verified wealth, ownership, identity or contact claim. A search_result_lead remains unverified; it is not fetched evidence. Never auto-promote; choose only leads you judge worthwhile, and leave promotionDecision unset when no card is warranted."
     : "";
   const availableBrowserProviders = emergencyAvailableBrowserProviders;
   const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
