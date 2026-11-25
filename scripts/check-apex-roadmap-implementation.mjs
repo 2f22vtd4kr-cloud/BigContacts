@@ -36,7 +36,7 @@ for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!o
 const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),"utf8");
 for(const marker of [
   "Investigator owns hypotheses, targets, research and stopping",
-  "MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.",
+  "MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.",
   "No keyword, regex, name, employer or domain gates"
 ]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const defaults=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/atlas-launch-defaults.ts"),"utf8");
