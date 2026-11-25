@@ -2827,7 +2827,7 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
     const requiredFindingFields = supportsFindings
       ? reviewLeadOnlyFindings
-        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note"]
+        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "exactQuote"]
         : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
       : [];
     const searchRequired = new Set(schema?.properties?.searches?.items?.required ?? []);
@@ -2940,7 +2940,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const explicitDiscoveryReviewHandoff = inferredMode === "discovery"
     && Array.isArray(actionAllowlist)
     && actionAllowlist.some((action) => action !== "done")
-    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT after every successful search or fetch. Read the complete raw observation and select objective-fit people/organizations worth a review-only card. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. A lossy memory is not evidence that a lead was absent. Use [] if none merits review; never admit."
     : "";
   const promptWithDiscoveryReviewHandoff = explicitDiscoveryReviewHandoff
     && !providerPrompt.includes("Inspect complete latest successful same-run observations, not only the compact summary.")
@@ -5860,7 +5860,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoverySearchActionsUsed = input.mode === "discovery" ? countDiscoverySearchActions(input.trajectoryRecords ?? []) : 0;
   const explicitDiscoveryReviewTurn = input.mode === "discovery" && Array.isArray(input.actionAllowlist) && input.actionAllowlist.some((action) => action !== "done");
   const explicitDiscoveryReviewHandoffText = explicitDiscoveryReviewTurn
-    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+    ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT after every successful search or fetch. Read the complete raw observation and select objective-fit people/organizations worth a review-only card. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. A lossy memory is not evidence that a lead was absent. Use [] if none merits review; never admit."
     : "";
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
@@ -6380,9 +6380,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.mode === "discovery"
       ? availableActions.includes("done")
         ? explicitActionAllowlist
-          ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with reviewOnly=true, exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
+          ? "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT after every successful search or fetch. Read the complete raw observation. Decide which objective-fit people or organizations are worth a review-only card; include each in findings[] with reviewOnly=true, exact observed source URL, an exactQuote copied verbatim from that same observation, scope, stated role when known, rationale and uncertainty. Code verifies only that the cited URL and exactQuote exist in that observation; it does not decide meaning, relevance, names, keywords or domains. Do not promote or admit the lead. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
           : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect the complete latest successful observations, not only the compact summary. When a fetched page names an objective-relevant person or organization, decide whether it merits target-scoped review and, if so, include it in findings[] as a review-only, non-admitted lead with exact observed source URL, scope, stated role and uncertainty. Do not omit a material named lead merely because it is not yet claim-grade; do not promote or admit it. On done, report source-backed claims only; an explicitly selected organization may be retained as a review-only card, not admitted."
-        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. A lossy memory or compact summary is not evidence that a name was absent. Use [] if none merits review; never admit."
+        : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT after every successful search or fetch. Read the complete raw observation and select objective-fit people/organizations worth a review-only card. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from that observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. A lossy memory is not evidence that a lead was absent. Use [] if none merits review; never admit."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
   const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
