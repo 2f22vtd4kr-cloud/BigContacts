@@ -1,5 +1,4 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
   personName: string | null;
@@ -39,34 +38,19 @@ export function candidateSourceUrlsForIdentity(input: {
 }
 
 /**
- * Search-result endpoints are useful leads but are not candidate identity evidence.
- * This is intentionally a small endpoint policy, not a research sequence.
+ * Verify only that a cited source is a well-formed public HTTPS URL.
+ * Source meaning, publisher quality, identity and targetability are model
+ * judgments; successful fetch and exact-quote checks establish observation reality.
  */
 export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !/^https:\/\/\S+$/i.test(value)) return false;
+  if (typeof value !== "string" || !value.trim()) return false;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return false;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
-    // Source class is provenance, not a discovery allow/deny list. Aggregator
-    // and profile pages may remain review leads; the target terminal gate does
-    // not let aggregator-only material establish identity or consequential claims.
-    const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
-    if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
-    if (host === "search.yahoo.com" && /^\/search$/i.test(path)) return false;
-    // The Instant Answer API aggregates information from external sources; findings should cite those source pages.
-    if (host === "api.duckduckgo.com") return false;
-    if (host === "s.jina.ai" && /^\/search$/i.test(path)) return false;
-    if ((host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\/html$/i.test(path)) && url.searchParams.has("q")) return false;
-    if (host === "efts.sec.gov" && /^\/LATEST\/search-index(?:\/|$)/i.test(url.pathname)) return false;
-    return true;
+    return url.protocol === "https:" && Boolean(url.hostname);
   } catch {
     return false;
   }
 }
-
-
 
 
 /**
@@ -77,9 +61,8 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
  */
 export function isRealisticPersonRouteSourceUrl(value: unknown): value is string {
   // Whether a page is a useful person-specific route is a contextual model
-  // judgement, not a publisher/path allowlist. Keep only technical source
-  // eligibility here: a valid claim-grade HTTPS source, excluding search
-  // result endpoints via isClaimGradeDiscoverySourceUrl.
+  // judgment, not a publisher/path/search-endpoint allowlist. Keep only
+  // technical source reality here: a valid public HTTPS URL.
   return isClaimGradeDiscoverySourceUrl(value);
 }
 
@@ -109,16 +92,12 @@ export function candidateRoleCorroborationSources(input: {
   }));
   if (!claimedUrls.size) return [];
   const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
-  const observedPassageFingerprints = new Set<string>();
   for (const observation of input.observations) {
     if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
-    // The Investigator selects the contextual passage; code verifies only
-    // that the exact quotation is present in this successfully fetched source
-    // and that it contains the named person. Do not impose a fixed character
-    // window or require the model's semantic role interpretation to match a
-    // hard-coded English/Latin role string.
+    // The Investigator owns identity, role and semantic relevance. Code verifies
+    // only successful retrieval plus the exact model-selected quote in this page.
     const modelQuotes = input.findings
       .filter((finding) => normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(input.personName)
         && normalizeCandidateIdentityName(finding.role ?? "") === normalizeCandidateIdentityName(role)
@@ -126,20 +105,13 @@ export function candidateRoleCorroborationSources(input: {
         && (finding.sourceUrls ?? []).some((url) => input.normalizeSourceUrl(url) === sourceUrl))
       .map((finding) => typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "")
       .filter(Boolean);
-    const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote)
-      && normalizeCandidateIdentityName(quote).includes(normalizeCandidateIdentityName(input.personName)));
+    const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote));
     if (!exactQuote) continue;
-    // The same exact quoted passage copied to a second domain is not independent
-    // corroboration; use the model-selected, source-verified quotation as lineage.
-    const passageFingerprint = exactQuote.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
-    if (observedPassageFingerprints.has(passageFingerprint)) continue;
     let host = "";
     try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
-    const publisher = publisherDomain(host);
-    if (!publisher) continue;
-    observedPassageFingerprints.add(passageFingerprint);
-    if (supporting.has(publisher)) continue;
-    supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
+    // Do not collapse or veto sources by publisher/domain. The model decides
+    // whether observations are independent and materially relevant.
+    if (!supporting.has(sourceUrl)) supporting.set(sourceUrl, { sourceUrl, publisher: host, eventId: observation.eventId });
   }
   return [...supporting.values()];
 }

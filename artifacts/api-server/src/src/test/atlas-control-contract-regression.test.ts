@@ -118,9 +118,8 @@ describe("canonical opening discovery contract", () => {
     expect(canonicalDiscoverySource).toContain("const openingInvestigatorObjective = activeDiscoveryObjective;");
     expect(canonicalDiscoverySource).toContain("initialResearchAdvisory: openingResearchAdvisory");
     expect(agenticCoreSource).toContain('const compactRegistryGuidance = "Use only runtime-attested registry IDs in the action schema; query source-specific indexed fields."');
-    expect(investigatorSystemCoreSource).toContain("GLEIF is legal-entity LEI/parent data");
-    expect(investigatorSystemCoreSource).toContain("UK Companies House is UK-only, not Ireland");
-    expect(investigatorSystemCoreSource).toContain("lexical company-name matches are leads, not proof");
+    expect(investigatorSystemCoreSource).toContain("GLEIF is LEI/parent data; UK Companies House is UK-only.");
+    expect(investigatorSystemCoreSource).toContain("Query adapter-indexed fields; lexical matches are leads, not proof.");
     expect(agenticCoreSource).toContain("Specialist actions are optional; the model decides by expected information gain.");
   });
 });
@@ -155,8 +154,8 @@ describe("Atlas control-plane contract regression", () => {
         canonicalDiscoverySource.indexOf("async function assertAtlasJobActive"),
       ),
       canonicalDiscoverySource.slice(
-        canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
-        canonicalDiscoverySource.indexOf("export async function runCanonicalAtlasPipeline"),
+        canonicalDiscoverySource.indexOf("async function materializeVerifiedReviewOnlyLeadCards"),
+        canonicalDiscoverySource.indexOf("async function materializeAtlasAdmissions"),
       ),
     ];
     expect(canonicalDiscoverySource).not.toContain("materializePartialPersonLeadCards");

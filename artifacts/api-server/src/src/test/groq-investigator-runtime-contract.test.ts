@@ -544,10 +544,10 @@ describe("Groq Investigator runtime contract", () => {
     const terminalOnlyUser = (terminalOnlyBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(terminalOnlyUser).not.toContain("reviewOnly=true");
     expect(submitted).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(submitted).toContain("No unrequested criteria or keyword/name heuristics; generic nouns are not queries.");
-    expect(submitted).toContain("No fixed source/provider/registry order or mix.");
-    expect(submitted).toContain("Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(submitted).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
+    expect(submitted).toContain("The first discovery probe uses the run's randomized opening modality; after that, choose sources, providers, registries and mix freely from evidence.");
+    expect(submitted).toContain("Investigator decides meaning, relevance, identity and attribution.");
+    expect(submitted).toContain("REALISM INTENT: For the default mission, seek lesser-known or unknown wealthy people who can realistically be contacted through public/professional routes. Ranking, top-N and famous-investor lists are poor sources; do not search them unless the human asks. Find people through filings, board seats, ownership records, company pages and documented exits.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
@@ -940,7 +940,9 @@ describe("Groq Investigator runtime contract", () => {
     });
     const strictUser = (strictBody.messages as Array<{ role: string; content: string }>).find((message) => message.role === "user")?.content ?? "";
     expect(strictUser).toContain("DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT.");
-    expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
+    expect(strictUser).toContain("Inspect complete latest successful same-run observations, not only the compact summary.");
+    expect(strictUser).toContain("exactQuote copied verbatim from the supplied observation");
+    expect(strictUser).toContain("Code verifies only URL and quote reality, never meaning or relevance.");
     expect(strictUser).toContain("review-only");
     expect(strictUser).toContain("reviewOnly=true");
     const strictSchema = (strictBody.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown> } } }).json_schema?.schema?.properties ?? {};

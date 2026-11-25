@@ -39,9 +39,10 @@ const appendsBoundedLatestEvidenceEnvelope = providerBoundedPromptSource.include
   && /return (?:reportPromptMeasurement\(boundedPrompt\)|boundedPrompt);/.test(core)
   && /return (?:reportPromptMeasurement\(providerBoundedPromptWithReviewHandoff\)|providerBoundedPromptWithReviewHandoff);/.test(core)
   && /const latestRecordTail = \[/.test(core)
-  && core.includes("const boundedObservation = compactDurablePromptObservation(")
+  && core.includes("const isLatestSuccessfulObservation =")
+  && core.includes("const boundedObservation = isLatestSuccessfulObservation")
   && core.includes("observationCharsOmittedFromPrompt");
-assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective, latest durable action, bounded fetched excerpt and URL context");
+assert(appendsBoundedLatestEvidenceEnvelope, "live Investigator prompt composition preserves the complete authored objective and latest complete successful observation within the exact provider token ceiling");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(core.includes("const allPromptRecords = sanitizeObservableValue(") && core.includes("const { pageArtifact: _pageArtifact, ...promptRecord } = record;") && core.includes("const promptTrajectoryRecords = allPromptRecords.map(") && /trajectoryRecords: promptTrajectoryRecords/.test(core), "each act prompt must include prior durable observations and current-act records in the AI-prepared, bounded model-facing projection, excluding full fetched-page artifacts");
 assert(core.includes("const latestRecordTail = [") && core.includes("buildLatestRecordTail()"), "latest durable evidence envelope is assembled from the trajectory record");
@@ -62,12 +63,12 @@ assert(
   "dynamic discovery prompt must retain observational search activity and review-only handoff state without restricting model-selected searches",
 );
 assert(
-  /MODEL-OWNED RELEVANCE: Investigator decides relevance/.test(orientation)
+  /MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance/.test(orientation)
     && /HYPOTHESES: Form falsifiable public-evidence hypotheses/.test(orientation)
-    && /AUTONOMY: No fixed source\/provider\/registry order or mix/.test(orientation)
+    && orientation.includes("randomized opening modality")
     && /OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses; generic nouns are not queries/.test(orientation)
     && /Treat web and enabled registries as neutral complementary routes/.test(orientation)
-    && /CLAIMS: .*wealth needs sourced ownership, equity or investment/.test(orientation),
+    && /CLAIMS: .*wealth needs sourced ownership, equity or investment, documented exits or other supporting evidence/.test(orientation),
   "institutional system contract must preserve objective-led, model-owned discovery, autonomous hypothesis diversity and complementary source choice",
 );
 assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
@@ -83,8 +84,8 @@ assert(/const userPromptBudget = Math\.min\([\s\S]*?4_000,[\s\S]*?\);/.test(core
 assert(/export function fitGroqInvestigatorRequestToLocalCeiling[\s\S]*?getGroqTokenRequest\(/.test(core) && /getGroqTokenRequestLimit\(input\.model\)/.test(core) && /prompt_exceeds_local_ceiling/.test(core), "canonical Investigator request fitting uses the provider gate's exact structured estimator and effective token ceiling");
 assert(/const fittedRequest = fitGroqInvestigatorRequestToLocalCeiling[\s\S]*?emitInvestigatorProviderRequestAudit\(/.test(core), "exact prompt fit and typed fail-closed refusal occur before request audit and provider egress");
 assert(/ARCHIVED TRAJECTORY INDEX[\s\S]*?AI-COMPACTED HISTORICAL RESEARCH MEMORY[\s\S]*?COMPACTED HISTORICAL RESEARCH CONTEXT[\s\S]*?CANONICAL EVIDENCE GRAPH STATE/.test(core), "optional context is compacted in the required older-history, durable-memory, auxiliary-state order");
-assert(/const observationBudget = searchActions\.has\(record\.action\)\s*\? 640\s*:\s*record\.execution === "success" && \(record\.action === "visit" \|\| record\.action === "browser_fetch"\)\s*\? 1_280\s*:\s*1_200/.test(core) && /compactEmergencyTrajectoryObservation\(record\.observation, 1_200\)/.test(core) && /recentActions: intelligenceState\.recentActions\.map/.test(core) && /atomicEvidence: intelligenceState\.atomicEvidence\.map/.test(core) && /const historyForMemory = history\.map/.test(core), "successful fetched-page observations receive a bounded verbatim excerpt projection while trajectory, structured intelligence and history memory remain bounded and full events remain durable");
-assert(/const compactFetchedPageObservation = \(raw: string, maxChars: number\): string => \{[\s\S]*?const rawStarts = \[0, Math\.floor\(maxStart \/ 2\), maxStart\];[\s\S]*?PAGE EXCERPT[\s\S]*?compactPromptSectionPreservingUrlTokens\(projection, maxChars, marker\)/.test(core) && /"pageReadOffset", "pageReadNextOffset", "pageHasMore", "pageReadSource"/.test(core), "fetched-page prompt context uses bounded verbatim excerpts across the page window and retains its continuation cursor");
+assert(core.includes("const isLatestSuccessfulObservation = (") && core.includes("record === latestRecord") && core.includes("record === latestSuccessfulSearchRecord") && core.includes("const boundedObservation = isLatestSuccessfulObservation") && core.includes("observationCharsRaw: rawObservation.length") && core.includes("observationCharsShown: boundedObservation.length") && core.includes("compactEmergencyTrajectoryObservation(record.observation, 1_200)") && core.includes("recentActions: intelligenceState.recentActions.map") && core.includes("atomicEvidence: intelligenceState.atomicEvidence.map") && core.includes("const historyForMemory = history.map"), "the complete newest successful observation is passed through, older observations and auxiliary intelligence remain bounded, and raw-vs-shown character counts are auditable");
+assert(core.includes("const compactFetchedPageObservation = (raw: string, maxChars: number): string => {") && core.includes("contiguous text from this observation window") && !core.includes("const rawStarts = [") && core.includes("PAGE WINDOW EXCERPT") && core.includes("request the next sequential window using pageReadNextOffset") && core.includes("const isLatestSuccessfulObservation = (") && core.includes("record === latestRecord") && core.includes("record === latestSuccessfulSearchRecord") && core.includes("record === latestSuccessfulFetchRecord") && core.includes("const observationBudget = isLatestSuccessfulObservation") && core.includes("? MAX_OBS") && core.includes("const boundedObservation = isLatestSuccessfulObservation") && core.includes("? rawObservation") && core.includes('"pageReadOffset", "pageReadNextOffset", "pageHasMore", "pageReadSource"'), "older fetched-page context uses contiguous excerpts while the latest successful search/fetch observations remain whole and page continuation cursors stay visible");
 assert(/prompt_exceeds_local_ceiling/.test(providerGate) && /role_budget_exhausted/.test(providerGate) && /cooldown/.test(providerGate) && /getGroqTokenRequestLimit/.test(providerGate) && /providerRequestedTokens/.test(telemetry) && /providerTokenLimit/.test(telemetry), "local prompt oversize, role budget, cooldown and provider budget diagnostics remain distinct and report requested tokens/ceiling");
 assert(/daily_token_budget_exhausted/.test(failureDiagnostics) && /prompt_exceeds_local_ceiling/.test(failureDiagnostics) && /local_provider_role_budget_exhausted/.test(failureDiagnostics), "daily budget exhaustion, prompt oversize and role budget exhaustion remain distinct failure classes");
 

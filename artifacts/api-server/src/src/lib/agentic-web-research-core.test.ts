@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, hasBoundedAiHistoricalMemory, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, candidateIdentitySourceBound, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, estimateGroqInvestigatorDailyReservationTokens, discoveryLeadInspectionRequirement, fitGroqInvestigatorRequestToLocalCeiling, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, hasBoundedAiHistoricalMemory, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, buildInitialInvestigatorObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, researchActionResource, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, estimateGroqInvestigatorDailyReservationTokens, discoveryLeadInspectionRequirement, fitGroqInvestigatorRequestToLocalCeiling, discoveryActionAllowlist, countDiscoverySearchActions, findUnsupportedDiscoverySectorTerms, discoverySearchLivenessAdvisory, discoveryTerminalGate, toolVisit, restoreRetainedFetchedPageStore, type RetainedFetchedPageStore, investigatorUserPromptBudget, groupInvestigatorCapabilitiesByModelAndCredential, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, discoveryQueriesAreNearDuplicates, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, selectConfiguredSearchProvider, resolveDomainLookupProvider, webSearchSerper, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -68,7 +68,7 @@ describe("retained fetched-page continuation persistence boundary", () => {
 describe("retained fetched-page continuation", () => {
   it("reads successive sections from the already fetched page without another network request", async () => {
     const url = "https://example.com/team";
-    const pageText = "A".repeat(16_000) + "B".repeat(16_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
+    const pageText = "A".repeat(16_000) + "B".repeat(4_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
     const pageStore: RetainedFetchedPageStore = {
       pages: new Map([[url, {
         text: pageText,
@@ -85,12 +85,12 @@ describe("retained fetched-page continuation", () => {
     const firstContinuation = await toolVisit(url, undefined, pageStore, 2);
     expect(firstContinuation.fromRetainedArtifact).toBe(true);
     expect(firstContinuation.pageReadOffset).toBe(16_000);
-    expect(firstContinuation.pageReadNextOffset).toBe(32_000);
+    expect(firstContinuation.pageReadNextOffset).toBe(19_400);
     expect(firstContinuation.observation).toContain("B".repeat(1_000));
 
     const secondContinuation = await toolVisit(url, undefined, pageStore, 3);
     expect(secondContinuation.fromRetainedArtifact).toBe(true);
-    expect(secondContinuation.pageReadOffset).toBe(32_000);
+    expect(secondContinuation.pageReadOffset).toBe(19_400);
     expect(secondContinuation.observation).toContain("TAIL-SECOND-SECTION");
     expect(secondContinuation.observation).toContain("[END OF RETAINED PAGE CONTENT]");
     expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
@@ -187,8 +187,8 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     const url = "https://example.com/filings/company-report.pdf";
     const distinctiveTail = 'PDF_FINAL_SECTION: Director Elena Varga. EXACT QUOTE: "The board confirms Elena Varga as a director."';
     const pdfBytes = syntheticTextPdf(
-      "PDF_START " + "A".repeat(18_000) + " PDF_MIDDLE: public filing officer history "
-      + "B".repeat(18_000) + " " + distinctiveTail,
+      "PDF_START " + "A".repeat(3_400) + " PDF_MIDDLE: public filing officer history "
+      + "B".repeat(5_000) + " " + distinctiveTail,
     );
     const store: RetainedFetchedPageStore = { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 };
     outboundMocks.safeOutboundFetch.mockReset();
@@ -203,7 +203,7 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       expect(initial.observation).toContain("PDF_START");
       expect(initial.observation).not.toContain("PDF_MIDDLE");
       expect(initial.observation).not.toContain("PDF_FINAL_SECTION");
-      expect(initial.pageText?.length).toBeGreaterThan(32_000);
+      expect(initial.pageText?.length).toBeGreaterThan(8_000);
       expect(typeof initial.pageSha256).toBe("string");
 
       const middle = await toolVisit(url, undefined, store, 2);
@@ -324,9 +324,9 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
     const pageText = [
       "START: Jane Doe, company chair",
-      "A".repeat(17_000),
+      "A".repeat(3_400),
       "MIDDLE: Marcus Lee, shareholder liaison",
-      "B".repeat(17_000),
+      "B".repeat(3_400),
       "END: Elena Varga, director",
       exactQuote,
       "C".repeat(1_000),
@@ -731,7 +731,7 @@ describe("Investigator local Groq token fit", () => {
     expect(prompt).toContain("omitted text is unknown");
     expect(prompt).toContain("full observation remains in immutable case events");
     expect(prompt).toContain('"observationCharsOmittedFromPrompt":');
-    expect(prompt.length).toBeLessThan(6_000);
+    expect(prompt.length).toBeLessThan(9_000);
   });
 
   it("bounds a standalone latest observation and applies the same projection before historical memory compaction", () => {
@@ -835,21 +835,22 @@ describe("Investigator system prompt budget", () => {
   it("keeps the system core compact and reserves dynamic mission details for the user prompt", () => {
     const systemCore = apexInvestigatorSystemCore();
     const roleOrientation = apexOrientationFor("investigator");
-    expect(systemCore.length).toBeLessThan(3_500);
+    expect(systemCore.length).toBeLessThan(4_000);
     expect(systemCore).toContain("MODEL-OWNED RELEVANCE");
     expect(systemCore).toContain("EVIDENCE:");
     expect(systemCore).toContain("CONTACT:");
     expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("COMPANY REALISM:");
-    expect(systemCore).toContain("Operations, decision-makers, capital capacity, ownership and routes matter only when mission-relevant");
+    expect(systemCore).toContain("REALISM INTENT: For the default mission, seek lesser-known or unknown wealthy people");
+    expect(systemCore).toContain("Find people through filings, board seats, ownership records, company pages and documented exits");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
     expect(systemCore).toContain("registry items need query/registry");
     expect(systemCore).toContain("TERMINAL:");
-    expect(systemCore).toContain("No fixed source/provider/registry order or mix.");
+    expect(systemCore).toContain("The first discovery probe uses the run's randomized opening modality");
+    expect(systemCore).toContain("after that, choose sources, providers, registries and mix freely from evidence");
     expect(systemCore).not.toContain("Virtual Globetrotting");
     expect(systemCore).not.toContain("PERSON REALISM");
     expect(roleOrientation).toContain("YOUR ROLE — INVESTIGATOR");
@@ -909,7 +910,7 @@ describe("discovery provisional review-lead output contract", () => {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
     const discoveryFindingProperties = (discoveryFormat.json_schema?.schema?.properties?.findings as { items?: { properties?: Record<string, unknown> } } | undefined)?.items?.properties ?? {};
-    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
+    expect(Object.keys(discoveryFindingProperties).sort()).toEqual(["exactQuote", "note", "personName", "reviewOnly", "role", "scope", "sourceUrls", "value", "vectorType"].sort());
     const targetFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist, "target") as {
       json_schema?: { schema?: { properties?: Record<string, unknown> } };
     };
@@ -953,7 +954,7 @@ describe("review and claim finding separation", () => {
 });
 
 describe("model-owned discovery relevance reasoning", () => {
-  it("asks the Investigator to justify objective fit without selecting a source, target, or action", () => {
+  it("keeps semantic decisions model-owned while using a randomized opening modality", () => {
     const input = {
       targetName: "",
       objective: "Find under-the-radar owners and operators with source-backed business or asset signals.",
@@ -965,14 +966,15 @@ describe("model-owned discovery relevance reasoning", () => {
     };
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + discoveryPrompt;
-    expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
-    expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
+    expect(modelPrompt).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
+    expect(modelPrompt).toContain("if the human explicitly asks for such lists, follow that objective.");
     expect(modelPrompt).toContain("EVIDENCE: Search snippets/registry hits are leads, not evidence; failed/unfetched are unknown.");
-    expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
-    expect(modelPrompt).toContain("DISCOVERY MODE: explore objective-fit targets; avoid generic glossary queries.");
+    expect(modelPrompt).toContain("The first discovery probe uses the run's randomized opening modality");
+    expect(modelPrompt).toContain("DISCOVERY MODE: the human objective and latest Boss-approved scope govern target class and geography.");
     expect(modelPrompt).toContain("Treat web and enabled registries as neutral complementary routes; use either or both.");
-    expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates.");
+    expect(modelPrompt).toContain("Infer sectors, jurisdictions and entities from the objective and evidence; do not use deterministic admission gates. Use the run-supplied randomized opening modality for the first probe");
     expect(modelPrompt).toContain("Locale guides language; market is evidence-led, not a gate.");
     expect(modelPrompt).toContain("Respect explicit geography; otherwise follow objective fit.");
     expect(modelPrompt).not.toContain("Use market only when mission or same-case evidence supports country-specific search; locale is language only.");
@@ -986,10 +988,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(modelPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(modelPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
-    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(targetPrompt).toContain("TARGET MODE: follow the exact human objective and current Boss scope. The Investigator chooses the next research action by evidence and expected information gain; do not impose a fixed source or tool sequence.");
     expect(targetPrompt).toContain("ASSIGNMENT TARGET:");
-    expect(apexInvestigatorSystemCore()).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(apexInvestigatorSystemCore()).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(targetPrompt).not.toContain("Inc. 5000/fast-growth/unicorn rankings");
     expect(targetPrompt).not.toContain("globally famous/household-name");
   });
@@ -1198,7 +1200,11 @@ describe("trajectory-local web-search provider failure state", () => {
     resetProviderGateForTests();
     outboundMocks.safeOutboundFetch.mockReset();
     outboundMocks.safeOutboundFetch.mockImplementation(async () => new Response(JSON.stringify({
-      organic: [{ title: "Mocked public source", link: "https://example.com/observed-lead", snippet: "A mocked search result for the regression test." }],
+      organic: Array.from({ length: 10 }, (_, index) => ({
+        title: `Mocked public source ${index + 1}`,
+        link: `https://example.com/observed-lead-${index + 1}`,
+        snippet: `Complete mocked Serper snippet ${index + 1} for the ten-result regression.`,
+      })),
     }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubEnv("SERPER_API_KEY", "configured-serper-test-key");
     try {
@@ -1220,7 +1226,12 @@ describe("trajectory-local web-search provider failure state", () => {
         const result = await webSearchSerper(action.query);
         if (!result) throw new Error("Mocked Serper search returned no result object");
         expect(result.status).toBe("success");
-        expect(result.urls).toContain("https://example.com/observed-lead");
+        expect(result.urls).toHaveLength(10);
+        expect(result.text).toContain("Mocked public source 10");
+        expect(result.text).toContain("Complete mocked Serper snippet 10 for the ten-result regression.");
+        expect(result.urls).toContain("https://example.com/observed-lead-10");
+        const requestInit = outboundMocks.safeOutboundFetch.mock.calls.at(-1)?.[1] as RequestInit | undefined;
+        expect(JSON.parse(String(requestInit?.body)).num).toBe(10);
       }
       expect(outboundMocks.safeOutboundFetch).toHaveBeenCalledTimes(4);
     } finally {
@@ -2230,8 +2241,8 @@ describe("Investigator prompt architecture", () => {
     const modelPrompt = apexInvestigatorSystemCore() + "\n" + discovery;
     expect(discovery).toContain("TERMINAL GATE: minEvidence=1; independentSources=1; exactQuotes=false; requireFalsification=false;");
     expect(modelPrompt).toContain("REVIEW LEADS:");
-    expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=0; independentSources=0; exactQuotes=false; requireFalsification=false");
@@ -2348,16 +2359,16 @@ describe("Investigator prompt architecture", () => {
     expect(modelPrompt).toMatch(/browser_fetch handles HTML/);
     expect(modelPrompt).toMatch(/Search snippets\/registry hits are leads, not evidence; failed\/unfetched are unknown/i);
     expect(modelPrompt).toMatch(/MISSION & ROLES:|MISSION:/);
-    expect(modelPrompt).toContain("No fixed source/provider/registry order or mix.");
+    expect(modelPrompt).toContain("The first discovery probe uses the run's randomized opening modality");
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(modelPrompt).toMatch(/MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority/i);
-    expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toContain("HNWI/wealth/success labels are not evidence");
     expect(modelPrompt).toMatch(/REVIEW LEADS:.*candidate=person/i);
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toContain("TARGET NAMES: exact names only from the human brief or same-case observations; no homonym guesses.");
     expect(modelPrompt).toContain("CONTACT: Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -2412,11 +2423,11 @@ describe("Investigator prompt architecture", () => {
 
     expect(prompt).not.toContain(fetchedObservation);
     expect(prompt).toContain("OBSERVATION PROJECTION");
-    // Search results and fetched PDF text are bounded prompt projections; full observations remain durable.
-    expect(prompt).not.toContain(latestObservation);
+    // The latest successful search is complete; only older turns are compacted.
+    expect(prompt).toContain(latestObservation);
     expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
-    expect(prompt).toContain("LATEST_SEARCH_OBSERVATION_BEGIN");
-    expect(prompt).toContain("[OBSERVATION PROJECTION: omitted text is unknown; full observation remains in immutable case events; exact URLs are preserved separately]");
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
     expect(prompt).toContain("observationCharsOmittedFromPrompt");
     expect(prompt).toContain("PDF_OWNERSHIP_CLAIM_SENTINEL");
     expect(prompt).toContain(fetchedUrl);
@@ -2499,8 +2510,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Inspect complete latest successful same-run observations, not only the compact summary. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true");
     expect(prompt).toContain("reviewOnly=true");
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
-    expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -2590,9 +2601,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE DIAGNOSTIC");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(modelPrompt).toContain("No unrequested criteria");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -3177,8 +3188,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("OPEN DISCOVERY: Let evidence determine targets, sectors and jurisdictions. Use web and enabled registries complementarily when useful; no forced mix, rotation or action order.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
-    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth needs sourced ownership, equity or investment.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
+    expect(modelPrompt).toContain("CLAIMS: B2B roles need fetched role/company evidence; wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference; board seats and company pages can establish roles or routes, not wealth by themselves.");
   });
 
   it("retains aggregator and third-party pages for model interpretation rather than deterministic exclusion", async () => {
@@ -3490,7 +3501,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("one focused query per action");
     expect(prompt).not.toContain("Slovenia");
     expect(prompt).not.toContain("casinos in Slovenia");
-    expect(modelPrompt).toContain("No unrequested criteria");
+    expect(modelPrompt).toContain("No keyword, regex, name, employer or domain gates");
     expect(modelPrompt).toContain("REVIEW LEADS:");
     expect(modelPrompt).toContain("candidate=person; organization=organization");
   });
@@ -3506,7 +3517,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     const modelPrompt = apexInvestigatorSystemCore() + "\\n" + prompt;
-    expect(modelPrompt).toContain("Fame, wealth, title, size, ranking, sector, geography, language and source class are context, not gates.");
+    expect(modelPrompt).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
     expect(modelPrompt).toContain("context, not gates");
     expect(modelPrompt).toContain("Model classifies routes: person-specific, shared, organization, intermediary or unknown.");
     expect(modelPrompt).not.toContain("globally famous/household-name individuals are presumptively poor-reachability prospects");
@@ -4578,19 +4589,12 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).toContain("sources: action.sources");
   });
 
-  it("matches short Latin names as exact tokens without requiring a role to establish identity", () => {
-    expect(candidateIdentitySourceBound("Li", "CEO", "Li is the CEO of Example Holdings.")).toBe(true);
-    expect(candidateIdentitySourceBound("Li", "", "Li is mentioned in an unrelated sentence.")).toBe(true);
-    // Identity and role are separate bindings: promotion still checks the role
-    // against the same source independently.
-    expect(candidateIdentitySourceBound("Li", "CEO", "Li is mentioned. The CEO is described in a different sentence.")).toBe(true);
-    expect(candidateIdentitySourceBound("李", "董事长", "李董事长出席了公司年度会议。")).toBe(true);
-    expect(candidateIdentitySourceBound("李", "", "李董事长出席了公司年度会议。")).toBe(true);
-    expect(candidateIdentitySourceBound("A", "", "A is the CEO of Example Holdings.")).toBe(true);
-    expect(candidateIdentitySourceBound("A", "", "a is the CEO of Example Holdings.")).toBe(false);
-    expect(candidateIdentitySourceBound("Li", "CEO", "Liability insurance is required for the CEO.")).toBe(false);
-    expect(candidateIdentitySourceBound("Jane Doe", "", "Jane Doe is listed in the public company leadership page.")).toBe(true);
-    expect(agenticCoreSource).toContain("const hasRole = promotedCandidate && Boolean(role) && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);");
+  it("keeps identity interpretation model-owned and checks only exact quote reality", () => {
+    expect(agenticCoreSource).toContain('const exactQuote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : ""');
+    expect(agenticCoreSource).toContain('String(record.observation ?? "").includes(exactQuote)');
+    expect(agenticCoreSource).not.toContain("candidateIdentitySourceBound");
+    expect(agenticCoreSource).not.toContain("const hasIdentity");
+    expect(agenticCoreSource).not.toContain("const hasRole = promotedCandidate");
   });
 
   it("does not discard non-empty short names before source-backed identity validation", () => {
@@ -5185,13 +5189,13 @@ describe("single fetched page organization identity", () => {
   });
 });
 
-describe("latest fetched source evidence survives emergency Investigator compaction", () => {
-  it("samples fetched-page context across the retained page window and exposes its continuation cursor", () => {
+describe("latest Investigator observations remain complete within the provider token ceiling", () => {
+  it("preserves the complete latest fetched-page window and exposes its continuation cursor", () => {
     const sourceUrl = "https://www.openvc.app/investor-lists/angel-investors";
-    const observation = "PAGE_START_SENTINEL " + "A".repeat(8_000)
+    const observation = "PAGE_START_SENTINEL " + "A".repeat(700)
       + " MIDDLE_DIRECTORY_LEAD_SENTINEL: WIT Angels Club and Golden Seeds are listed here. "
-      + "B".repeat(6_900)
-      + "C".repeat(1_200)
+      + "B".repeat(700)
+      + "C".repeat(700)
       + " LATE_DIRECTORY_LEAD_SENTINEL: a later organization is listed here."
       + "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run.]";
     const prompt = buildStepPrompt({
@@ -5208,7 +5212,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
           hypothesis: "The directory contains named objective-fit investor leads.",
           purpose: "Inspect source-listed organizations and people.",
           pageReadOffset: 0,
-          pageReadNextOffset: 16_000,
+          pageReadNextOffset: 3_400,
           pageHasMore: true,
           pageReadSource: "retained_fetch_artifact",
         },
@@ -5223,14 +5227,166 @@ describe("latest fetched source evidence survives emergency Investigator compact
       actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
     });
 
-    expect(prompt).toContain("PAGE EXCERPT 2");
+    expect(prompt).toContain("PAGE_START_SENTINEL");
     expect(prompt).toContain("MIDDLE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain("LATE_DIRECTORY_LEAD_SENTINEL");
     expect(prompt).toContain('"pageReadOffset":0');
-    expect(prompt).toContain('"pageReadNextOffset":16000');
+    expect(prompt).toContain('"pageReadNextOffset":3400');
     expect(prompt).toContain('"pageHasMore":true');
-    expect(prompt).not.toContain("PAGE CONTENT CONTINUES");
-    expect(prompt).not.toContain(observation);
+    expect(prompt).toContain("PAGE CONTENT CONTINUES");
+    expect(prompt).toContain(observation);
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
+  });
+
+  it("passes all ten recorded Serper results with complete title, URL and snippet text", () => {
+    const results = Array.from({ length: 10 }, (_, index) => [
+      `RESULT_${index + 1}_TITLE`,
+      `URL: https://serper.example.test/result-${index + 1}`,
+      `RESULT_${index + 1}_SNIPPET contains a complete observation sentinel.`,
+    ].join("\n")).join("\n\n");
+    const urls = Array.from({ length: 10 }, (_, index) => `https://serper.example.test/result-${index + 1}`);
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people who can realistically be contacted.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 7, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+        args: { query: "localized primary-source company discovery", provider: "serper" },
+        observation: results, observedUrls: [], leadUrls: urls, findings: [],
+      }],
+      lastObservation: results,
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(results);
+    for (let index = 1; index <= 10; index += 1) {
+      expect(prompt).toContain(`RESULT_${index}_TITLE`);
+      expect(prompt).toContain(`https://serper.example.test/result-${index}`);
+      expect(prompt).toContain(`RESULT_${index}_SNIPPET`);
+    }
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
+  });
+
+  it("keeps every result from the latest successful search whole after a later fetch", () => {
+    const results = Array.from({ length: 10 }, (_, index) => [
+      `AFTER_FETCH_RESULT_${index + 1}_TITLE`,
+      `URL: https://serper-after-fetch.example.test/result-${index + 1}`,
+      `AFTER_FETCH_RESULT_${index + 1}_SNIPPET is complete and uncut.`,
+    ].join("\n")).join("\n\n");
+    const urls = Array.from({ length: 10 }, (_, index) => `https://serper-after-fetch.example.test/result-${index + 1}`);
+    const pageUrl = "https://primary-source.example.test/company-lead";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people with realistic public/professional contact routes.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+          args: { query: "localized primary-source company search", provider: "serper" },
+          observation: results, observedUrls: [], leadUrls: urls, findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 90, pageHasMore: false },
+          observation: "FETCHED_PAGE_SENTINEL: this page contains a named board member.",
+          observedUrls: [pageUrl], leadUrls: [], findings: [],
+        },
+      ],
+      lastObservation: "FETCHED_PAGE_SENTINEL: this page contains a named board member.",
+      aiCompactedHistoricalContext: "Model-authored memory already summarized search turn 1.",
+      aiCompactedHistoricalThroughTurn: 1,
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(results);
+    expect(prompt).toContain("FETCHED_PAGE_SENTINEL");
+    for (let index = 1; index <= 10; index += 1) {
+      expect(prompt).toContain(`AFTER_FETCH_RESULT_${index}_TITLE`);
+      expect(prompt).toContain(`AFTER_FETCH_RESULT_${index}_SNIPPET is complete and uncut.`);
+    }
+    expect(prompt).toContain('"observationCharsShown":');
+    expect(prompt).toContain('"observationCharsRaw":');
+  });
+
+  it("keeps the latest fetched page window whole when a later search becomes the newest action", () => {
+    const pageText = "FETCHED_PAGE_START " + "Board member and company ownership evidence. ".repeat(65) + "FETCHED_PAGE_END_NAME_LIST_SENTINEL";
+    const searchResults = Array.from({ length: 10 }, (_, index) => [
+      `LATER_SEARCH_RESULT_${index + 1}_TITLE`,
+      `URL: https://later-search.example.test/result-${index + 1}`,
+      `LATER_SEARCH_RESULT_${index + 1}_SNIPPET`,
+    ].join("\n")).join("\n\n");
+    const searchUrls = Array.from({ length: 10 }, (_, index) => `https://later-search.example.test/result-${index + 1}`);
+    const pageUrl = "https://primary-record.example.test/board";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find lesser-known wealthy people with realistic public/professional contact routes.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 3_400, pageHasMore: true },
+          observation: pageText, observedUrls: [pageUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-20b", action: "web_search", execution: "success",
+          args: { query: "follow-up localized company search", provider: "serper" },
+          observation: searchResults, observedUrls: [], leadUrls: searchUrls, findings: [],
+        },
+      ],
+      lastObservation: searchResults,
+      aiCompactedHistoricalContext: "Model-authored memory summarized fetched page turn 1.",
+      aiCompactedHistoricalThroughTurn: 1,
+      findings: [], mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+    expect(prompt).toContain(pageText);
+    expect(prompt).toContain("FETCHED_PAGE_END_NAME_LIST_SENTINEL");
+    expect(prompt).toContain(searchResults);
+    expect(prompt).toContain('"observationCharsRaw":');
+    expect(prompt).toContain('"observationCharsShown":');
+  });
+
+  it("carries multiple recent successful fetched sources into the next discovery decision", () => {
+    const firstUrl = "https://investors.example.test/first-source";
+    const secondUrl = "https://investors.example.test/second-source";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find objective-fit potential investors and other relevant people through public evidence.",
+      history: [],
+      trajectoryRecords: [
+        {
+          turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+          args: { url: firstUrl },
+          observation: "Fetched source one. The page names FIRST_SOURCE_PERSON as a director of a relevant investment firm.",
+          observedUrls: [firstUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 2, model: "openai/gpt-oss-120b", action: "browser_fetch", execution: "success",
+          args: { url: secondUrl, pageReadOffset: 0, pageReadNextOffset: 6800, pageHasMore: true },
+          observation: "Fetched source two. The page names SECOND_SOURCE_PERSON in an article about early-stage investing.",
+          observedUrls: [secondUrl], leadUrls: [], findings: [],
+        },
+        {
+          turn: 3, model: "openai/gpt-oss-120b", action: "web_search", execution: "success",
+          args: { query: "corroborate public investment roles", provider: "serper" },
+          observation: "A later search returned additional leads.",
+          observedUrls: [], leadUrls: ["https://investors.example.test/third-source"], findings: [],
+        },
+      ],
+      lastObservation: "A later search returned additional leads.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "browser_fetch", "done"],
+    });
+
+    expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE OBSERVATIONS");
+    expect(prompt).toContain("FIRST_SOURCE_PERSON");
+    expect(prompt).toContain("SECOND_SOURCE_PERSON");
+    expect(prompt).toContain(firstUrl);
+    expect(prompt).toContain(secondUrl);
+    expect(prompt).toContain('"includedRecordCount":2');
   });
 
   it("keeps a source fact near the end of a long successful page observation", () => {
@@ -5265,7 +5421,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(modelPrompt).toContain("Claims need same-case exact quote+URL");
     expect(modelPrompt).toMatch(/search-only review-only; promote only on same-case fetched evidence/i);
     expect(modelPrompt).toContain("B2B roles need fetched role/company evidence");
-    expect(modelPrompt).toContain("wealth needs sourced ownership, equity or investment");
+    expect(modelPrompt).toContain("wealth claims need source-backed ownership, equity, investment, documented exits or other evidence that actually supports the inference");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
@@ -5654,12 +5810,12 @@ describe("community source lead handling and evidence-led scope", () => {
   });
   it("allows evidence-led sector and jurisdiction hypotheses while preserving Boss authority", () => {
     const system = apexInvestigatorSystemCore();
-    expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides relevance, identity, ownership, relationships, contact attribution and priority.");
+    expect(system).toContain("MODEL-OWNED RELEVANCE: Investigator decides meaning, relevance, identity, ownership, relationships, contact attribution and priority.");
     expect(system).toContain("Boss approves scope");
     expect(system).not.toContain("Never introduce an industry/sector or jurisdiction absent from the human objective");
     expect(system).not.toContain("when no sector is specified, keep discovery cross-sector");
     expect(system).not.toContain("quick bounded first-pass mix");
-    expect(system).toContain("No fixed source/provider/registry order or mix.");
+    expect(system).toContain("The first discovery probe uses the run's randomized opening modality");
   });
 
   it("does not let a successful fetch from a superseded Boss pivot authorize sector narrowing", () => {

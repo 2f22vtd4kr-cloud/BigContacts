@@ -594,11 +594,14 @@ async function requestSummary(
  * non-semantic observations may use the bounded transport projection.
  */
 const AI_COMPACTION_MIN_SOURCE_CHARS = 9_000;
-// Production historical-memory compaction supports segmented, model-written
-// summaries up to a bounded 80k source. It no longer has an 11k upper window.
-const AI_COMPACTION_MAX_SOURCE_CHARS = 80_000;
-const AI_COMPACTION_MAX_SOURCE_CHUNKS = 8;
-const AI_COMPACTION_MAX_REQUESTS_PER_TURN = 12;
+// Production historical-memory compaction supports large retained cases with
+// lossless transport segmentation and model-written summaries. The cap is high
+// enough for the observed ~146k continuation context without admitting unbounded
+// histories; every segment and consolidation request remains sequential and
+// budgeted on the dedicated Right-hand 20B memory-transformation lane.
+const AI_COMPACTION_MAX_SOURCE_CHARS = 200_000;
+const AI_COMPACTION_MAX_SOURCE_CHUNKS = 16;
+const AI_COMPACTION_MAX_REQUESTS_PER_TURN = 24;
 const AI_COMPACTION_CACHE_LIMIT = 256;
 const aiCompactionCache = new Map<string, string | null>();
 const AI_COMPACTION_TURN_CACHE_LIMIT = 2_048;
