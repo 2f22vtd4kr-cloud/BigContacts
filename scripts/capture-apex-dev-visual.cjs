@@ -130,9 +130,9 @@ async function main() {
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
-      const sidebarLinks = await page.locator(".atlas-round-sidebar-nav a").allTextContents();
-      if (sidebarLinks.length !== 5 || sidebarLinks.some((label) => /Field manual|System status|Data sources|Source directory|Persona review|Duplicate review|Workspace activity|Network graph|Reactor topology|Intel terminal/.test(label))) {
-        throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
+      const primaryLinks = await page.locator(".atlas-round-primary a").allTextContents();
+      if (primaryLinks.length !== 5 || primaryLinks.some((label) => /Field manual|System status|Data sources|Source directory|Persona review|Duplicate review|Workspace activity|Network graph|Reactor topology|Intel terminal/.test(label))) {
+        throw new Error(`Board header navigation must expose exactly the five designed destinations; received: ${primaryLinks.join(" | ")}`);
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
       if (await page.locator(".atlas-round-brand-mark").count() !== 1 || !(await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count()) || await page.locator(".atlas-round-sidebar-brand").count()) throw new Error("The heraldic Apex Atlas shield must appear once in the shared header and never be duplicated inside the mobile drawer.");
@@ -144,12 +144,12 @@ async function main() {
         bodyHtmlLength: document.body.innerHTML.length,
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
-        sidebar: (() => {
-          const element = document.querySelector(".atlas-round-sidebar");
+        navigation: (() => {
+          const element = document.querySelector(".atlas-round-primary");
           if (!element) return null;
           const rect = element.getBoundingClientRect();
           const style = getComputedStyle(element);
-          return { width: rect.width, height: rect.height, position: style.position, visibility: style.visibility, links: Array.from(element.querySelectorAll("nav a")).map((link) => link.textContent?.trim()) };
+          return { width: rect.width, height: rect.height, display: style.display, links: Array.from(element.querySelectorAll("a")).map((link) => link.textContent?.trim()) };
         })(),
         launchFramePatterns: (() => {
           const element = document.querySelector(".atlas-home-board-console");
@@ -193,17 +193,10 @@ async function main() {
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       if (name === "mobile") {
-        const openNavigation = page.locator(".atlas-round-sidebar-toggle");
-        if (await openNavigation.count()) {
-          await openNavigation.click();
-          await page.waitForSelector(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar", { timeout: 3000 });
-          if (await page.locator(".atlas-round-sidebar-brand").count() !== 0 || await page.locator(".atlas-round-sidebar-nav a").count() !== 5) {
-            throw new Error("The open mobile drawer must contain only the five navigation destinations, with no duplicate Apex Atlas branding.");
-          }
-          const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
-          console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
-        } else {
-          throw new Error("Mobile sidebar toggle is missing.");
+        const mobileNavigation = await page.locator(".atlas-round-primary").evaluate((element) => getComputedStyle(element).display);
+        if (mobileNavigation !== "none") throw new Error("The phone board must keep navigation out of the compact brand/status header.");
+        if (await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count() !== 1) {
+          throw new Error("The compact phone header must retain exactly one Apex Atlas brand mark.");
         }
       }
       currentPath = "/network";
