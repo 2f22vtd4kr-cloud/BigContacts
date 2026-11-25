@@ -2798,7 +2798,8 @@ html.light main,
   .atlas-round .atlas-home-board { padding-inline:8px!important; }
   .atlas-round .atlas-home-board-grid {
     grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;
-    gap:64px!important;
+    column-gap:64px!important;
+    row-gap:0!important;
   }
   .atlas-round .atlas-home-board-intro h1 {
     max-width:none!important;
