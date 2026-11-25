@@ -284,9 +284,12 @@ async function materializeVerifiedReviewOnlyLeadCards(input: {
         const urlField = isFetch ? payload.observedUrls : payload.leadUrls;
         if (!Array.isArray(urlField) || !urlField.some((url) => typeof url === "string" && normalizeSourceUrl(url) === sourceUrl)) continue;
         const observation = typeof payload.observation === "string" ? payload.observation : "";
-        if (!observation.includes(sourceUrl) || !observation.includes(quote)) continue;
-        const key = type + "|" + name.toLocaleLowerCase("en-US") + "|" + sourceUrl;
-        verified.set(key, { name, type, role: finding.role ?? null, sourceUrl, exactQuote: quote, action });
+        const observedSourceUrls = [...observation.matchAll(/https?:\\/\\/[^\\s"'<>]+/giu)]
+          .map((match) => normalizeSourceUrl(match[0]))
+          .filter((url): url is string => Boolean(url));
+        if (!observedSourceUrls.includes(sourceUrl) || !observation.includes(quote)) continue;
+        const key = type + "|" + name.toLocaleLowerCase("en-US");
+        if (!verified.has(key)) verified.set(key, { name, type, role: finding.role ?? null, sourceUrl, exactQuote: quote, action });
       }
     }
   }
