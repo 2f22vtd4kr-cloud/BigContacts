@@ -6662,7 +6662,7 @@ export function discoveryActionAllowlist(_mode: string | undefined, actions: rea
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
-  const recent = records.slice(-12);
+  const recent = records.slice(-20);
   let successfulSearchesSinceObservedSource = 0;
   for (const record of [...records].reverse()) {
     if (record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "parallel_registry_search") {
@@ -6819,7 +6819,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
 
   const searchFacts = searchHistoryFacts.length
     ? "SEARCH HISTORY FACTS (observed trajectory only; not a keyword gate, quota, or prescribed route): "
-      + searchHistoryFacts.slice(-20).join(" || ")
+      + searchHistoryFacts.join(" || ")
       + ". New/repeat counts compare exact normalized result URLs across the displayed search actions; they do not judge query meaning or relevance."
     : "";
   if (!cues.length && !searchFacts) return null;
