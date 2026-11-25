@@ -26,12 +26,12 @@ describe("media evidence versus realistic person route", () => {
     expect(hasRealisticPersonRouteSource([cnbcStory])).toBe(true);
   });
 
-  it("retains only technical HTTPS and claim-grade URL checks", () => {
+  it("does not apply publisher, path or search-domain gates to HTTPS observations", () => {
     expect(isRealisticPersonRouteSourceUrl("https://markets.cnbc.com/team/jane-example")).toBe(true);
     expect(isRealisticPersonRouteSourceUrl("https://cnbc.com./team/jane-example")).toBe(true);
     expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%6eews/team/jane-example")).toBe(true);
     expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%E0%A4%A/team/jane-example")).toBe(true);
-    expect(isRealisticPersonRouteSourceUrl("https://www.google.com/search?q=jane")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://www.google.com/search?q=jane")).toBe(true);
     expect(isRealisticPersonRouteSourceUrl("http://regional-operator.example/team/jane")).toBe(false);
   });
 
@@ -64,7 +64,7 @@ describe("candidate source URL union", () => {
 });
 
 describe("discovery source evidence policy", () => {
-  it("requires the same candidate role on two independent direct source observations", () => {
+  it("verifies exact model-selected quotes without publisher/domain grouping", () => {
     const findings = [
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://leadership.alpha.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://profiles.alpha.test/jane"], exactQuote: "Jane Example is the Chief Executive Officer of Alpha." },
@@ -93,7 +93,7 @@ describe("discovery source evidence policy", () => {
     ]);
   });
 
-  it("rejects a name-only second source and does not let search actions corroborate", () => {
+  it("rejects a source without an exact model quote and does not let search actions corroborate", () => {
     const findings = [
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://leadership.alpha.test/jane"], exactQuote: "Jane Example is Chief Executive Officer." },
       { personName: "Jane Example", role: "Chief Executive Officer", promotionDecision: "promote" as const, scope: "candidate" as const, sourceUrls: ["https://company-beta.test/team"], exactQuote: null },
@@ -110,7 +110,7 @@ describe("discovery source evidence policy", () => {
   });
 
 
-  it("requires HTTPS and rejects search-result endpoints as candidate claim evidence", () => {
+  it("requires HTTPS but leaves publisher and search-endpoint meaning to the model", () => {
     expect(isClaimGradeDiscoverySourceUrl("http://example.test/team/jane")).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
     for (const url of [
@@ -120,7 +120,7 @@ describe("discovery source evidence policy", () => {
       "https://duckduckgo.com/?q=Jane",
       "https://efts.sec.gov/LATEST/search-index?q=Jane",
       "https://s.jina.ai/search?q=Jane+Example",
-    ]) expect(isClaimGradeDiscoverySourceUrl(url)).toBe(false);
+    ]) expect(isClaimGradeDiscoverySourceUrl(url)).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/search?q=Jane")).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
@@ -138,9 +138,9 @@ describe("discovery source evidence policy", () => {
     }
   });
 
-  it("rejects DuckDuckGo Instant Answer API URLs, including trailing-dot host aliases", () => {
-    expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com/?q=Jane+Example&format=json")).toBe(false);
-    expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(false);
+  it("does not reject HTTPS sources by DuckDuckGo hostname or endpoint path", () => {
+    expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com/?q=Jane+Example&format=json")).toBe(true);
+    expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(true);
   });
 
   it("allows a fetched Virtual Globetrotting observation to be evaluated as a community lead", () => {
@@ -225,7 +225,7 @@ describe("discovery source evidence policy", () => {
       [{ name: "JANE   EXAMPLE", sourceUrls: ["https://example.test/about/", "https://google.com/search?q=Jane"] }],
     ])).toEqual([{
       name: "Jane Example",
-      sourceUrls: ["https://example.test/team/jane", "https://example.test/about"],
+      sourceUrls: ["https://example.test/team/jane", "https://example.test/about", "https://google.com/search?q=Jane"],
     }]);
   });
 });
