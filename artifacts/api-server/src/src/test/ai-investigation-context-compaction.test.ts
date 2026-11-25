@@ -1011,7 +1011,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("fails closed before issuing a compaction request burst for an oversized source history", async () => {
-    const source = "COMPLETE CASE HISTORY " + "source fact and URL state. ".repeat(6_500);
+    const source = "COMPLETE CASE HISTORY " + "source fact and URL state. ".repeat(8_500);
     await expect(summarizeInvestigatorContextWithAiCompactor({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(rightHandMocks.runGroqRightHandFreeJson).not.toHaveBeenCalled();
   });
