@@ -120,18 +120,21 @@ describe("terminal review-card reconciliation", () => {
 
   it("preserves a real company lead from one successful web search before later control failure", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
-    // Regression: the checkpoint previously read only observedUrls and only
-    // accepted fetched pages, so a model-grounded company name in a successful
-    // search result could not be admitted as a candidate or persisted as a card before the next control turn.
-    expect(canonical).toContain('if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId) return [];');
-    expect(canonical).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
-    expect(canonical).toContain('searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length');
-    expect(canonical).toContain('execution: payload.execution ?? ""');
-    expect(canonical).toContain('verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const');
-    expect(canonical).toContain('verificationLevel === "search_result_lead"');
-    expect(canonical).toContain('A successful public search observation contains the exact organization name');
-    expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
-    expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
+    // Action-level checkpointing persists a model-selected review-only card
+    // only when its exact URL and exact quote belong to the same successful
+    // same-run observation. The card is never target admission.
+    const start = canonical.indexOf("async function materializeVerifiedReviewOnlyLeadCards");
+    const end = canonical.indexOf("\nasync function materializeAtlasAdmissions", start + 1);
+    const materializer = canonical.slice(start, end);
+    expect(materializer).toContain('finding.reviewOnly === true');
+    expect(materializer).toContain('payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId || payload.execution !== "success"');
+    expect(materializer).toContain("const urlField = isFetch ? payload.observedUrls : payload.leadUrls;");
+    expect(materializer).toContain("if (!observation.includes(quote)) continue;");
+    expect(materializer).toContain("provisionalReviewLead: true");
+    expect(materializer).toContain("promotionEligible: false");
+    expect(materializer).toContain("targetEligibleForResearch: false");
+    expect(canonical).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
+    expect(canonical).toContain("reviewOnly: finding.reviewOnly");
     expect(orientation).toContain("REVIEW LEADS: Investigator may retain useful same-case people and organizations as provisional review-only leads.");
     expect(orientation).toContain("A search result/snippet may support an unverified in-memory review lead before the underlying page is fetched");
     expect(orientation).toContain("exact observed names, candidate/organization scope, source URL, rationale and uncertainty.");
