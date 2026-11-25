@@ -5311,7 +5311,7 @@ describe("latest Investigator observations remain complete within the provider t
   });
 
   it("keeps the latest fetched page window whole when a later search becomes the newest action", () => {
-    const pageText = "FETCHED_PAGE_START " + "Board member and company ownership evidence. ".repeat(100) + "FETCHED_PAGE_END_NAME_LIST_SENTINEL";
+    const pageText = "FETCHED_PAGE_START " + "Board member and company ownership evidence. ".repeat(65) + "FETCHED_PAGE_END_NAME_LIST_SENTINEL";
     const searchResults = Array.from({ length: 10 }, (_, index) => [
       `LATER_SEARCH_RESULT_${index + 1}_TITLE`,
       `URL: https://later-search.example.test/result-${index + 1}`,
@@ -5326,7 +5326,7 @@ describe("latest Investigator observations remain complete within the provider t
       trajectoryRecords: [
         {
           turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
-          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 4_000, pageHasMore: true },
+          args: { url: pageUrl, pageReadOffset: 0, pageReadNextOffset: 3_400, pageHasMore: true },
           observation: pageText, observedUrls: [pageUrl], leadUrls: [], findings: [],
         },
         {
