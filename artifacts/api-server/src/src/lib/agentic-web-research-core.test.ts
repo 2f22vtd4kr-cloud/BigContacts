@@ -842,8 +842,8 @@ describe("Investigator system prompt budget", () => {
     expect(systemCore).toContain("OUTPUT: Return one JSON action object only; follow the model-specific output contract supplied with the provider request");
     expect(systemCore).not.toContain("include all schema keys");
     expect(systemCore).toContain("CLAIMS:");
-    expect(systemCore).toContain("COMPANY REALISM:");
-    expect(systemCore).toContain("Operations, decision-makers, capital capacity, ownership and routes matter only when mission-relevant");
+    expect(systemCore).toContain("REALISM INTENT: Find lesser-known or unknown wealthy people");
+    expect(systemCore).toContain("Find people through filings, board seats, ownership records, company pages and documented exits");
     expect(systemCore).toContain("Fetched claims need exactQuote+URL; search-only is review-only.");
     expect(systemCore).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(systemCore).toContain("OPEN DISCOVERY: Turn open objectives into falsifiable hypotheses");
