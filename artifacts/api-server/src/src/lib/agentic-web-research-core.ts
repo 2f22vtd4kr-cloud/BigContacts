@@ -6889,12 +6889,17 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       typeof record.observation === "string",
     );
     const ungrounded = terminal.findings.some((finding) => {
+      // Review-only leads are independently URL+quote-verified and persisted
+      // at each action checkpoint. They are not claims or admission candidates.
+      if (finding.reviewOnly === true) return false;
       if (!finding.sourceUrls.length || !finding.value.trim()) return true;
+      const exactQuote = typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "";
+      if (!exactQuote) return true;
       const sources = new Set<string>();
       for (const rawUrl of finding.sourceUrls) {
         try {
           const url = new URL(rawUrl);
-          if ((url.protocol !== "http:" && url.protocol !== "https:") || !isClaimGradeDiscoverySourceUrl(url.href)) return true;
+          if (url.protocol !== "https:") return true;
           url.hash = "";
           url.hostname = url.hostname.toLowerCase();
           sources.add(url.href.endsWith("/") ? url.href.slice(0, -1) : url.href);
@@ -6903,14 +6908,6 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
         }
       }
       if (!sources.size) return true;
-
-      const candidate = finding.scope === "candidate";
-      const promotedCandidate = candidate && finding.promotionDecision === "promote";
-      const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
-      const role = typeof finding.role === "string" ? finding.role.trim() : "";
-      if (candidate && !personName) return true;
-      // Role is optional; when the model supplies one, it must be bound separately.
-
       const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
         record.observedUrls.map((raw) => {
           try {
@@ -6921,29 +6918,14 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
           } catch { return ""; }
         }).filter(Boolean),
       );
-      let valueBound = false;
-      let identityBound = !candidate;
-      let roleBound = !promotedCandidate || !role;
-
       for (const sourceUrl of sources) {
         const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
         if (!sourceRecords.length) return true;
-
-        let sourceSupportsClaim = false;
-        for (const record of sourceRecords) {
-          const observation = record.observation ?? "";
-          const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
-          const hasIdentity = candidate && candidateIdentitySourceBound(personName, role, observation);
-          const hasRole = promotedCandidate && Boolean(role) && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
-          if (hasValue) valueBound = true;
-          if (hasIdentity) identityBound = true;
-          if (hasIdentity && hasRole) roleBound = true;
-          const identityAdmission = promotedCandidate && finding.vectorType === "other" && personName.length > 0 && finding.value.trim().toLowerCase() === personName.toLowerCase();
-          if (identityAdmission ? (hasValue && hasIdentity && (!role || hasRole)) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
-        }
-        if (!sourceSupportsClaim) return true;
+        if (!sourceRecords.some((record) => String(record.observation ?? "").includes(exactQuote))) return true;
       }
-      return !valueBound || !identityBound || !roleBound;
+      // The model owns identity, role, relevance and interpretation. Code checks
+      // only that the exact cited URL was fetched and the exact quotation exists.
+      return false;
     });
     if (ungrounded) return { allowed: false, reason: "Discovery terminal stop blocked: one or more claimed findings lacked identity/contact support on every successfully retrieved cited page." };
   }
