@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const boardCss = readFileSync(new URL("../flat-round.css", import.meta.url), "utf8");
+const dashboardSource = readFileSync(new URL("../pages/dashboard.tsx", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../components/layout-round.tsx", import.meta.url), "utf8");
 const errorNoticeSource = readFileSync(new URL("../components/apex-error-notice.tsx", import.meta.url), "utf8");
 const workspaceStatusSource = readFileSync(new URL("../components/workspace-status.tsx", import.meta.url), "utf8");
@@ -246,4 +247,17 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(lastRule(".atlas-round .atlas-reactor-run-console.is-api-down")).toContain("background-size:64px 24px;");
     expect(lastRule(".atlas-round .atlas-reactor-run-console.is-api-down::before")).toContain("background-size:22px 14px;");
   });
+  it("renders the launch-console identity and rounded evidence rails from the design board", () => {
+    expect(dashboardSource).toContain('className="atlas-home-console-brand"');
+    expect(dashboardSource).toContain("<ApexAtlasMark className=\"atlas-home-console-brand-mark\" />");
+    expect(dashboardSource).toContain(">Launch console</span>");
+    expect(boardCss).toContain("font-size:clamp(42px,4.5vw,60px);");
+    expect(boardCss).toContain("margin: 16px 0 0; color:var(--round-ink-2)!important; font-size:16px; line-height:1.6;");
+    expect(launchAtlasButtonSource).toContain("rows={1}");
+    expect(boardCss).toContain(".atlas-home-board-console textarea { min-height:56px; resize:vertical; padding: 16px 12px!important;");
+    expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:6px!important;");
+    expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
+    expect(boardCss).toContain("background-size:64px 24px!important;");
+  });
+
 });
