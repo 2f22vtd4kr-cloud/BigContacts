@@ -7733,10 +7733,20 @@ ${observedBrowserUrl ? `VERIFIED_FINAL_URL: ${observedBrowserUrl}` : "SOURCE_URL
 ${communityText}${communityObservationSource ? "\n" + COMMUNITY_SOURCE_OBSERVATION_NOTE : ""}${browserHasMore ? browserPageRetained ? "\n[PAGE CONTENT CONTINUES. The complete fetched text is retained for this research run. Request browser_fetch or visit again for this exact URL to read the next section without another network request.]" : "\n[PAGE OBSERVATION TRUNCATED; no readable continuation is available because the run retention budget was reached.]" : ""}`
   : `failureDomain=external_page_fetch browser_fetch failed for ${sanitizeUrlForEvidence(action.url)}: ${result.provider}; attemptedProviders=${(result.attemptedProviders ?? []).join("|") || action.provider}; providerFailures=${(result.failures ?? []).map((failure) => `${failure.provider}:http=${failure.status ?? "none"}:body=${(failure.body ?? "").replace(/[\r\n]+/g, " ").slice(0, 1_000)}:error=${failure.error ?? "none"}`).join(" || ") || "none"}`;
 record.execution = result.html ? observedBrowserUrl ? "success" : "partial" : "error";
+if (result.failures?.length) {
+  record.args = {
+    ...record.args,
+    providerFailures: result.failures.map((failure) => ({
+      provider: failure.provider,
+      upstreamHttpStatus: failure.status,
+      errorBody: failure.body,
+      error: failure.error,
+    })),
+  };
+}
 if (!result.html) {
   record.failureDomain = "external_page_fetch";
   record.failureKind = "request_failure";
-  record.args = { ...record.args, providerFailures: (result.failures ?? []).map((failure) => ({ provider: failure.provider, upstreamHttpStatus: failure.status, errorBody: failure.body, error: failure.error })) };
 }
 record.observation = lastObservation;
 if (result.html) {
