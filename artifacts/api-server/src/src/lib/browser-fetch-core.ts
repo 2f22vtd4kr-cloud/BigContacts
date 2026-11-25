@@ -118,8 +118,8 @@ async function readFailureBody(response: Response): Promise<string | null> {
     const body = await response.text();
     if (!body) return null;
     return body.slice(0, 1_500)
-      .replace(/(api[_-]?key|token|authorization|password)(["'\\s:=]+)[^"'\\s,}]+/gi, "$1$2[REDACTED]")
-      .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]");
+      .replace(/(api[_-]?key|token|authorization|password)(["'\s:=]+)[^"'\s,}]+/gi, "$1$2[REDACTED]")
+      .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]");
   } catch {
     return null;
   }
