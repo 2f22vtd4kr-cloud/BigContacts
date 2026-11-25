@@ -6713,7 +6713,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
           if (query) queryValues.push(query);
         }
       }
-      const resultUrls = [...new Set((record.leadUrls ?? []).map((url) => normalizedActionResourceUrl(url)).filter((url): url is string => Boolean(url)))];
+      const resultUrls = (record.leadUrls ?? []).map((url) => normalizedActionResourceUrl(url)).filter((url): url is string => Boolean(url));
       let newUrls = 0;
       let repeatedResultUrls = 0;
       for (const url of resultUrls) {
