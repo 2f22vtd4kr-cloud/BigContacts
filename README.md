@@ -128,7 +128,7 @@ Before changing code or conducting a live run, refresh GitHub `main`, open PRs, 
 
 **Every contact should be a person you can justify from the public record—not a guess that looks like one.**
 
-## 2026-11-23 — Design-board-faithful frontend (PR #943, in progress)
+## 2026-11-25 — Design-board-faithful Lite frontend (PR #968, merged)
 
 The supplied Apex Atlas Design Board PDF is the visual source of truth for the new default frontend. PR [#943](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/943) implements the Flat Round board shell while retaining the classic interface as an operational fallback. This section describes the feature branch only; it does not change the canonical main revision or imply merge readiness.
 
@@ -163,6 +163,17 @@ The More menu exposes the graph and topology utilities. The shell's **Classic in
 
 ### Verification gate
 
-PR #943 remains a draft until the full frontend build, API regression suite, responsive contract, research-quality/no-fabrication contracts, and independent full-codebase audits pass on the exact final head. Rendered desktop and 390px mobile comparisons against every Design Board screen are also required; source-level tests are not visual proof. No merge or production readiness is implied by this section.
+PR #968 merged the Lite shell and board-page alignment on 2026-11-25. On the resulting main SHA, frontend responsive and five-condition gates passed, while API Build, Atlas CI and Five Consecutive Full Code Audits failed. The frontend merge is not backend/research release acceptance. Continue rendered desktop/mobile comparison and fix the exact failing main-revision gates.
 
 The redesign uses the [Unslop design skill](https://github.com/heydamir/unslop), adapted to the supplied board and credited under CC BY 4.0 to Damir Sokolovsky.
+
+
+## Registry discovery expansion — researched candidate catalogue (2026-11-25)
+
+The source-by-source proposal is documented in [docs/REGISTRY_DISCOVERY_EXPANSION.md](./docs/REGISTRY_DISCOVERY_EXPANSION.md). It covers company/shareholder/filing sources (NZ, Estonia, Poland, Czechia, Slovakia, Belgium, Luxembourg, France, Switzerland, Ireland, Australia and Canada), public financial/insider/nonprofit disclosures, and aircraft registers.
+
+**Catalogue is not activation.** The callable runtime IDs remain those implemented and dispatched by `registry-client.ts`. A candidate must not enter `RegistryId`, the action schema or shuffled pool until its adapter, normalizer, provenance mapping, failure semantics, tests, access/terms review and live smoke check are complete. Only runtime-available registries are shuffled alongside ordinary web search; the Investigator remains free to choose, pivot or stop. Jurisdiction and evidence relevance inform eligibility, not a fixed itinerary. Randomization must not generate implausible or unrelated queries.
+
+Firmadatabasen.no is a commercial Raunic AS enrichment layer, not an official register. Its published API documentation confirms company lookup/search, financial years and ratios, nightly refresh, API-key access and a 100-call/month free sandbox; shareholder/ownership-tree API fields were not verified in the published schema reviewed on 2026-11-25. BRREG remains authoritative. Norway's logged personal tax lists, Finland's individual tax disclosures and Sweden's tax-data access are excluded from automated discovery.
+
+The catalogue defines a scheduled source-health record using safe non-personal test queries, status, response-schema fingerprint, timestamps and backoff. Health failures are typed unavailable/degraded states, never no-hit results. Beneficial-ownership access must be checked country-by-country following CJEU C-37/20/C-601/20 and Directive (EU) 2024/1640; do not hard-code stale public/closed lists or bypass legitimate-interest and access controls.
