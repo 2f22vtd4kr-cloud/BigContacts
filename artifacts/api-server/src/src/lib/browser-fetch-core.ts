@@ -206,7 +206,7 @@ export function directFetchUserAgent(url: string, env: NodeJS.ProcessEnv = proce
   try { host = new URL(url).hostname; } catch { return null; }
   if (isSecHost(host)) {
     const configured = env.SEC_USER_AGENT?.trim() ?? "";
-    return configured && /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(configured) ? configured : null;
+    return configured && /apex\s*atlas/i.test(configured) && /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(configured) ? configured : null;
   }
   return env.APEX_BROWSER_FETCH_USER_AGENT?.trim() || "ApexAtlas/1.0 (+https://github.com/2f22vtd4kr-cloud/BigContacts)";
 }
