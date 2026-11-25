@@ -4199,6 +4199,8 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
         ...afterNote,
       };
       findingItems.required = [...new Set([...(findingItems.required ?? []), "reviewOnly", "exactQuote"])];
+      // Review-only cards require a literal quote; null cannot satisfy the provenance contract.
+      if (reviewLeadOnlyFindings && findingItems.properties) findingItems.properties.exactQuote = { type: "string" };
     }
   }
   if (reviewLeadOnlyFindings) {
