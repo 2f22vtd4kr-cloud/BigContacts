@@ -31,7 +31,7 @@ describe("Serper request construction", () => {
     expect(init?.method).toBe("POST");
     expect(JSON.parse(String(init?.body))).toEqual({
       q: "Alex Example",
-      num: 6,
+      num: 10,
       hl: "en",
       gl: "us",
     });
