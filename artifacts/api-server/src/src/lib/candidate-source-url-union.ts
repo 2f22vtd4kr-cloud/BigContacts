@@ -39,34 +39,18 @@ export function candidateSourceUrlsForIdentity(input: {
 }
 
 /**
- * Search-result endpoints are useful leads but are not candidate identity evidence.
- * This is intentionally a small endpoint policy, not a research sequence.
+ * Verify only that a cited source is a well-formed public HTTPS URL.
+ * Source meaning, publisher quality, identity and targetability are model
+ * judgments; successful fetch and exact-quote checks establish observation reality.
  */
 export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string {
   if (typeof value !== "string" || !/^https:\/\/\S+$/i.test(value)) return false;
   try {
-    const url = new URL(value);
-    if (url.protocol !== "https:") return false;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
-    // Source class is provenance, not a discovery allow/deny list. Aggregator
-    // and profile pages may remain review leads; the target terminal gate does
-    // not let aggregator-only material establish identity or consequential claims.
-    const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
-    if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
-    if (host === "search.yahoo.com" && /^\/search$/i.test(path)) return false;
-    // The Instant Answer API aggregates information from external sources; findings should cite those source pages.
-    if (host === "api.duckduckgo.com") return false;
-    if (host === "s.jina.ai" && /^\/search$/i.test(path)) return false;
-    if ((host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\/html$/i.test(path)) && url.searchParams.has("q")) return false;
-    if (host === "efts.sec.gov" && /^\/LATEST\/search-index(?:\/|$)/i.test(url.pathname)) return false;
-    return true;
+    return new URL(value).protocol === "https:";
   } catch {
     return false;
   }
 }
-
-
 
 
 /**
@@ -116,7 +100,7 @@ export function candidateRoleCorroborationSources(input: {
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
     // The Investigator selects the contextual passage; code verifies only
     // that the exact quotation is present in this successfully fetched source
-    // and that it contains the named person. Do not impose a fixed character
+    // and that the model-selected quotation exists verbatim. Do not impose a fixed character
     // window or require the model's semantic role interpretation to match a
     // hard-coded English/Latin role string.
     const modelQuotes = input.findings
@@ -126,8 +110,7 @@ export function candidateRoleCorroborationSources(input: {
         && (finding.sourceUrls ?? []).some((url) => input.normalizeSourceUrl(url) === sourceUrl))
       .map((finding) => typeof finding.exactQuote === "string" ? finding.exactQuote.trim() : "")
       .filter(Boolean);
-    const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote)
-      && normalizeCandidateIdentityName(quote).includes(normalizeCandidateIdentityName(input.personName)));
+    const exactQuote = modelQuotes.find((quote) => observation.observation.includes(quote));
     if (!exactQuote) continue;
     // The same exact quoted passage copied to a second domain is not independent
     // corroboration; use the model-selected, source-verified quotation as lineage.
