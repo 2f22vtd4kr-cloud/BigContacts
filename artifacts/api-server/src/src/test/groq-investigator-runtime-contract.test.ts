@@ -547,7 +547,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("No keyword, regex, name, employer or domain gates.");
     expect(submitted).toContain("The first discovery probe uses the run's randomized opening modality; after that, choose sources, providers, registries and mix freely from evidence.");
     expect(submitted).toContain("Investigator decides meaning, relevance, identity and attribution.");
-    expect(submitted).toContain("For the default mission, seek lesser-known or unknown wealthy people with realistic public/professional contact routes; do not search ranking, top-N or famous-investor lists.");
+    expect(submitted).toContain("REALISM INTENT: For the default mission, seek lesser-known or unknown wealthy people who can realistically be contacted through public/professional routes. Ranking, top-N and famous-investor lists are poor sources; do not search them unless the human asks. Find people through filings, board seats, ownership records, company pages and documented exits.");
     expect(submitted).toContain("TERMINAL: Stop at a defensible answer or blocker. Empty/failed searches, unresolved leads and budget expiry are inconclusive.");
     expect(submitted).toContain("PARALLEL SHAPES: single web_search and parallel web items may omit/null provider to use the same configured healthy runtime default; registry items need query/registry.");
     expect(submitted).toContain("PROMPT SIZE TARGET (ADVISORY, NOT A HARD REQUIREMENT)");
