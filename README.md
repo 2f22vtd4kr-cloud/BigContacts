@@ -130,7 +130,7 @@ Before changing code or conducting a live run, refresh GitHub `main`, open PRs, 
 
 ## 2026-11-25 — Design-board-faithful Lite frontend (PR #968, merged)
 
-The supplied Apex Atlas Design Board PDF is the visual source of truth for the new default frontend. PR [#943](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/943) implements the Flat Round board shell while retaining the classic interface as an operational fallback. This section describes the feature branch only; it does not change the canonical main revision or imply merge readiness.
+The supplied Apex Atlas Design Board PDF is the visual source of truth for the default Lite frontend. PR [#968](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/968) merged the Flat Round shell and board-page alignment while retaining the classic interface as an operational fallback. The merge is canonical; the current API/Atlas CI failures remain separate release blockers.
 
 ### Board routes
 
