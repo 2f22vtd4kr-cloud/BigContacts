@@ -7,10 +7,10 @@ Apex Atlas is a model-led OSINT research bureau for investigating people, owners
 - **Repository:** [2f22vtd4kr-cloud/BigContacts](https://github.com/2f22vtd4kr-cloud/BigContacts)
 - **Canonical branch:** `main`
 - **Production frontend:** [Apex Atlas](https://apex-atlas-dqggg6jla-apex-team20.vercel.app/)
-- **Latest canonical repair:** PR [#935](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/935), merged 2026-11-21
-- **Current canonical revision:** `f53b72df302f26112778f9368bab7d33445b797c`
+- **Latest canonical repair:** PR [#968](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/968), merged 2026-11-25; see the November 25 status below.
+- **Current canonical revision:** `99e87a3e414a43a80c7ba33708d0a112c9d14b57`
 
-> **Status as of 2026-11-21:** The objective-authority, research-direction, source-capability, memory-integrity, and durable-observation repairs in PR #935 are merged. Two independent five-pass full-codebase audits completed 5/5; Atlas CI, API build, Python worker contract/container build, research-quality contracts, prompt architecture audit, and discovery static checks passed on the PR head. The production Vercel deployment for the merge commit reached READY and the frontend returned HTTP 200. This is not a fresh live research acceptance: the fresh Replit import was blocked by the connected Replit integration's `requires_active_subscription` authorization response. No new post-repair investigation was started. Backend, database, Redis, live worker attestation, and end-to-end terminal research reconciliation in a fresh environment remain unverified.
+> **Status as of 2026-11-25:** PRs #963–#968 are merged. They cover large-context compaction, frontend/evidence work, successful observation retention, SEC fetch diagnostics and fallback, Investigator search-novelty telemetry, review-lead handoff and visit history, and the Lite design-board shell. The exact current `main` revision is `99e87a3e414a43a80c7ba33708d0a112c9d14b57`. On that SHA, the latest GitHub Actions snapshot shows API Build, Atlas CI and Five Consecutive Full Code Audits failing; frontend responsive contract, frontend five-condition gate, discovery static check and Replit import-bundle workflow passing. A captured November 25 live run (71704402) retrieved pages but produced no findings/review cards in the captured trajectory; terminal reconciliation was not established. Apex is not live-research-accepted. Backend/database/Redis and fresh-environment end-to-end acceptance remain unverified.
 
 ## Mission and operating model
 
