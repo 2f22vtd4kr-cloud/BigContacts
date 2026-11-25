@@ -134,6 +134,7 @@ describe("hosted browser fetch final-URL provenance", () => {
   });
 
   it("rejects malformed Scrapfly content instead of treating an object length as HTML", async () => {
+    vi.stubEnv("ZENROWS_API_KEY", "");
     vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
       result: { content: { length: html.length + 1 }, url: "https://research.example/article/final" },
     }), { headers: { "content-type": "application/json" } }));
