@@ -30,7 +30,7 @@ if(!/getAvailableInvestigatorCapabilities\(/.test(core)) throw new Error("Agenti
 if(/choose exactly one configured Investigator capability:\s*Groq/i.test(bureauPrompt)) throw new Error("Boss prompt still hardcodes Groq as the only Investigator capability.");
 if(/"investigatorLlm": "groq \| groq"/.test(bureauPrompt)) throw new Error("Boss prompt still exposes the retired single-provider Investigator contract.");
 if(!core.includes("getAvailableInvestigatorCapabilities")) throw new Error("Agentic core is not registry-driven.");
-for(const marker of ["MAX_ITER = 64","MAX_OBS = 16_000","MAX_TRAJECTORY_RECORDS = 512"]) if(!core.includes(marker)) throw new Error("Safety ceiling missing: "+marker);
+for(const marker of ["MAX_ITER = 64","MAX_TRAJECTORY_RECORDS = 512"]) if(!core.includes(marker)) throw new Error("Safety ceiling missing: "+marker); if(!/MAX_OBS = Math\\.max\\(1_200, Math\\.min\\(16_000,[\\s\\S]*?APEX_GROQ_TPM_BUDGET/.test(core)) throw new Error("Fetched-page window is not sized from the configured Groq free-tier token budget.");
 const obs=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-act-oversight.ts"),"utf8");
 for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!obs.toLowerCase().includes(marker.toLowerCase())) throw new Error("Oversight durability marker missing: "+marker);
 const prompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),"utf8");
