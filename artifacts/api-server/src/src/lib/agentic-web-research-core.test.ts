@@ -6238,14 +6238,24 @@ describe("model-led discovery adaptation and advisory continuity", () => {
   });
 
   it("allows a medium reasoning-effort experiment for supported Investigator models", () => {
-    vi.stubEnv("GROQ_AGENTIC_REASONING_EFFORT", "medium");
     try {
-      const request = buildGroqInvestigatorRequestBody({
+      vi.stubEnv("GROQ_AGENTIC_REASONING_EFFORT", "low");
+      const lowRequest = buildGroqInvestigatorRequestBody({
         model: "openai/gpt-oss-120b",
         prompt: completeInvestigatorProviderPrompt,
         cognitiveTask: "discovery",
-      }) as { reasoning_effort?: string };
-      expect(request.reasoning_effort).toBe("medium");
+      }) as Record<string, unknown>;
+      vi.stubEnv("GROQ_AGENTIC_REASONING_EFFORT", "medium");
+      const mediumRequest = buildGroqInvestigatorRequestBody({
+        model: "openai/gpt-oss-120b",
+        prompt: completeInvestigatorProviderPrompt,
+        cognitiveTask: "discovery",
+      }) as Record<string, unknown>;
+      expect(lowRequest.reasoning_effort).toBe("low");
+      expect(mediumRequest.reasoning_effort).toBe("medium");
+      const withoutReasoningEffort = (request: Record<string, unknown>) =>
+        Object.fromEntries(Object.entries(request).filter(([key]) => key !== "reasoning_effort"));
+      expect(withoutReasoningEffort(mediumRequest)).toEqual(withoutReasoningEffort(lowRequest));
     } finally {
       vi.unstubAllEnvs();
     }
