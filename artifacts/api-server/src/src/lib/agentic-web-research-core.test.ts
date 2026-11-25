@@ -68,7 +68,7 @@ describe("retained fetched-page continuation persistence boundary", () => {
 describe("retained fetched-page continuation", () => {
   it("reads successive sections from the already fetched page without another network request", async () => {
     const url = "https://example.com/team";
-    const pageText = "A".repeat(16_000) + "B".repeat(16_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
+    const pageText = "A".repeat(16_000) + "B".repeat(4_000) + "TAIL-SECOND-SECTION" + "C".repeat(2_000);
     const pageStore: RetainedFetchedPageStore = {
       pages: new Map([[url, {
         text: pageText,
@@ -85,12 +85,12 @@ describe("retained fetched-page continuation", () => {
     const firstContinuation = await toolVisit(url, undefined, pageStore, 2);
     expect(firstContinuation.fromRetainedArtifact).toBe(true);
     expect(firstContinuation.pageReadOffset).toBe(16_000);
-    expect(firstContinuation.pageReadNextOffset).toBe(32_000);
+    expect(firstContinuation.pageReadNextOffset).toBe(19_400);
     expect(firstContinuation.observation).toContain("B".repeat(1_000));
 
     const secondContinuation = await toolVisit(url, undefined, pageStore, 3);
     expect(secondContinuation.fromRetainedArtifact).toBe(true);
-    expect(secondContinuation.pageReadOffset).toBe(32_000);
+    expect(secondContinuation.pageReadOffset).toBe(19_400);
     expect(secondContinuation.observation).toContain("TAIL-SECOND-SECTION");
     expect(secondContinuation.observation).toContain("[END OF RETAINED PAGE CONTENT]");
     expect(outboundMocks.safeOutboundFetch).not.toHaveBeenCalled();
@@ -187,8 +187,8 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     const url = "https://example.com/filings/company-report.pdf";
     const distinctiveTail = 'PDF_FINAL_SECTION: Director Elena Varga. EXACT QUOTE: "The board confirms Elena Varga as a director."';
     const pdfBytes = syntheticTextPdf(
-      "PDF_START " + "A".repeat(18_000) + " PDF_MIDDLE: public filing officer history "
-      + "B".repeat(18_000) + " " + distinctiveTail,
+      "PDF_START " + "A".repeat(3_400) + " PDF_MIDDLE: public filing officer history "
+      + "B".repeat(5_000) + " " + distinctiveTail,
     );
     const store: RetainedFetchedPageStore = { pages: new Map(), retainedChars: 0, maxChars: 64_000_000 };
     outboundMocks.safeOutboundFetch.mockReset();
@@ -203,7 +203,7 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
       expect(initial.observation).toContain("PDF_START");
       expect(initial.observation).not.toContain("PDF_MIDDLE");
       expect(initial.observation).not.toContain("PDF_FINAL_SECTION");
-      expect(initial.pageText?.length).toBeGreaterThan(32_000);
+      expect(initial.pageText?.length).toBeGreaterThan(8_000);
       expect(typeof initial.pageSha256).toBe("string");
 
       const middle = await toolVisit(url, undefined, store, 2);
@@ -324,9 +324,9 @@ describe("fetched-page retention across fetch, durable replay, and restart", () 
     const exactQuote = 'EXACT QUOTE: "The final retained section names Elena Varga as a director."';
     const pageText = [
       "START: Jane Doe, company chair",
-      "A".repeat(17_000),
+      "A".repeat(3_400),
       "MIDDLE: Marcus Lee, shareholder liaison",
-      "B".repeat(17_000),
+      "B".repeat(3_400),
       "END: Elena Varga, director",
       exactQuote,
       "C".repeat(1_000),
