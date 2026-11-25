@@ -50,7 +50,7 @@ const checks = [
   ["legacy shell remains separately available and switchable", fs.existsSync(files.legacyLayout) && /onSwitchToRound/.test(read(files.legacyLayout))],
 
   ["Flat Round is the default and legacy is a live rollback", /RoundLayout/.test(read(files.layout)) && /LegacyLayout/.test(read(files.layout)) && /switchMode\("legacy"\)/.test(read(files.layout)) && /switchMode\("round"\)/.test(read(files.layout))],
-  ["Flat Round shell includes all five primary destinations", ["Overview", "Ledger", "Discover", "Connections", "Reactor"].every((label) => roundLayout.includes(`name: "${label}"`))],
+  ["Flat Round shell contains only the design-board brand and workspace status", roundLayout.includes("atlas-round-header-brand") && roundLayout.includes("atlas-round-header-status") && !roundLayout.includes("primaryNav") && !roundLayout.includes("atlas-round-primary")],
   ["Flat Round shell uses the board brand/status header and framed workspace", roundLayout.includes("atlas-round-header-brand") && roundLayout.includes("atlas-round-header-status") && !roundLayout.includes("atlas-round-primary") && !roundLayout.includes("atlas-round-sidebar") && roundCss.includes("width:min(calc(100% - 32px),1280px)") && roundCss.includes("border-radius:20px")],
   ["sidebar preserves non-board utility routes without exposing them as navigation", /path="\/network\/graph"/.test(read(path.join(appRoot, "router.tsx"))) && /path="\/reactor\/topology"/.test(read(path.join(appRoot, "router.tsx"))) && !/utilityNav/.test(roundLayout)],
   ["shared shell uses the board's compact phone header", roundCss.includes("min-height:calc(100dvh - 8px)") && roundCss.includes("height:48px") && roundCss.includes("display:none!important")],
