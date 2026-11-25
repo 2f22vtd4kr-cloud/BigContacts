@@ -52,7 +52,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
 
   it("uses only the board's documented corner-radius scale", () => {
     const radii = [...boardCss.matchAll(/border-radius:\s*([^;]+)/g)].map((match) => match[1].trim());
-    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:6|10|12|16|20)px|20px 0 0 20px|0 20px 20px 0)(?:!important)?$/.test(radius));
+    const unsupported = radii.filter((radius) => !/^(?:0|50%|(?:4|6|10|12|16|20)px|20px 0 0 20px|0 20px 20px 0)(?:!important)?$/.test(radius));
     expect(unsupported).toEqual([]);
   });
 
@@ -71,14 +71,14 @@ describe("Apex Atlas design-board and unslop contract", () => {
       }
       return radius;
     };
-    expect(radiusFor(".atlas-round-sidebar .atlas-round-navlink")).toBe("6px");
     expect(radiusFor(".atlas-round .atlas-card")).toBe("12px!important");
     expect(radiusFor(".atlas-home-console-inner")).toBe("12px");
     expect(radiusFor(".atlas-round .atlas-home-board-console")).toBe("20px!important");
     expect(radiusFor(".atlas-round .atlas-home-board-console .atlas-launch-cta")).toBe("10px!important");
     expect(radiusFor(".atlas-launch-depth button")).toBe("6px");
     expect(radiusFor(".atlas-launch-target-count button")).toBe("6px");
-    expect(layoutSource).toContain("primaryNav.map((item) =>");
+    expect(layoutSource).toContain("<WorkspaceStatus compact />");
+    expect(layoutSource).not.toContain("atlas-round-primary");
     expect(layoutSource).not.toContain("utilityNav");
     expect(layoutSource).not.toContain("Crosshair");
     expect(layoutSource).not.toContain("atlas-round-mobile-nav");
@@ -103,17 +103,16 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("display:none!important;");
   });
 
-  it("keeps the full-height sidebar and text-only active navigation", () => {
-    expect(layoutSource).toContain('id="atlas-round-sidebar"');
-    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
-    expect(layoutSource).toContain('aria-label="Main navigation"');
-    expect(boardCss).toContain("height:calc(100dvh - 68px);");
-    const activeRule = lastRule(".atlas-round-sidebar .atlas-round-navlink.is-active");
-    expect(activeRule).toContain("background:transparent!important;");
-    expect(activeRule).toContain("box-shadow:none!important;");
-    expect(activeRule).toContain("font-weight:700!important;");
-    expect(activeRule).not.toContain("var(--round-red)");
-    expect(boardCss).toContain(".atlas-round-shell .atlas-round-sidebar .atlas-round-navlink span { display:inline; }");
+  it("uses the design-board brand/status-only header and framed desktop shell", () => {
+    expect(layoutSource).toContain("atlas-round-header-brand");
+    expect(layoutSource).toContain("atlas-round-header-status");
+    expect(layoutSource).not.toContain("atlas-round-primary");
+    expect(layoutSource).not.toContain("atlas-round-sidebar");
+    expect(boardCss).toContain("width:min(calc(100% - 32px),1280px)");
+    expect(boardCss).toContain("border-radius:20px");
+    expect(boardCss).toContain("margin:48px auto 40px;");
+    expect(boardCss).toContain("min-height:calc(100dvh - 88px);");
+    expect(lastRule(".atlas-round-shell .atlas-round-header-status")).toContain("margin-left:auto;");
   });
 
   it("keeps the header and API-down shell on one uninterrupted paper surface", () => {
@@ -223,15 +222,14 @@ describe("Apex Atlas design-board and unslop contract", () => {
   });
 
 
-  it("uses the current light-shell collapsible sidebar instead of horizontal or bottom navigation", () => {
-    expect(layoutSource).toContain('className="atlas-round-sidebar-toggle"');
-    expect(layoutSource).toContain('id="atlas-round-sidebar"');
-    expect(layoutSource).toContain('className="atlas-round-sidebar-nav"');
-    expect(layoutSource).toContain('setSidebarCollapsed((collapsed) => !collapsed)');
-    expect(layoutSource).toContain('setMobileOpen((open) => !open)');
-    expect(boardCss).toContain(".atlas-round-shell.is-sidebar-collapsed");
-    expect(boardCss).toContain(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar");
-    expect(boardCss).toContain(".atlas-round-mobile-tabbar { display:none; }");
+  it("uses the compact design-board phone header without route navigation", () => {
+    expect(layoutSource).toContain("atlas-round-header-brand");
+    expect(layoutSource).toContain("atlas-round-header-status");
+    expect(layoutSource).not.toContain("atlas-round-primary");
+    expect(layoutSource).not.toContain("atlas-round-sidebar");
+    expect(boardCss).toContain("min-height:calc(100dvh - 8px)");
+    expect(boardCss).toContain("height:48px");
+    expect(boardCss).toContain("margin-left:auto;");
   });
 
   it("keeps Home API-down in the same neutral checker-and-wave frame as the other consoles", () => {
@@ -255,9 +253,43 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(boardCss).toContain("margin: 16px 0 0; color:var(--round-ink-2)!important; font-size:16px; line-height:1.6;");
     expect(launchAtlasButtonSource).toContain("rows={1}");
     expect(boardCss).toContain(".atlas-home-board-console textarea { min-height:56px; resize:vertical; padding: 16px 12px!important;");
-    expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:6px!important;");
+    expect(lastRule(".atlas-round .atlas-evidence-pattern")).toContain("border-radius:4px!important;");
     expect(boardCss).toContain("width='64'%20height='24'%20viewBox='0%200%2064%2024'");
     expect(boardCss).toContain("background-size:64px 24px!important;");
+  });
+
+  it("keeps the Overview routes column unboxed and restores the board breathing room", () => {
+    const routesRule = lastRule(".atlas-round .atlas-home-board-routes");
+    expect(routesRule).toContain("padding:0!important;");
+    expect(routesRule).toContain("border:0!important;");
+    expect(routesRule).toContain("background:transparent!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:40px!important;");
+  });
+
+  it("matches the design-board desktop Overview hero scale and spacing", () => {
+    expect(lastRule(".atlas-round .atlas-home-board")).toContain("padding-inline:8px!important;");
+    const gridRule = lastRule(".atlas-round .atlas-home-board-grid");
+    expect(gridRule).toContain("grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;");
+    expect(gridRule).toContain("column-gap:64px!important;");
+    expect(gridRule).toContain("row-gap:0!important;");
+    const titleRule = lastRule(".atlas-round .atlas-home-board-intro h1");
+    expect(titleRule).toContain("font-size:76px!important;");
+    expect(titleRule).toContain("line-height:76px!important;");
+    const ledeRule = lastRule(".atlas-round .atlas-home-board-intro p");
+    expect(ledeRule).toContain("max-width:440px!important;");
+    expect(ledeRule).toContain("font-size:18px!important;");
+    expect(ledeRule).toContain("line-height:27px!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:40px!important;");
+  });
+
+  it("keeps the desktop launch console header and source indicators on one row", () => {
+    expect(boardCss).toContain("position:absolute;");
+    expect(boardCss).toContain("top:20px;");
+    expect(boardCss).toContain("grid-template-areas:\n      \"objective action\"\n      \"settings settings\"\n      \"explainer explainer\";");
+    expect(boardCss).toContain("min-height:48px;");
+    expect(boardCss).toContain("min-height:76px;");
+    expect(boardCss).toContain(":has(.atlas-home-api-down)");
+    expect(boardCss).toContain('"alert alert"');
   });
 
 });

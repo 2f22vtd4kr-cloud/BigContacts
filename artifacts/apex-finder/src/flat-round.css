@@ -2537,3 +2537,352 @@ html.light main,
   height:22px;
   flex:0 0 20px;
 }
+
+/* Overview: the board has a direct routes column, not a second card around the card. */
+.atlas-round .atlas-home-board-routes {
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+@media (min-width:761px) {
+  .atlas-round .atlas-home-board-console {
+    margin-top:52px!important;
+  }
+}
+
+/* Evidence rails are softly rounded, not pill-like. */
+.atlas-round .atlas-evidence-pattern {
+  border-radius:4px!important;
+}
+
+/* -------------------------------------------------------------------------
+   Shared shell: match the design board's framed desktop workspace and
+   compact horizontal navigation. Phone boards keep only brand + status.
+   ------------------------------------------------------------------------- */
+.atlas-round-shell {
+  display:flex!important;
+  width:min(calc(100% - 32px),1280px);
+  min-height:calc(100dvh - 88px);
+  flex-direction:column;
+  margin:48px auto 40px;
+  overflow:hidden;
+  border:1px solid var(--round-line);
+  border-radius:20px;
+  background:var(--round-paper);
+}
+.atlas-round-shell > .atlas-round-header {
+  position:relative!important;
+  top:auto!important;
+  z-index:80;
+  display:flex;
+  width:100%;
+  min-height:68px;
+  height:68px;
+  align-items:center;
+  gap:24px;
+  padding:0 24px!important;
+  border:0!important;
+  background:var(--round-paper)!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+.atlas-round-shell .atlas-round-header-brand {
+  display:flex;
+  flex:none;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  color:var(--round-ink);
+  text-decoration:none;
+}
+.atlas-round-shell .atlas-round-header-brand .atlas-round-brand-mark {
+  width:22px;
+  height:24px;
+}
+.atlas-round-shell .atlas-round-header-brand strong {
+  color:var(--round-ink);
+  font:500 16px/1 "Geist",sans-serif;
+  letter-spacing:0;
+}
+.atlas-round-shell .atlas-round-primary {
+  display:flex!important;
+  flex:0 1 auto;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  margin:0 0 0 auto!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink {
+  display:inline-flex;
+  min-height:40px;
+  align-items:center;
+  justify-content:center;
+  padding:0 12px;
+  border:0!important;
+  border-radius:10px;
+  background:transparent;
+  color:var(--round-ink-2);
+  font:400 13px/1 "Geist",sans-serif;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink span { display:inline!important; }
+.atlas-round-shell .atlas-round-primary .atlas-round-navlink.is-active {
+  background:var(--round-raised)!important;
+  color:var(--round-ink)!important;
+  font-weight:500;
+  box-shadow:none!important;
+}
+.atlas-round-shell .atlas-round-header-status {
+  display:flex;
+  flex:none;
+  align-items:center;
+  margin-left:auto;
+}
+.atlas-round-shell .atlas-round-sidebar,
+.atlas-round-shell .atlas-round-sidebar-toggle,
+.atlas-round-shell .atlas-round-nav-backdrop { display:none!important; }
+.atlas-round-shell .atlas-round-main {
+  display:block;
+  flex:1 1 auto;
+  width:100%;
+  min-width:0;
+  min-height:calc(100dvh - 116px);
+  grid-column:auto!important;
+  grid-row:auto!important;
+  background:var(--round-paper)!important;
+}
+.atlas-round-shell .atlas-round-content {
+  width:100%;
+  max-width:none;
+  min-width:0;
+  margin:0;
+  padding:0 24px 36px;
+}
+@media (max-width:1100px) and (min-width:761px) {
+  .atlas-round-shell { min-height:calc(100dvh - 48px); margin:24px auto; }
+  .atlas-round-shell > .atlas-round-header { gap:12px; padding-inline:16px!important; }
+  .atlas-round-shell .atlas-round-primary { gap:0; }
+  .atlas-round-shell .atlas-round-primary .atlas-round-navlink { padding-inline:8px; font-size:12px; }
+  .atlas-round-shell .atlas-round-header-status { margin-left:4px; }
+}
+@media (max-width:760px) {
+  .atlas-round-shell {
+    width:calc(100% - 8px);
+    min-height:calc(100dvh - 8px);
+    margin:4px auto;
+    border-radius:16px;
+  }
+  .atlas-round-shell > .atlas-round-header {
+    min-height:48px;
+    height:48px;
+    gap:8px;
+    padding:0 12px!important;
+    background:var(--round-paper)!important;
+    border-bottom:0!important;
+    box-shadow:none!important;
+  }
+  .atlas-round-shell .atlas-round-header-brand { gap:8px; }
+  .atlas-round-shell .atlas-round-header-brand .atlas-round-brand-mark { width:20px; height:22px; }
+  .atlas-round-shell .atlas-round-header-brand strong { font-size:14px; }
+  .atlas-round-shell .atlas-round-header-status { margin-left:auto; }
+  .atlas-round-shell .atlas-round-main { min-height:calc(100dvh - 56px); }
+  .atlas-round-shell .atlas-round-content { padding:0 12px 28px; }
+}
+
+/* Connections: a compact, data-backed map of actual recorded relationships. */
+.atlas-round .atlas-board-connections .atlas-connections-map {
+  min-width:0;
+  padding:20px;
+  border:1px solid var(--round-line);
+  border-radius:16px;
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-heading {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:16px;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-heading h2 {
+  margin:0;
+  color:var(--round-ink);
+  font:500 19px/1.3 "Geist",sans-serif;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-heading p {
+  margin:8px 0 0;
+  color:var(--round-ink-3);
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-heading > span {
+  flex:none;
+  color:var(--round-ink-3);
+  font:400 11px/1.4 "Geist Mono",ui-monospace,monospace;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-edges {
+  display:grid;
+  gap:16px;
+  min-width:0;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-edge {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(56px,.75fr) minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-node {
+  display:flex;
+  min-width:0;
+  min-height:44px;
+  align-items:center;
+  padding:8px 12px;
+  overflow-wrap:anywhere;
+  border:1px solid var(--round-line);
+  border-radius:10px;
+  background:var(--round-raised);
+  color:var(--round-ink);
+  font:500 12px/1.35 "Geist",sans-serif;
+  text-decoration:none;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-node:hover {
+  border-color:var(--round-line-2);
+  background:var(--round-card);
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-link {
+  position:relative;
+  display:flex;
+  min-width:0;
+  height:1px;
+  align-items:center;
+  justify-content:center;
+  background:var(--round-line-2);
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-link span {
+  position:relative;
+  max-width:100%;
+  padding:4px 8px;
+  overflow:hidden;
+  background:var(--round-card);
+  color:var(--round-ink-3);
+  font:400 11px/1.3 "Geist Mono",ui-monospace,monospace;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.atlas-round .atlas-board-connections .atlas-connections-map-note {
+  margin:16px 0 0;
+  padding-top:12px;
+  border-top:1px solid var(--round-line);
+  color:var(--round-ink-3);
+  font:400 11px/1.5 "Geist",sans-serif;
+}
+@media (max-width:760px) {
+  .atlas-round .atlas-board-connections .atlas-connections-map { display:none; }
+  .atlas-round .atlas-board-connections .atlas-connections-routes { order:1; }
+  .atlas-round .atlas-board-connections .atlas-connections-route-panel { order:2; }
+}
+
+/* Overview desktop hero: the board uses a 76px two-line title, a narrower
+   three-line lede, and a 40px separation before the framed launch console. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board { padding-inline:8px!important; }
+  .atlas-round .atlas-home-board-grid {
+    grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)!important;
+    column-gap:64px!important;
+    row-gap:0!important;
+  }
+  .atlas-round .atlas-home-board-intro h1 {
+    max-width:none!important;
+    font-size:76px!important;
+    line-height:76px!important;
+  }
+  .atlas-round .atlas-home-board-intro p {
+    max-width:440px!important;
+    margin-top:24px!important;
+    font-size:18px!important;
+    line-height:27px!important;
+  }
+  .atlas-round .atlas-home-board-console { margin-top:40px!important; }
+}
+
+/* The board's desktop launch console keeps the source indicators on the
+   same header line as its title, then uses a compact 70px objective row. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board-console .atlas-home-console-brand {
+    min-height:24px;
+    gap:8px;
+    margin:0 0 16px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-source-status {
+    position:absolute;
+    top:20px;
+    left:20px;
+    right:20px;
+    display:flex;
+    flex-wrap:nowrap;
+    justify-content:flex-end;
+    gap:8px 16px;
+    margin:0;
+    padding:0 0 16px;
+    border-bottom:1px solid var(--round-line);
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root {
+    grid-template-areas:
+      "objective action"
+      "settings settings"
+      "explainer explainer";
+    gap:16px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+    min-height:48px;
+  }
+}
+@media (max-width:760px) {
+  .atlas-round .atlas-home-board-console .atlas-home-console-brand {
+    margin-bottom:12px;
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-source-status {
+    position:static;
+    flex-wrap:wrap;
+    padding:0 0 12px;
+    border-bottom:1px solid var(--round-line);
+  }
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root > label textarea {
+    min-height:76px;
+  }
+}
+
+/* Preserve the intentional API-down alert row when the compact ready-state
+   console grid is expanded for an unavailable research API. */
+@media (min-width:1101px) {
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root:has(.atlas-home-api-down) {
+    grid-template-areas:
+      "alert alert"
+      "objective action"
+      "settings settings"
+      "explainer explainer";
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-api-down { grid-area:alert; }
+}
+@media (max-width:1100px) {
+  .atlas-round .atlas-home-board-console .atlas-launch-primary-root:has(.atlas-home-api-down) {
+    grid-template-areas:
+      "alert"
+      "sources"
+      "objective"
+      "action"
+      "settings"
+      "explainer";
+  }
+  .atlas-round .atlas-home-board-console .atlas-home-api-down { grid-area:alert; }
+}

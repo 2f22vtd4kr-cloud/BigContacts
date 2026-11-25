@@ -5,11 +5,17 @@ const baseUrl = process.env.APEX_VISUAL_BASE_URL || "http://127.0.0.1:23695";
 
 // Synthetic browser-only fixtures for the visual harness. The route interceptor
 // below serves these responses locally; no fixture is written to or sent to Apex.
+const visualKeySlots = (count) => Array.from({ length: count }, (_, index) => ({ index: index + 1, state: "active", expiresAt: null }));
 const visualEntities = [
   { id: 1, name: "Mira Patel", type: "HNWI", isHidden: false },
   { id: 2, name: "Noah Reed", type: "HNWI", isHidden: false },
   { id: 3, name: "Northstar Capital", type: "Corporation", isHidden: false },
   { id: 4, name: "Harbor Ventures", type: "Corporation", isHidden: false },
+];
+const visualRelationships = [
+  { id: 1, sourceEntityId: 1, targetId: 3, targetType: "Entity", relationshipType: "FOUNDER_OF", strength: 0.82, notes: "Recorded company formation link", sourceEntityName: "Mira Patel", targetName: "Northstar Capital", createdAt: "2026-11-25T09:42:00.000Z" },
+  { id: 2, sourceEntityId: 3, targetId: 4, targetType: "Entity", relationshipType: "INVESTMENT_RELATIONSHIP", strength: 0.61, notes: "Recorded investment relationship", sourceEntityName: "Northstar Capital", targetName: "Harbor Ventures", createdAt: "2026-11-24T14:10:00.000Z" },
+  { id: 3, sourceEntityId: 4, targetId: 2, targetType: "Entity", relationshipType: "BOARD_CONNECTION", strength: 0.74, notes: "Recorded board connection", sourceEntityName: "Harbor Ventures", targetName: "Noah Reed", createdAt: "2026-11-23T11:20:00.000Z" },
 ];
 const visualConnectionPath = {
   found: true,
@@ -63,10 +69,10 @@ async function main() {
         }
         let payload = {};
         if (url.endsWith("/api/healthz")) {
-          payload = { researchKeysConfigured: false, launchLimits: { discoveryObjectiveMaxChars: 1600 } };
+          payload = { researchKeysConfigured: true, launchLimits: { discoveryObjectiveMaxChars: 1200 } };
         } else if (url.endsWith("/api/system/status")) {
           payload = {
-            ai: { groqInvestigator: [], serper: [], tavily: [], exa: [] },
+            ai: currentPath === "/status" ? { groqInvestigator: [], serper: [], tavily: [], exa: [] } : { groqInvestigator: visualKeySlots(3), serper: visualKeySlots(2), tavily: visualKeySlots(2), exa: visualKeySlots(2) },
             databases: {
               postgres: { status: "ok", latencyMs: 1 },
               localRedis: { status: "ok", latencyMs: 1 },
@@ -78,24 +84,28 @@ async function main() {
           };
         } else if (url.includes("/api/dashboard/stats")) {
           payload = {
-            totalEntities: 248,
-            totalRelationships: 37,
-            totalAssets: 1412,
+            totalEntities: 0,
+            totalRelationships: 0,
+            totalAssets: 0,
             registryShallowRisk: false,
           };
         } else if (url.includes("/api/dashboard/research-leads")) {
           payload = { leads: [], sourceLeads: [], activeDiscovery: false };
         } else if (url.includes("/api/ingest/job/active/atlas-run")) {
           payload = { active: false, status: "idle" };
+        } else if (url.includes("/api/ingest/jobs")) {
+          payload = [];
         } else if (url.includes("/api/graph/path")) {
           payload = visualConnectionPath;
         } else if (url.endsWith("/api/registry-matrix")) {
-          payload = { sources: [] };
+          payload = { sources: [{ id: "companies-house", name: "Companies House", productionReviewStatus: "reviewed_for_production", runtimeAdapterImplemented: true }] };
         } else if (url.endsWith("/api/entities/1")) {
           payload = visualEntities[0];
         } else if (url.includes("/api/entities")) {
-          payload = (currentPath === "/network" && routeFixtureMode) || currentPath === "/profile/1" ? visualEntities : [];
-        } else if (url.includes("/api/relationships") || url.includes("/api/assets")) {
+          payload = currentPath === "/network" || currentPath === "/profile/1" ? visualEntities : [];
+        } else if (url.includes("/api/relationships")) {
+          payload = visualRelationships;
+        } else if (url.includes("/api/assets")) {
           payload = [];
         }
         await route.fulfill({
@@ -109,7 +119,7 @@ async function main() {
       await page.addStyleTag({
         content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
       });
-      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "degraded"), { timeout: 8_000 });
+      await page.waitForFunction(() => [...document.querySelectorAll(".atlas-round-status")].some((el) => getComputedStyle(el).display !== "none" && el.getAttribute("data-status") === "ready"), { timeout: 8_000 });
       await page.waitForTimeout(400);
       const workspaceStatusVisible = await page.evaluate(() => {
         const status = [...document.querySelectorAll(".atlas-round-status")].find((el) => getComputedStyle(el).display !== "none");
@@ -120,19 +130,12 @@ async function main() {
       });
       if (!workspaceStatusVisible) throw new Error("Workspace status is obscured by the shell header");
 
-      const prompt = page.locator("textarea").first();
-      if (await prompt.count()) {
-        await prompt.fill("Founders of UK climate startups with a warm route");
-        await page.waitForTimeout(250);
-      }
-
       let routeFixtureLoaded = false;
 
       const title = await page.locator("h1").first().textContent().catch(() => "");
       const bodyText = await page.locator("body").innerText().catch(() => "");
-      const sidebarLinks = await page.locator(".atlas-round-sidebar-nav a").allTextContents();
-      if (sidebarLinks.length !== 5 || sidebarLinks.some((label) => /Field manual|System status|Data sources|Source directory|Persona review|Duplicate review|Workspace activity|Network graph|Reactor topology|Intel terminal/.test(label))) {
-        throw new Error(`Board sidebar must expose exactly the five designed destinations; received: ${sidebarLinks.join(" | ")}`);
+      if (await page.locator(".atlas-round-primary").count() !== 0) {
+        throw new Error("The design-board specimen header must not add application route navigation.");
       }
       if (await page.locator(".atlas-round-mark").count()) throw new Error("The obsolete target/crosshair brand mark is still rendered.");
       if (await page.locator(".atlas-round-brand-mark").count() !== 1 || !(await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count()) || await page.locator(".atlas-round-sidebar-brand").count()) throw new Error("The heraldic Apex Atlas shield must appear once in the shared header and never be duplicated inside the mobile drawer.");
@@ -144,12 +147,11 @@ async function main() {
         bodyHtmlLength: document.body.innerHTML.length,
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         rootDisplay: document.querySelector("#root") ? getComputedStyle(document.querySelector("#root")).display : null,
-        sidebar: (() => {
-          const element = document.querySelector(".atlas-round-sidebar");
+        header: (() => {
+          const element = document.querySelector(".atlas-round-header");
           if (!element) return null;
           const rect = element.getBoundingClientRect();
-          const style = getComputedStyle(element);
-          return { width: rect.width, height: rect.height, position: style.position, visibility: style.visibility, links: Array.from(element.querySelectorAll("nav a")).map((link) => link.textContent?.trim()) };
+          return { width: rect.width, height: rect.height, brand: !!element.querySelector(".atlas-round-header-brand"), status: !!element.querySelector(".atlas-round-header-status"), routeNavigation: !!element.querySelector(".atlas-round-primary") };
         })(),
         launchFramePatterns: (() => {
           const element = document.querySelector(".atlas-home-board-console");
@@ -193,17 +195,9 @@ async function main() {
       })}`);
       console.log(`APEX_VISUAL_IMAGE_${name}=${screenshot.toString("base64")}`);
       if (name === "mobile") {
-        const openNavigation = page.locator(".atlas-round-sidebar-toggle");
-        if (await openNavigation.count()) {
-          await openNavigation.click();
-          await page.waitForSelector(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar", { timeout: 3000 });
-          if (await page.locator(".atlas-round-sidebar-brand").count() !== 0 || await page.locator(".atlas-round-sidebar-nav a").count() !== 5) {
-            throw new Error("The open mobile drawer must contain only the five navigation destinations, with no duplicate Apex Atlas branding.");
-          }
-          const drawer = await page.screenshot({ type: "jpeg", quality: 55, fullPage: false });
-          console.log(`APEX_VISUAL_IMAGE_mobile_sidebar=${drawer.toString("base64")}`);
-        } else {
-          throw new Error("Mobile sidebar toggle is missing.");
+        if (await page.locator(".atlas-round-primary").count() !== 0) throw new Error("The phone board must keep the specimen header to brand and status only.");
+        if (await page.locator(".atlas-round-header-brand .atlas-round-brand-mark").count() !== 1) {
+          throw new Error("The compact phone header must retain exactly one Apex Atlas brand mark.");
         }
       }
       currentPath = "/network";

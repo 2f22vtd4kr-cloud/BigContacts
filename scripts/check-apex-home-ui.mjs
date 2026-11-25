@@ -60,11 +60,11 @@ require(launch.includes('sourceLabel("Web search"') && launch.includes('sourceLa
 require(launchApi.includes("targetCount: opts.targetCount ?? 1"), "canonical launch API must retain its conservative fallback for non-Home callers");
 require(shell.includes("LegacyLayout"), "classic interface must remain available as a rollback path");
 require(!roundLayout.includes("LaunchAtlasButton"), "top bar must not duplicate the launch action");
-require(roundLayout.includes("atlas-round-sidebar") && roundLayout.includes("primaryNav.map") && /aria-label="Main navigation"/.test(roundLayout) && roundLayout.includes("sidebarCollapsed") && roundLayout.includes("mobileOpen"), "board navigation must use the requested five-destination sidebar and mobile drawer");
-require(roundLayout.includes("atlas-round-nav-backdrop") && roundLayout.includes("is-mobile-nav-open") && css.includes("top:60px;") && css.includes("bottom:0;") && css.includes("safe-area-inset-top"), "mobile navigation must use the accessible full-height drawer below the shared header");
-require(roundLayout.includes('aria-current={active(item.href) ? "page" : undefined}'), "sidebar must identify the active destination");
-require(!roundLayout.includes("utilityNav") && !roundLayout.includes("atlas-round-more-menu") && !roundLayout.includes("Crosshair"), "non-board utilities must remain implemented but unavailable from the active sidebar, and the target icon must be removed");
-require(css.includes(".atlas-round-sidebar") && css.includes(".atlas-round-shell.is-mobile-nav-open .atlas-round-sidebar") && css.includes("@media (max-width:760px)"), "desktop sidebar must become the mobile drawer at the phone breakpoint");
+require(roundLayout.includes("atlas-round-header-brand") && roundLayout.includes("atlas-round-header-status") && !roundLayout.includes("atlas-round-primary") && !roundLayout.includes("atlas-round-sidebar"), "specimen header must contain the Apex Atlas brand and workspace status without invented route navigation");
+require(!roundLayout.includes("atlas-round-nav-backdrop") && !roundLayout.includes("atlas-round-sidebar") && css.includes("height:48px") && css.includes("display:none!important"), "phone navigation must follow the design-board compact brand/status header");
+require(roundLayout.includes('<WorkspaceStatus compact />') && roundLayout.includes("atlas-round-header-status"), "workspace status must remain visible in the shared specimen header");
+require(!roundLayout.includes("utilityNav") && !roundLayout.includes("atlas-round-more-menu") && !roundLayout.includes("Crosshair"), "non-board utilities must remain implemented but unavailable from primary navigation");
+require(css.includes("width:min(calc(100% - 32px),1280px)") && css.includes("@media (max-width:760px)") && css.includes("height:48px") && css.includes("margin-left:auto;"), "the board shell must use its framed desktop width and compact brand/status phone header");
 require(dashboard.includes('queryKey: ["dashboard", "api-health"]'), "Home must detect API availability");
 require(dashboard.includes("Saved copy remains visible"), "Home must preserve and label cached data during API outage");
 require(launch.includes("atlas-home-api-down") && launch.includes("onRetryApi"), "launch console must expose a retryable API-down state");
@@ -78,8 +78,8 @@ require(!boardLedger.includes("atlas-ledger-counts"), "Ledger must not duplicate
 require(launch.includes('placeholder="Describe who you want to reach"'), "Home objective must use the board prompt");
 require(launch.includes('variant === "primary" && !launchObjective.trim()'), "Home Launch must stay unavailable until an objective is entered");
 require(launch.split('variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch"').length - 1 >= 2, "Home launch CTA must stack beneath settings and remain full width on desktop");
-require(layout.includes("icon: ReactorMark"), "sidebar Reactor navigation must use ReactorMark");
-require(!layout.includes("icon: Cpu"), "sidebar Reactor navigation must not use generic CPU icon");
+require(router.includes('"/reactor"') && reactor.includes("Reactor"), "the Reactor page route and surface must remain available without adding header navigation");
+require(!roundLayout.includes("Cpu"), "board navigation must not use the generic CPU icon");
 require(reactor.includes("Icon:ReactorMark"), "desktop Reactor topology core must use ReactorMark");
 require(!/\bCpu\b/.test(reactor), "Reactor page must not use generic CPU iconography");
 require(mobile.includes('showTopology={false}'), "mobile Reactor surface must remain feed-first without topology");

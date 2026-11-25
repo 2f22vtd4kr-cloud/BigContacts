@@ -71,6 +71,10 @@ export function LaunchAtlasButton({
       setStatus(null);
       return;
     }
+    if (apiUnavailable) {
+      setStatus(null);
+      return;
+    }
     let active = true;
     const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
     void fetch(`${base}/api/healthz`, { credentials: "same-origin", cache: "no-store" })
@@ -86,7 +90,7 @@ export function LaunchAtlasButton({
         if (active) setStatus("Atlas launch configuration is unavailable. Retry when the API is back.");
       });
     return () => { active = false; };
-  }, [demoPreview]);
+  }, [demoPreview, apiUnavailable]);
   const { run, refresh } = useAtlasRun(8_000);
 
   useEffect(() => {
