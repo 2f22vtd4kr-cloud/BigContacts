@@ -6701,7 +6701,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
 
   for (const record of recent) {
     const isSearchAction = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action);
-    if (isSearchAction) {
+    if (isSearchAction && Array.isArray(record.leadUrls)) {
       const queryValues: string[] = [];
       if (record.action === "web_search" || record.action === "registry_search") {
         const query = cleanText(record.args.query, 300);
