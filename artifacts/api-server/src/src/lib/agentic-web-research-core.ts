@@ -2820,12 +2820,12 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
     const rootRequired = new Set(schema?.required ?? []);
     const supportsSearchArrays = actionAllowlist.includes("parallel_web_search") || actionAllowlist.includes("parallel_registry_search");
     const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
-    const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+    const reviewLeadOnlyFindings = _promptMode === "discovery";
     const requiredRootFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
     const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
     const requiredFindingFields = supportsFindings
       ? reviewLeadOnlyFindings
-        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "exactQuote"]
+        ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"]
         : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
       : [];
     const searchRequired = new Set(schema?.properties?.searches?.items?.required ?? []);
@@ -2850,10 +2850,10 @@ export function boundInvestigatorProviderPrompt(prompt: string, _preferredMaxCha
   const supportsFindings = _promptMode === "discovery" || actionAllowlist.includes("done");
   const requiredSchemaFields = ["action", "query", "provider", "url", "email", "username", "domain", "registry", "thought", "hypothesis", "purpose", "expectedInformationGain", "locale", "market", "target", "targetType", "profile", "sources", ...(supportsSearchArrays ? ["searches"] : []), ...(supportsFindings ? ["findings"] : [])];
   const requiredSearchFields = supportsSearchArrays ? ["query", "provider", "registry", "locale", "market", "purpose"] : [];
-  const reviewLeadOnlyFindings = _promptMode === "discovery" && !actionAllowlist.includes("done");
+  const reviewLeadOnlyFindings = _promptMode === "discovery";
   const requiredFindingFields = supportsFindings
     ? reviewLeadOnlyFindings
-      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly"]
+      ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"]
       : ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", ...(_promptMode === "discovery" ? ["reviewOnly"] : []), "contactAttribution", "exactQuote", "identityAssessment", "identityRationale", "hypothesisRelation", "hypothesisRationale", "relationshipType", "temporalStatus", "interpretationConfidence", "ambiguityNotes", "promotionDecision", "promotionReason"]
     : [];
   const outputIndex = normalized.lastIndexOf("OUTPUT CONTRACT:");
@@ -6405,7 +6405,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "DISCOVERY LEAD HANDOFF: REQUIRED MODEL JUDGMENT. Inspect complete latest successful same-run observations, not only the compact summary. If a bounded excerpt marks omitted source text, continue reading the retained page when expected information gain warrants it; omitted text is unknown, not negative evidence. Add model-selected objective-fit person/org leads worth review to findings[] as reviewOnly=true, review-only and non-admitted leads with exact observed source URL, scope, stated role and uncertainty. Include reviewOnly=true, exact observed source URL, exactQuote copied verbatim from the supplied observation, scope, stated role when known, rationale and uncertainty. Code verifies only URL and quote reality, never meaning or relevance. Use [] if none merits review; never admit."
       : supportsFindings ? "For done, put only source-backed findings in findings[]." : "",
   ].filter(Boolean).join(" ");
-  const reviewLeadOnlyFindings = input.mode === "discovery" && !availableActions.includes("done");
+  const reviewLeadOnlyFindings = input.mode === "discovery";
   const requiredFindingFieldNames = supportsFindings
     ? reviewLeadOnlyFindings
       ? ["vectorType", "value", "personName", "role", "scope", "sourceUrls", "note", "reviewOnly", "exactQuote"] as const
