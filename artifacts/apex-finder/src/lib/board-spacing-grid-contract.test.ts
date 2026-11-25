@@ -260,7 +260,7 @@ describe("Apex Atlas design-board and unslop contract", () => {
     expect(routesRule).toContain("padding:0!important;");
     expect(routesRule).toContain("border:0!important;");
     expect(routesRule).toContain("background:transparent!important;");
-    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:52px!important;");
+    expect(lastRule(".atlas-round .atlas-home-board-console")).toContain("margin-top:40px!important;");
   });
 
   it("matches the design-board desktop Overview hero scale and spacing", () => {
